@@ -953,15 +953,25 @@ fn open_window(app: &AppHandle) -> tauri::Result<()> {
     } else {
         None
     };
-    let (navigating, opening) = (app.clone(), app.clone());
+    let navigating = app.clone();
     let dev = dev_url.clone();
-    tauri::WebviewWindowBuilder::from_config(app, &config)?
-        .on_navigation(move |to| navigation::allow(&navigating, to, dev_url.as_ref()))
-        .on_new_window(move |to, _| {
+    let builder = tauri::WebviewWindowBuilder::from_config(app, &config)?
+        .on_navigation(move |to| navigation::allow(&navigating, to, dev.as_ref()));
+    // On Windows the web view's own lock refuses new windows and says so; a handler here would
+    // take them before it.
+    #[cfg(not(windows))]
+    let builder = {
+        let (opening, dev) = (app.clone(), dev_url.clone());
+        builder.on_new_window(move |to, _| {
             navigation::allow(&opening, &to, dev.as_ref());
             tauri::webview::NewWindowResponse::Deny
         })
-        .build()?;
+    };
+    let window = builder.build()?;
+    #[cfg(windows)]
+    navigation::lock(&window, dev_url.as_ref())?;
+    #[cfg(not(windows))]
+    let _ = window;
     Ok(())
 }
 

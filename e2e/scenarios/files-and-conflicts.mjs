@@ -400,6 +400,13 @@ export default {
     await app.cdp.evaluate(`location.href = 'https://example.net/'`)
     assert.match(await told('https://example.net/'), /^링크는 Lowline 창에서 열지 않습니다\./)
     await stays('a page going elsewhere by itself')
+    // Nor does a frame load a page from outside, nor a window open by a script: the web view refuses them, and says so.
+    await app.cdp.evaluate(`document.body.appendChild(Object.assign(document.createElement('iframe'), { src: 'https://example.net/frame' })), true`)
+    assert.match(await told('https://example.net/frame'), /^링크는 Lowline 창에서 열지 않습니다\./)
+    await app.cdp.evaluate(`document.querySelector('iframe[src="https://example.net/frame"]').remove(), true`)
+    await app.cdp.evaluate(`window.open('https://example.net/window'), true`)
+    assert.match(await told('https://example.net/window'), /^링크는 Lowline 창에서 열지 않습니다\./)
+    await stays('a frame or a window from a script')
 
     // Leave the vault as the scenarios after this one expect it.
     await app.learning()

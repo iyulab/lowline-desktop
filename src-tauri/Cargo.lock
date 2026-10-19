@@ -2335,6 +2335,7 @@ dependencies = [
  "tauri-kit-fs",
  "tauri-kit-sidecar",
  "tauri-kit-watch",
+ "tauri-kit-webview",
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-updater",
@@ -4315,6 +4316,18 @@ checksum = "b44fd37e1cf19fbaae26cff44c9055ebded6196e6df4b29c851b0dee7c04b2dc"
 dependencies = [
  "notify",
  "tauri-kit-fs",
+]
+
+[[package]]
+name = "tauri-kit-webview"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ba3c23756d78d566b322f7f4108935af0e49cd6bff7852656e3ef06dd782fed"
+dependencies = [
+ "webview2-com",
+ "windows",
+ "windows-core",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
