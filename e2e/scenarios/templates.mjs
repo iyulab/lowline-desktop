@@ -567,12 +567,12 @@ export default {
 
       // A template whose field refers to another's documents is counted by that document's fields as it holds them now.
       await writeFile(join(vault, CUSTOMER.path), '---\nid: customer\nversion: 1\n---\n# 고객\n\n@이름: [text]\n\n@지역: [select options="서울,부산"]\n')
-      await writeFile(join(vault, INQUIRY.path), '---\nid: inquiry\nversion: 1\n---\n# 문의\n\n@고객 -> customer: [select]\n\n@내용: [text]\n')
+      await writeFile(join(vault, INQUIRY.path), '---\nid: inquiry\nversion: 1\n---\n# 문의\n\n@고객 -> customer: [select]\n\n@내용: [text]\n\n@금액: [number]\n')
       const customers = [['가나상사', '서울', 'cust-a'], ['다라무역', '부산', 'cust-b']]
       for (const [name, region, id] of customers)
         await writeFile(join(vault, '문서', `${name}.md`), `---\ntemplate: customer@1\nlowline:\n  id: ${id}\n이름: ${name}\n지역: ${region}\n---\n`)
-      for (const [i, id] of ['cust-a', 'cust-a', 'cust-b'].entries())
-        await writeFile(join(vault, '문서', `문의-${i + 1}.md`), `---\ntemplate: inquiry@1\n고객: ${id}\n내용: 문의 ${i + 1}\n---\n`)
+      for (const [i, [id, amount]] of [['cust-a', 1000], ['cust-a', 2500.5], ['cust-b', null]].entries())
+        await writeFile(join(vault, '문서', `문의-${i + 1}.md`), `---\ntemplate: inquiry@1\n고객: ${id}\n내용: 문의 ${i + 1}\n${amount === null ? '' : `금액: ${amount}\n`}---\n`)
       await app.sidebar(INQUIRY.name, { timeoutMs: 30_000 })
       await app.templateOf(INQUIRY)
       if (!(await app.cdp.evaluate(`!!${chat}?.querySelector('u-prompt')`))) await app.click('dc-button', '채팅')
@@ -604,6 +604,14 @@ export default {
       assert.match(most, /센 것: 「문의」의 모든 기록 · 고객별 · 많은 것 1개/, `what was counted, in words: ${most}`)
       const mostRows = await app.cdp.evaluate(`[...${chat}.querySelectorAll('u-message:last-of-type tbody tr')].map((tr) => [tr.cells[0].textContent.trim(), Number(tr.cells[1].textContent)])`)
       assert.deepEqual(mostRows, [['가나상사', 2]])
+      // Their amounts added up per customer, the largest sum first: a customer whose inquiries have none has no sum — not 0 —
+      // and the whole is the vault's, said with how many of the documents had an amount.
+      const summed = await ask('고객별 문의 금액 합계는?', '{"of": "문의", "groupBy": ["고객"], "sum": "금액"}')
+      assert.match(summed, /센 것: 「문의」의 모든 기록 · 고객별 · 금액 합계/, `what was counted, in words: ${summed}`)
+      assert.match(summed, /금액 합계 3,500\.5 \(3건 중 2건에 값\)/, `the whole: ${summed}`)
+      const sumRows = await app.cdp.evaluate(`[...${chat}.querySelectorAll('u-message:last-of-type tbody tr')].map((tr) => [tr.cells[0].textContent.trim(), Number(tr.cells[1].textContent), tr.cells[2].textContent.replace(/\\s+/g, ' ').trim()])`)
+      assert.deepEqual(sumRows, [['가나상사', 2, '3,500.5'], ['다라무역', 1, '(비어 있음)']])
+      assert.match(asked.at(-1).messages[0].content, /`금액` \(숫자\)/, 'the model was told which fields are numbers')
       // The model was told which template refers to the customers, by which field, and what it is counted by — no value.
       const toldOf = asked.at(-1).messages[0].content
       assert.match(toldOf, /- `문의` — `고객` 칸이 이 서식의 문서를 가리킵니다/)

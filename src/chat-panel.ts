@@ -56,7 +56,12 @@ interface Answer {
   counted: string
   counts: AggregateAnswer
   total: number
+  /** What the summed field adds up to over every kept document, as the vault added it — when a sum was asked. */
+  sum: AggregateAnswer['groups'][number]['sum']
 }
+
+/** A sum as the answer shows it: grouped by thousands, its decimals as they are. */
+const NUMBER = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 20 })
 
 /** What the chat does: change the template, or ask its records — one task for a model at a time. */
 type Mode = 'author' | 'ask'
@@ -267,7 +272,13 @@ export class LlChatPanel extends LitElement {
       const of = read.plan.of ? referring.find((r) => r.ref === read.plan.of) : undefined
       const counted = (of && vaultNow.templates.find((t) => t.ref === of.ref)) || template
       const countedColumns = of?.columns ?? columns
-      const counts = await host.aggregate(counted.ref, read.plan.groupBy, read.plan.filters)
+      const counts = await host.aggregate(counted.ref, read.plan.groupBy, read.plan.filters, undefined, read.plan.sum)
+      // The sum over every kept document is the vault's too — added here, decimals would not stay exact.
+      const overall = !read.plan.sum
+        ? null
+        : read.plan.groupBy.length === 0
+          ? (counts.groups[0]?.sum ?? null)
+          : ((await host.aggregate(counted.ref, [], read.plan.filters, 1, read.plan.sum)).groups[0]?.sum ?? null)
       if (ask !== this.asked) return
       const total = counts.groups.reduce((sum, g) => sum + g.count, 0)
       const top = read.plan.top ? { ...counts, groups: counts.groups.slice(0, read.plan.top) } : counts
@@ -276,7 +287,7 @@ export class LlChatPanel extends LitElement {
         {
           role: 'assistant',
           text: '',
-          answer: { template: counted, columns: countedColumns, names, counted: planWords(read.plan, countedColumns, names, of?.name), counts: top, total },
+          answer: { template: counted, columns: countedColumns, names, counted: planWords(read.plan, countedColumns, names, of?.name), counts: top, total, sum: overall },
         },
       ]
     } catch (e) {
@@ -391,7 +402,7 @@ export class LlChatPanel extends LitElement {
     this.dispatchEvent(new CustomEvent('ll-open-document', { detail: { path, template }, bubbles: true, composed: true }))
   }
 
-  private renderAnswer({ template, columns, names, counted, counts, total }: Answer) {
+  private renderAnswer({ template, columns, names, counted, counts, total, sum: overall }: Answer) {
     const field = (name: string) => columns.find((f) => f.name === name)
     const shown = (name: string, value: unknown) => {
       if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) return strings.queryBlank
@@ -407,9 +418,18 @@ export class LlChatPanel extends LitElement {
       )}
       ${group.count > group.evidence.length ? html`<span class="more">${strings.queryMore(group.count - group.evidence.length)}</span>` : nothing}
     </span>`
+    // A sum is said with how many of the documents it adds up had a value: blank ones take no part.
+    const summed = counts.sum ? (field(counts.sum)?.label ?? counts.sum) : null
+    const sumText = (sum: AggregateAnswer['groups'][number]['sum']) => (sum?.total === null || sum?.total === undefined ? strings.queryBlank : NUMBER.format(sum.total))
     return html`<div class="answer">
       <p class="counted">${strings.queryCounted(counted)}</p>
       <p>${total === 0 ? strings.queryNone : strings.queryTotal(total)}</p>
+      ${summed && overall
+        ? html`<p class="sum">
+            ${overall.total === null ? strings.querySumNone(summed) : strings.querySumTotal(summed, NUMBER.format(overall.total))}
+            ${overall.total !== null && overall.counted < total ? html`<span class="more">${strings.querySumCounted(overall.counted, total)}</span>` : nothing}
+          </p>`
+        : nothing}
       ${total > 0 && counts.groupBy.length === 0 ? documents(counts.groups[0]) : nothing}
       ${total > 0 && counts.groupBy.length > 0
         ? html`<table>
@@ -417,6 +437,7 @@ export class LlChatPanel extends LitElement {
               <tr>
                 ${counts.groupBy.map((name) => html`<th scope="col">${field(name)?.label ?? name}</th>`)}
                 <th scope="col">${strings.queryCount}</th>
+                ${summed ? html`<th scope="col">${strings.querySumOf(summed)}</th>` : nothing}
                 <th scope="col">${strings.queryEvidence}</th>
               </tr>
             </thead>
@@ -425,6 +446,14 @@ export class LlChatPanel extends LitElement {
                 (group) => html`<tr>
                   ${counts.groupBy.map((name) => html`<td>${shown(name, group.key[name])}</td>`)}
                   <td class="count">${group.count}</td>
+                  ${summed
+                    ? html`<td class="count">
+                        ${sumText(group.sum)}
+                        ${group.sum && group.sum.total !== null && group.sum.counted < group.count
+                          ? html`<span class="more">${strings.querySumCounted(group.sum.counted, group.count)}</span>`
+                          : nothing}
+                      </td>`
+                    : nothing}
                   <td>${documents(group)}</td>
                 </tr>`,
               )}

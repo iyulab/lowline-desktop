@@ -194,25 +194,30 @@ internal sealed class ProjectionCache : IAsyncDisposable
     /// <summary>
     /// The documents of <paramref name="template"/> that <paramref name="filters"/> keep, counted per distinct combination
     /// of the <paramref name="groupBy"/> columns (of <paramref name="columns"/> — fields of the template or of documents it refers to), each count with the vault paths of up to <paramref name="evidence"/> of
-    /// its documents — the largest count first; of a tie, a group with a blank value after the others, the rest in the
-    /// order Formbase gives its keys.
+    /// its documents — and, when <paramref name="sum"/> names a number column, what it adds up to over them, read in the
+    /// same read. The largest count first — or with a sum, the largest sum first, a group with no value in it after the
+    /// others; of a tie, a group with a blank value after the others, the rest in the order Formbase gives its keys.
     /// </summary>
     public async Task<AggregateAnswer> AggregateAsync(
         TemplateSnapshot template, IReadOnlyDictionary<string, CountColumn> columns, IReadOnlyList<string> groupBy, IReadOnlyList<FieldFilter> filters,
-        int evidence, CancellationToken cancellationToken)
+        int evidence, string? sum, CancellationToken cancellationToken)
     {
-        var result = await _engine.AggregateAsync(FormTypeRef.Create(template.Ref), new AggregateSpec(groupBy, filters, evidence), cancellationToken);
+        var measures = sum is null ? [] : new[] { AggregateMeasure.Sum(sum) };
+        var result = await _engine.AggregateAsync(
+            FormTypeRef.Create(template.Ref), new AggregateSpec(groupBy, filters, evidence) { Measures = measures }, cancellationToken);
         var groups = result.Groups
             .Select((g, order) => (Order: order, Group: new CountGroup(
                 groupBy.ToDictionary(c => c, c => g.Key.TryGetValue(c, out var v) && columns.TryGetValue(c, out var column) ? AsWritten(column.Field, v) : null),
                 g.Count,
-                [.. (g.Records ?? []).Select(r => r.Key?.Value).OfType<string>()])))
-            .OrderByDescending(x => x.Group.Count)
+                [.. (g.Records ?? []).Select(r => r.Key?.Value).OfType<string>()],
+                sum is null ? null : g.Measures is [var m, ..] ? new GroupSum(m.Value is null ? null : Convert.ToDecimal(m.Value, CultureInfo.InvariantCulture), m.ValueCount) : new GroupSum(null, 0))))
+            .OrderByDescending(x => x.Group.Sum is { Total: { } total } ? total : (decimal?)null)
+            .ThenByDescending(x => x.Group.Count)
             .ThenBy(x => x.Group.Key.Values.Any(v => v is null) ? 1 : 0)
             .ThenBy(x => x.Order)
             .Select(x => x.Group)
             .ToList();
-        return new AggregateAnswer(template.Ref, groupBy, groups);
+        return new AggregateAnswer(template.Ref, groupBy, groups, sum);
     }
 
     /// <summary>

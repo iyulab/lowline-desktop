@@ -195,8 +195,8 @@ export const host = {
    * Counts of a template's documents matching every filter, per value of the `groupBy` fields — or all as one — each
    * with up to `evidence` of its documents.
    */
-  aggregate: (template: string, groupBy: string[] = [], filters: ColumnFilter[] = [], evidence?: number) =>
-    invoke<AggregateAnswer>('host_aggregate', { request: { template, groupBy, filters, evidence } }),
+  aggregate: (template: string, groupBy: string[] = [], filters: ColumnFilter[] = [], evidence?: number, sum?: string) =>
+    invoke<AggregateAnswer>('host_aggregate', { request: { template, groupBy, filters, evidence, sum } }),
   /**
    * `document` is the draft's vault path once it has been saved; a rejection there is not offered again. `typed` is what
    * the person has typed into the field so far: only a value that begins with it is offered.

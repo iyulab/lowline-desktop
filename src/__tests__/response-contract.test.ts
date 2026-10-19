@@ -123,7 +123,16 @@ const localModels: Shape<LocalModels> = {
 const aggregate: Shape<AggregateAnswer> = {
   template: 'required',
   groupBy: 'required',
-  groups: { presence: 'required', inside: { key: { presence: 'required', inside: 'any keys' }, count: 'required', evidence: 'required' } },
+  groups: {
+    presence: 'required',
+    inside: {
+      key: { presence: 'required', inside: 'any keys' },
+      count: 'required',
+      evidence: 'required',
+      sum: { presence: 'required', inside: { total: 'required', counted: 'required' } },
+    },
+  },
+  sum: 'required',
 }
 
 /** Each answer in the file, and the shape the UI reads it by. */

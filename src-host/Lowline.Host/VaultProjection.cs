@@ -116,18 +116,29 @@ public sealed record SimilarQuery(string Path, int? Max = null);
 /// <summary>
 /// What the UI asks to count of a template's documents: those matching every filter, per distinct combination of the
 /// <see cref="GroupBy"/> fields — or all of them as one count — each count with up to <see cref="Evidence"/> of the
-/// documents it is made of.
+/// documents it is made of; and, when <see cref="Sum"/> names a number field, what its values add up to.
 /// </summary>
-public sealed record AggregateQuery(string Template, IReadOnlyList<string>? GroupBy = null, IReadOnlyList<ColumnFilter>? Filters = null, int? Evidence = null);
+public sealed record AggregateQuery(
+    string Template, IReadOnlyList<string>? GroupBy = null, IReadOnlyList<ColumnFilter>? Filters = null, int? Evidence = null, string? Sum = null);
 
 /// <summary>
 /// One count: the value of each grouping field (as the field writes it; null when blank), how many documents, and the
-/// vault paths of the first of them — the documents the count is made of, read in the same read as the count.
+/// vault paths of the first of them — the documents the count is made of, read in the same read as the count — and,
+/// when the query asked for one, the sum of a number field over them.
 /// </summary>
-public sealed record CountGroup(IReadOnlyDictionary<string, object?> Key, long Count, IReadOnlyList<string> Evidence);
+public sealed record CountGroup(IReadOnlyDictionary<string, object?> Key, long Count, IReadOnlyList<string> Evidence, GroupSum? Sum = null);
 
-/// <summary>The counts of an <see cref="AggregateQuery"/>, the largest first — of a tie, a blank value last.</summary>
-public sealed record AggregateAnswer(string Template, IReadOnlyList<string> GroupBy, IReadOnlyList<CountGroup> Groups);
+/// <summary>
+/// What a number field adds up to over a group's documents: the total (exact; null when none has a value — not 0) and
+/// how many of them have a value, the rest being blank there.
+/// </summary>
+public sealed record GroupSum(decimal? Total, long Counted);
+
+/// <summary>
+/// The counts of an <see cref="AggregateQuery"/>, the largest first — of a tie, a blank value last; with a sum, the
+/// largest sum first. <see cref="Sum"/> is the field summed, when one was.
+/// </summary>
+public sealed record AggregateAnswer(string Template, IReadOnlyList<string> GroupBy, IReadOnlyList<CountGroup> Groups, string? Sum = null);
 
 /// <summary>What the UI asks of a template's table: the rows that match every filter.</summary>
 public sealed record ProjectionQuery(string Template, IReadOnlyList<ColumnFilter>? Filters = null);
@@ -441,8 +452,10 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             var filters = query.Filters ?? [];
             if (groupBy.Distinct().Count() != groupBy.Count || groupBy.Concat(filters.Select(f => f.Column)).Any(c => !columns.ContainsKey(c) && c != PathColumn))
                 throw new ArgumentException("a column that is neither one of the template's fields nor one it refers to", nameof(query));
+            if (query.Sum is { } sum && (!columns.TryGetValue(sum, out var summed) || ColumnTypeOf(summed.Field) != ColumnType.Decimal))
+                throw new ArgumentException("a sum of a column that is not a number field", nameof(query));
             var evidence = Math.Clamp(query.Evidence ?? DefaultEvidence, 1, MaxEvidence);
-            return await _cache.AggregateAsync(snapshot, columns, groupBy, [.. filters.Select(f => f.ToFieldFilter())], evidence, cancellationToken);
+            return await _cache.AggregateAsync(snapshot, columns, groupBy, [.. filters.Select(f => f.ToFieldFilter())], evidence, query.Sum, cancellationToken);
         }
         finally
         {

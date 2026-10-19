@@ -260,3 +260,51 @@ ${fence}`
     )
   })
 })
+
+describe('what a reply asks to add up', () => {
+  const request = templateSnapshot(`---
+id: request
+version: 1
+---
+@이름: [text]
+`)
+  const item = templateSnapshot(`---
+id: item
+version: 1
+---
+@청구서 -> request: [select]
+@품명: [text]
+@수량: [number]
+@단가: [number]
+@금액: [number compute="수량 * 단가"]
+`)
+  const referring = referringTemplates(request, [request, item]).map(({ template, via }) => ({
+    ref: template.ref,
+    name: '청구 품목',
+    via,
+    columns: countColumns(template, [request, item]),
+  }))
+
+  it('adds up a number field it names, beside the counts', () => {
+    expect(queryPlan('{"groupBy": ["청구서"], "sum": "금액"}', item.fields)).toEqual({ plan: { groupBy: ['청구서'], filters: [], sum: '금액' } })
+    // A sum left empty is no sum.
+    expect(queryPlan('{"groupBy": [], "sum": ""}', item.fields)).toEqual({ plan: { groupBy: [], filters: [] } })
+  })
+
+  it('adds up only a number field the template has: one of another kind is left out, the count kept', () => {
+    expect(queryPlan('{"groupBy": [], "sum": "품명"}', item.fields)).toEqual({ plan: { groupBy: [], filters: [] } })
+    expect(queryPlan('{"groupBy": [], "sum": "합계"}', item.fields)).toEqual({ problem: 'unknown-field', field: '합계' })
+  })
+
+  it("adds up the referring template's field per document asked about — named, or reached by the field alone", () => {
+    const perRequest = { plan: { groupBy: ['청구서'], filters: [], of: 'item@1', sum: '금액' } }
+    expect(queryPlan('{"of": "청구 품목", "groupBy": ["청구서"], "sum": "금액"}', request.fields, new Date(), undefined, referring)).toEqual(perRequest)
+    expect(queryPlan('{"groupBy": ["청구서"], "sum": "금액"}', request.fields, new Date(), undefined, referring)).toEqual(perRequest)
+  })
+
+  it('says what it adds up, and that the largest sums come first', () => {
+    expect(planWords({ groupBy: ['청구서'], filters: [], sum: '금액', top: 3 }, item.fields)).toBe(
+      [strings.queryAll, strings.queryBy(['청구서']), strings.querySumOf('금액'), strings.queryTopSum(3)].join(' · '),
+    )
+  })
+})

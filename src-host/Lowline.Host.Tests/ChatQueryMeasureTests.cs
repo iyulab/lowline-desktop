@@ -6,7 +6,7 @@ namespace Lowline.Host.Tests;
 
 /// <summary>
 /// What a model on this computer makes of questions asked of documents others refer to — businesses and their
-/// inspections, aircraft and their accidents: each question's reply, with the reply meant, for the app's side to judge
+/// inspections, aircraft and their accidents, requisitions and their item rows: each question's reply, with the reply meant, for the app's side to judge
 /// as the app reads them (<c>src/__tests__/chat-query-measure.test.ts</c>). A measurement, not a test of the model: only
 /// that each reply arrives is asserted. Runs only with <c>LOWLINE_CHAT_MEASURE</c> naming the file to write and the
 /// model (<c>LOWLINE_CHAT_MODEL</c>, the recommended one by default) already on this computer — nothing is fetched.
@@ -113,6 +113,46 @@ public sealed class ChatQueryMeasureTests
             ("야간(NITE) 사고가 가장 많은 항공기 3대?", """{"of": "항공 사고", "groupBy": ["항공기"], "filters": [{"field": "조명", "op": "equal", "value": "NITE"}], "top": 3}"""),
         ]);
 
+    // A paper requisition and its item rows, each row a document naming its requisition: the sums a paper form's last
+    // line holds, asked for — and told apart from counts.
+    private static readonly Set Requisitions = new(
+        """
+        ---
+        id: requisition
+        version: 1
+        ---
+        # 물품청구서
+
+        청구번호: ___@청구번호
+
+        @부서: [select options="총무,영업,개발"]
+
+        @청구일: [date]
+        """,
+        [
+            new("청구 품목", ["청구서"],
+            [
+                new("청구서", "select"),
+                new("품명", "text"),
+                new("수량", "number"),
+                new("단가", "number"),
+                new("금액", "number"),
+                new("청구서.청구번호", "text"),
+                new("청구서.부서", "select", ["총무", "영업", "개발"]),
+                new("청구서.청구일", "date"),
+            ]),
+        ],
+        [
+            ("청구서별 금액 합계는?", """{"of": "청구 품목", "groupBy": ["청구서"], "sum": "금액"}"""),
+            ("금액 합계가 가장 큰 청구서 3개?", """{"of": "청구 품목", "groupBy": ["청구서"], "sum": "금액", "top": 3}"""),
+            ("부서별로 청구한 금액은 모두 얼마야?", """{"of": "청구 품목", "groupBy": ["청구서.부서"], "sum": "금액"}"""),
+            ("청구서마다 품목이 몇 개야?", """{"of": "청구 품목", "groupBy": ["청구서"]}"""),
+            ("지난달 청구된 품목 금액의 총액은?", """{"of": "청구 품목", "filters": [{"field": "청구서.청구일", "op": "period", "value": "last-month"}], "sum": "금액"}"""),
+            ("개발 부서가 청구한 수량은 모두 몇 개?", """{"of": "청구 품목", "filters": [{"field": "청구서.부서", "op": "equal", "value": "개발"}], "sum": "수량"}"""),
+            ("부서별 청구서 수는?", """{"groupBy": ["부서"]}"""),
+            ("품목별 평균 단가는?", """{"unanswerable": "평균은 셀 수 없습니다"}"""),
+        ]);
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerOptions.Web) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     [Fact]
@@ -126,7 +166,7 @@ public sealed class ChatQueryMeasureTests
         var ct = TestContext.Current.CancellationToken;
         await using var local = new LocalModels(generators);
         List<string> lines = [];
-        foreach (var set in new[] { Businesses, Aircraft })
+        foreach (var set in new[] { Businesses, Aircraft, Requisitions })
         {
             lines.Add(JsonSerializer.Serialize(new { model, template = set.Template, referring = set.Referring }, Json));
             foreach (var (question, meant) in set.Cases)

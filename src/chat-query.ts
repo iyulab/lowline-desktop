@@ -9,14 +9,18 @@ import { strings } from './strings.js'
 /**
  * What to count: by which fields, of which documents, and how many of the largest counts to show (all when unset).
  * `of` is the template whose documents are counted when it is not the one asked about — one whose documents refer to
- * it, as inspections name their business.
+ * it, as inspections name their business. `sum` is a number field to add up over each count's documents too.
  */
 export interface QueryPlan {
   groupBy: string[]
   filters: ColumnFilter[]
   top?: number
   of?: string
+  sum?: string
 }
+
+/** The field types a sum adds up: what the projection keeps as a number. */
+export const NUMBER_TYPES: readonly string[] = ['number', 'range']
 
 /**
  * A template whose documents refer to the one asked about, as a question may count it: its reference, its name as the
@@ -110,7 +114,9 @@ function objectOf(reply: string): Record<string, unknown> | null {
  * becomes its first and last day;
  * of a date-and-time field, from the start of the first to the end of the last. A field that refers to other documents
  * holds their ids: one named by its name in `names` is kept as its id. A reply that counts `of` another template counts
- * one of `referring` — by its name or its id — and is checked against that template's columns instead.
+ * one of `referring` — by its name or its id — and is checked against that template's columns instead. A `sum` names a
+ * number field of those columns; one of another kind — a model adding up a date where the question asked how many — is
+ * left out, and what was counted says so by saying no sum.
  */
 export function queryPlan(
   reply: string,
@@ -137,7 +143,11 @@ export function queryPlan(
   } else {
     // A reply that counts by fields the asked template does not have, all of them one referring template's, counts that
     // template's documents — said as counted, so a question taken the wrong way is seen for what it counted.
-    const used = [...(Array.isArray(asked.groupBy) ? asked.groupBy : []), ...(Array.isArray(asked.filters) ? asked.filters : []).map((c) => (c as Record<string, unknown> | null)?.field)]
+    const used = [
+      ...(Array.isArray(asked.groupBy) ? asked.groupBy : []),
+      ...(Array.isArray(asked.filters) ? asked.filters : []).map((c) => (c as Record<string, unknown> | null)?.field),
+      ...(asked.sum === undefined || asked.sum === null || asked.sum === '' ? [] : [asked.sum]),
+    ]
     if (used.some((name) => !columnOf(columns, name))) {
       const holding = referring.filter((r) => used.every((name) => columnOf(r.columns, name, r.via)))
       if (holding.length === 1) counted = holding[0]
@@ -177,8 +187,14 @@ export function queryPlan(
     const id = op === 'equal' && field.reference ? names?.idOf(field.reference, text) : undefined
     filters.push({ column: field.name, op: op as ColumnFilter['op'], value: id ?? text })
   }
+  let sum: string | undefined
+  if (asked.sum !== undefined && asked.sum !== null && asked.sum !== '') {
+    const field = named(asked.sum)
+    if (!field) return { problem: 'unknown-field', field: String(asked.sum) }
+    if (NUMBER_TYPES.includes(field.type)) sum = field.name
+  }
   const top = typeof asked.top === 'number' && Number.isInteger(asked.top) && asked.top > 0 ? asked.top : undefined
-  return { plan: { groupBy, filters, ...(top ? { top } : {}), ...(of ? { of } : {}) } }
+  return { plan: { groupBy, filters, ...(top ? { top } : {}), ...(of ? { of } : {}), ...(sum ? { sum } : {}) } }
 }
 
 /**
@@ -211,6 +227,7 @@ export function planWords(plan: QueryPlan, fields: readonly TemplateField[], nam
   if (words.length === 0) words.push(counted ? strings.queryAllOf(counted) : strings.queryAll)
   else if (counted) words.unshift(strings.queryOf(counted))
   if (plan.groupBy.length > 0) words.push(strings.queryBy(plan.groupBy.map(label)))
-  if (plan.top) words.push(strings.queryTop(plan.top))
+  if (plan.sum) words.push(strings.querySumOf(label(plan.sum)))
+  if (plan.top) words.push(plan.sum ? strings.queryTopSum(plan.top) : strings.queryTop(plan.top))
   return words.join(' · ')
 }

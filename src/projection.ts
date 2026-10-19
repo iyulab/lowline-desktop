@@ -194,10 +194,16 @@ export function documentSnapshot(path: string, source: string, modified?: number
  * Counts of a template's documents per value of some fields, the largest first (of a tie, a blank value last) — each
  * with the vault paths of the documents it is made of, read with the count.
  */
+/**
+ * Counts of a template's documents per value of `groupBy`, each with the documents it is made of — and, when `sum` names
+ * a number field, what it adds up to over each group: `total` exact (null when none of them has a value — not 0) and
+ * `counted`, how many of them have one.
+ */
 export interface AggregateAnswer {
   template: string
   groupBy: string[]
-  groups: { key: Record<string, unknown>; count: number; evidence: string[] }[]
+  groups: { key: Record<string, unknown>; count: number; evidence: string[]; sum: { total: number | null; counted: number } | null }[]
+  sum: string | null
 }
 
 export interface ProjectionTable {

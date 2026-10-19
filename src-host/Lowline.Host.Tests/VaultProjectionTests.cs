@@ -87,6 +87,49 @@ public sealed class VaultProjectionTests
     }
 
     [Fact]
+    public async Task Sums_a_number_field_per_group_the_largest_sum_first_saying_how_many_had_a_value()
+    {
+        var request = new TemplateSnapshot("request@1", [new TemplateField("이름", "text"), new TemplateField("예산", "number")]);
+        var item = new TemplateSnapshot("item@1",
+            [new TemplateField("청구서", "select", Reference: "request"), new TemplateField("품명", "text"), new TemplateField("금액", "number")]);
+        static DocumentSnapshot Of(string path, string template, string json, string? id = null) =>
+            new(path, template, JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!, Id: id);
+        await using var vault = new VaultProjection();
+        await vault.IngestAsync(new VaultSnapshot([request, item],
+        [
+            Of("청구/가.md", "request@1", """{"이름": "가", "예산": 100}""", id: "r-1"),
+            Of("청구/나.md", "request@1", """{"이름": "나", "예산": 50000}""", id: "r-2"),
+            Of("품목/1.md", "item@1", """{"청구서": "r-1", "품명": "볼펜", "금액": 0.1}"""),
+            Of("품목/2.md", "item@1", """{"청구서": "r-1", "품명": "공책", "금액": 0.2}"""),
+            Of("품목/3.md", "item@1", """{"청구서": "r-1", "품명": "자"}"""),
+            Of("품목/4.md", "item@1", """{"청구서": "r-2", "품명": "의자", "금액": 45000}"""),
+            Of("품목/5.md", "item@1", """{"품명": "책상"}"""),
+        ]), Ct);
+
+        // Per request: the largest sum first, exact (0.1 + 0.2 is 0.3), with how many of its items had an amount; a group
+        // with no amount at all has no sum — not 0 — and comes last.
+        var perRequest = await vault.AggregateAsync(new AggregateQuery("item@1", ["청구서"], Sum: "금액"), Ct);
+        Assert.Equal("금액", perRequest!.Sum);
+        Assert.Equal(
+            [("r-2", 1L, 45000m, 1L), ("r-1", 3L, 0.3m, 2L), (null, 1L, (decimal?)null, 0L)],
+            perRequest.Groups.Select(g => ((string?)g.Key["청구서"], g.Count, g.Sum!.Total, g.Sum.Counted)));
+
+        // No grouping: one sum over every kept document. Without a sum, no group carries one.
+        var all = await vault.AggregateAsync(new AggregateQuery("item@1", Sum: "금액"), Ct);
+        Assert.Equal(45000.3m, Assert.Single(all!.Groups).Sum!.Total);
+        Assert.All((await vault.AggregateAsync(new AggregateQuery("item@1", ["청구서"]), Ct))!.Groups, g => Assert.Null(g.Sum));
+
+        // A number field of the document an item names adds up too, as that document holds it: each item counts its
+        // requisition's budget once.
+        var budgets = await vault.AggregateAsync(new AggregateQuery("item@1", Sum: "청구서.예산"), Ct);
+        Assert.Equal((50300m, 4L), (Assert.Single(budgets!.Groups).Sum!.Total, budgets.Groups[0].Sum!.Counted));
+
+        // Only a number field adds up: text, or a field the template does not have, is refused.
+        await Assert.ThrowsAsync<ArgumentException>(() => vault.AggregateAsync(new AggregateQuery("item@1", Sum: "품명"), Ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => vault.AggregateAsync(new AggregateQuery("item@1", Sum: "수량"), Ct));
+    }
+
+    [Fact]
     public async Task Counts_documents_by_a_field_of_the_document_they_refer_to_as_it_holds_it_now()
     {
         var customer = new TemplateSnapshot("customer@2", [new TemplateField("이름", "text"), new TemplateField("지역", "select"), new TemplateField("등록일", "date")]);

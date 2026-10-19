@@ -441,24 +441,51 @@
       "score": 0
     }
   ],
-  "aggregate": {
-    "template": "intake@1",
-    "groupBy": [
-      "부서"
-    ],
-    "groups": [
-      {
-        "key": {
-          "부서": "영업"
-        },
-        "count": 0,
-        "evidence": [
-          "문서/1.md",
-          "문서/2.md"
-        ]
-      }
-    ]
-  },
+  "aggregate": [
+    {
+      "template": "intake@1",
+      "groupBy": [
+        "부서"
+      ],
+      "groups": [
+        {
+          "key": {
+            "부서": "영업"
+          },
+          "count": 0,
+          "evidence": [
+            "문서/1.md",
+            "문서/2.md"
+          ],
+          "sum": null
+        }
+      ],
+      "sum": null
+    },
+    {
+      "template": "intake@1",
+      "groupBy": [
+        "부서"
+      ],
+      "groups": [
+        {
+          "key": {
+            "부서": "영업"
+          },
+          "count": 0,
+          "evidence": [
+            "문서/1.md",
+            "문서/2.md"
+          ],
+          "sum": {
+            "total": 0,
+            "counted": 0
+          }
+        }
+      ],
+      "sum": "수량"
+    }
+  ],
   "probe": [
     {
       "ok": true,
