@@ -601,10 +601,12 @@ fn call_failure(error: &host::CallError) -> Option<report::Report> {
             &failure.frames.join("\n"),
         )),
         host::CallError::Status(404) => None,
-        host::CallError::Status(status) => Some(
-            report::new(report::Layer::Host, "HostAnswered", "")
-                .detail("status", &status.to_string()),
-        ),
+        host::CallError::Status(status) => Some(report::with(
+            report::Layer::Host,
+            "HostAnswered",
+            "",
+            &[("status", &status.to_string())],
+        )),
         host::CallError::Transport(_) => {
             Some(report::new(report::Layer::Host, "HostUnreachable", ""))
         }
@@ -869,6 +871,7 @@ const HOST_RESTARTED: &str = "host-restarted";
 /// This launch's error reports. Set once the log folder is known; a failure before that is not
 /// reported.
 static REPORTER: std::sync::OnceLock<report::Reporter> = std::sync::OnceLock::new();
+static SEGMENT: std::sync::OnceLock<report::Segment> = std::sync::OnceLock::new();
 
 /// Writes an error report to `reports.jsonl` in the log folder — what is sent, for anyone to read.
 /// A build made with a sink sends it on the next launch.
@@ -966,17 +969,31 @@ fn start_reports(app: &tauri::AppHandle) {
     let Ok(dir) = app.path().app_log_dir() else {
         return;
     };
-    let file = dir.join("reports.jsonl");
-    let sent = dir.join("reports.sent");
-    // Before this launch writes or sends anything: the file is evidence, not an archive.
-    let _ = report::trim(&file, &sent, report::MAX_FILE_BYTES);
-    if REPORTER.set(report::Reporter::new(file.clone())).is_err() {
+    // One folder, a segment per process that writes it — a second window of the app keeps its own.
+    let stream = dir.join("reports");
+    // Before this launch writes or sends anything: the single file earlier versions kept joins the
+    // folder once, and the folder is evidence, not an archive.
+    let _ = report::adopt(
+        &stream,
+        &dir.join("reports.jsonl"),
+        &dir.join("reports.sent"),
+    );
+    let _ = report::tidy(&stream, report::MAX_STREAM_BYTES);
+    let Ok(segment) = report::Segment::open(&stream) else {
+        return;
+    };
+    if REPORTER
+        .set(report::Reporter::new(segment.file().to_path_buf()))
+        .is_err()
+    {
         return;
     }
+    // Held for as long as the process runs: its lock tells `tidy` the segment is still written.
+    let _ = SEGMENT.set(segment);
     // What earlier launches wrote goes out now, away from startup; what fails stays for the next.
     if let Some(sink) = report::sink_of_build() {
         std::thread::spawn(move || {
-            let _ = sink.send_pending(&report::Sink::agent(), &file, &sent);
+            let _ = sink.send_pending(&report::Sink::agent(), report::registry(), &stream);
         });
     }
     let previous = std::panic::take_hook();

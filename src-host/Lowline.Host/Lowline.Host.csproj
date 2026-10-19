@@ -32,7 +32,7 @@
     <PackageReference Include="LMSupply.Generator" Version="0.123.0" />
     <PackageReference Include="FluxIndex.SDK" Version="0.101.0" />
     <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.101.0" />
-    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.19.0" />
+    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.23.0" />
   </ItemGroup>
 
 </Project>

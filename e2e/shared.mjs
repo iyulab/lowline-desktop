@@ -124,19 +124,32 @@ export async function shown(app) {
       return out })()`,
   )
   // The error reports hold a failure's kind and frames only, nothing of the page: safe to print. Only those
-  // written since the run began and not caused on purpose — the file keeps every run's.
-  const reported = (await reportLines()).slice(reportsSeen).slice(-3)
+  // written since the run began and not caused on purpose — the folder keeps every run's.
+  const reported = (await reportLines()).filter((line) => !reportsSeen.has(line)).slice(-3)
   return `page: ${JSON.stringify(said)}\n    sidecar: ${JSON.stringify(sidecar)}\n    reports: ${reported.length ? reported.join('\n             ') : 'none this run'}`
 }
 
-/** The error reports the app writes, every run's, one JSON line each. */
-export const REPORTS = join(process.env.LOCALAPPDATA ?? tmpdir(), IDENTIFIER, 'logs', 'reports.jsonl')
-const reportLines = async () => (existsSync(REPORTS) ? (await readFile(REPORTS, 'utf8')).split('\n').filter(Boolean) : [])
-let reportsSeen = (await reportLines()).length
+const LOGS = join(process.env.LOCALAPPDATA ?? tmpdir(), IDENTIFIER, 'logs')
+/** The folder of error reports the app writes, a segment per launch, every run's. */
+export const REPORTS = join(LOGS, 'reports')
+
+/**
+ * Every error report written so far, one JSON line each: each segment's in the order it was written (a
+ * launch writes one segment), and the single file earlier versions kept, which the next launch takes in.
+ */
+export async function reportLines() {
+  const files = existsSync(REPORTS) ? (await readdir(REPORTS)).filter((n) => n.endsWith('.jsonl')).map((n) => join(REPORTS, n)) : []
+  const legacy = join(LOGS, 'reports.jsonl')
+  if (existsSync(legacy)) files.push(legacy)
+  const lines = []
+  for (const file of files) lines.push(...(await readFile(file, 'utf8')).split('\n').filter(Boolean))
+  return lines
+}
+let reportsSeen = new Set(await reportLines())
 
 /** Leaves the reports written so far out of what a failure prints: a scenario that causes them on purpose calls it. */
 export async function reportsCaused() {
-  reportsSeen = (await reportLines()).length
+  reportsSeen = new Set(await reportLines())
 }
 
 /** Over SMB (`E2E_VAULT_UNC`) the vault has no trash: the app asks again, and the answer is `button`. */

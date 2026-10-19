@@ -1,10 +1,9 @@
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
-import { IDENTIFIER, q } from '../app.mjs'
-import { BUG, INTAKE, documentsIn, fileValues, fileBody, SMB, deleteForGoodOverSmb, trashed } from '../shared.mjs'
+import { q } from '../app.mjs'
+import { BUG, INTAKE, reportLines, documentsIn, fileValues, fileBody, SMB, deleteForGoodOverSmb, trashed } from '../shared.mjs'
 
 export default {
   async 'shows a sync conflict copy beside its original, and learns from neither until one is kept'(app, vault) {
@@ -300,8 +299,7 @@ export default {
     const EDGE = { name: '경계 서식', ref: 'edge@1', path: '서식/경계 서식.fd.md' }
     const file = join(vault, EDGE.path)
     const source = '---\nid: edge\nversion: 1\nlowline:\n  suggest: [담당, 분류]\n---\n# 경계\n\n@담당: [select options="장비,인사"]\n\n@담당: [text]\n\n@메모: [text visible-if="분류=급함"]\n\n@고객 -> customer: [select]\n\n@태그 <-> tag: [checkbox]\n'
-    const reports = join(process.env.LOCALAPPDATA ?? tmpdir(), IDENTIFIER, 'logs', 'reports.jsonl')
-    const hostReports = async () => (existsSync(reports) ? (await readFile(reports, 'utf8')).split('\n').filter((l) => l.includes('"layer":"host"')).length : 0)
+    const hostReports = async () => (await reportLines()).filter((l) => l.includes('"layer":"host"')).length
     const hostBefore = await hostReports()
     await writeFile(file, source)
     await app.tabOf(EDGE, '서식', { timeoutMs: 30_000 })

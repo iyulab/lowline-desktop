@@ -5,8 +5,8 @@
 
 use std::sync::LazyLock;
 
-use tauri_kit_diagnostics::FrameRule;
-pub use tauri_kit_diagnostics::{trim, Report, Reporter, Sink, MAX_FILE_BYTES};
+pub use tauri_kit_diagnostics::{adopt, tidy, Report, Reporter, Segment, Sink, MAX_STREAM_BYTES};
+use tauri_kit_diagnostics::{FrameRule, Registry};
 
 /// Where a failure happened.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,12 +19,23 @@ pub enum Layer {
     Shell,
 }
 
+/// The details a report may carry beside its kind and frames, by layer — and nothing else: the
+/// sender checks every line against it on the way back.
+static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
+    Registry::from_json(include_str!("../diagnostics.json"))
+        .expect("diagnostics.json is a registry")
+});
 static UI: LazyLock<tauri_kit_diagnostics::Layer> =
-    LazyLock::new(|| tauri_kit_diagnostics::Layer::new("ui", FrameRule::web_bundle()));
+    LazyLock::new(|| REGISTRY.layer("ui", FrameRule::web_bundle()));
 static HOST: LazyLock<tauri_kit_diagnostics::Layer> =
-    LazyLock::new(|| tauri_kit_diagnostics::Layer::new("host", FrameRule::dotnet_method()));
+    LazyLock::new(|| REGISTRY.layer("host", FrameRule::dotnet_method()));
 static SHELL: LazyLock<tauri_kit_diagnostics::Layer> =
-    LazyLock::new(|| tauri_kit_diagnostics::Layer::new("shell", FrameRule::rust_source()));
+    LazyLock::new(|| REGISTRY.layer("shell", FrameRule::rust_source()));
+
+/// What the reports of this app may carry, for the sender to check them against.
+pub fn registry() -> &'static Registry {
+    &REGISTRY
+}
 
 impl Layer {
     fn rules(self) -> &'static tauri_kit_diagnostics::Layer {
@@ -39,7 +50,15 @@ impl Layer {
 /// A report from what a layer says about a failure. `kind` and `stack` are untrusted: whatever is
 /// not a plain identifier or a frame of the app's own code is dropped.
 pub fn new(layer: Layer, kind: &str, stack: &str) -> Report {
-    Report::new(layer.rules(), kind, stack, env!("CARGO_PKG_VERSION"))
+    with(layer, kind, stack, &[])
+}
+
+/// A report with details: each is kept only when `diagnostics.json` declares it for the layer and
+/// its value is of the declared kind.
+pub fn with(layer: Layer, kind: &str, stack: &str, details: &[(&str, &str)]) -> Report {
+    layer
+        .rules()
+        .report(kind, stack, env!("CARGO_PKG_VERSION"), details)
 }
 
 /// The sink this build was made with. A build made without one — every development and test
@@ -80,5 +99,25 @@ mod tests {
         );
         assert_eq!(host.frames, ["Lowline.Host.Vault.Read"]);
         assert_eq!(ui.version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn a_report_carries_only_the_details_the_registry_declares() {
+        let answered = with(
+            Layer::Host,
+            "HostAnswered",
+            "",
+            &[("status", "500"), ("path", "C:/vault")],
+        );
+        assert_eq!(
+            answered.details.get("status").map(String::as_str),
+            Some("500")
+        );
+        assert_eq!(answered.details.len(), 1);
+        let not_a_status = with(Layer::Host, "HostAnswered", "", &[("status", "회의록")]);
+        assert!(not_a_status.details.is_empty());
+        assert!(with(Layer::Ui, "TypeError", "", &[("status", "500")])
+            .details
+            .is_empty());
     }
 }

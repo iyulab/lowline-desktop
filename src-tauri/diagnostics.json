@@ -1,0 +1,7 @@
+{
+  "reports": {
+    "host": {
+      "status": { "kind": "count", "max": 599 }
+    }
+  }
+}

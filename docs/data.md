@@ -27,9 +27,9 @@ The model's own error text is not shown or kept: a failure is told by its kind (
 The first launch says in one line what leaves this computer — error reports and update checks — with the whole of it under 정보 (About).
 
 
-When something fails, an error report is written to `reports.jsonl` in the app's log folder: the layer, the kind of failure (a class name or an app-owned code), the status a failed request to the sidecar was answered with, the frames of the app's own code, the version and the operating system — never a message, a path, a file name, a template or a value.
+When something fails, an error report is written to the `reports` folder in the app's log folder (one file per launch): the layer, the kind of failure (a class name or an app-owned code), the status a failed request to the sidecar was answered with, the frames of the app's own code, the version and the operating system — never a message, a path, a file name, a template or a value.
 
-A release build sends the reports written since its last send on the next launch, over the operating system's TLS and certificate store. The file stays, so what was sent can still be read, until it passes 1 MiB and a launch drops its oldest reports. A build made without somewhere to send them — every development build — sends nothing.
+A release build sends the reports written since its last send on the next launch, over the operating system's TLS and certificate store. A launch deletes the files of earlier launches whose reports were all sent, and, while the folder holds more than 1 MiB, the oldest of the rest — never the file a running launch is still writing. Before sending, each report is checked again against what the app declares a report may carry; one that holds anything else is not sent. A build made without somewhere to send them — every development build — sends nothing.
 
 ## Updates
 

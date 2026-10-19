@@ -5,12 +5,11 @@ import { basename, join } from 'node:path'
 import assert from 'node:assert/strict'
 import { parseFormdown } from '@formdown/core'
 import { SETTINGS, command, q, updates } from '../app.mjs'
-import { here, REPORTS, reportsCaused, INTAKE, documentsIn, fileValues, fileBody, longTasks, thresholdsChosenSince, sidecarQuiet, sidecarCpuOver, SMB, deleteForGoodOverSmb, trashed } from '../shared.mjs'
+import { here, reportLines, reportsCaused, INTAKE, documentsIn, fileValues, fileBody, longTasks, thresholdsChosenSince, sidecarQuiet, sidecarCpuOver, SMB, deleteForGoodOverSmb, trashed } from '../shared.mjs'
 
 export default {
   async 'writes an error report with the kind of failure and nothing of what was on screen'(app) {
-    const reports = REPORTS
-    const before = existsSync(reports) ? (await readFile(reports, 'utf8')).split('\n').filter(Boolean).length : 0
+    const before = new Set(await reportLines())
     await app.cdp.evaluate(`setTimeout(() => { throw new RangeError('문서/비밀 회의록.md — 담당: 장비') }), true`)
     await app.cdp.evaluate(`Promise.reject({ kind: 'outside-vault', message: 'C:\\\\Users\\\\홍길동' }), true`)
     // A request the sidecar fails: a template with no reference cannot be a form type.
@@ -19,7 +18,7 @@ export default {
     const deadline = Date.now() + 10_000
     let lines = []
     while (Date.now() < deadline) {
-      lines = existsSync(reports) ? (await readFile(reports, 'utf8')).split('\n').filter(Boolean).slice(before) : []
+      lines = (await reportLines()).filter((line) => !before.has(line))
       if (lines.length >= 3) break
       await new Promise((resolve) => setTimeout(resolve, 200))
     }
