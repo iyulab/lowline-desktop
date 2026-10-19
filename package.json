@@ -34,7 +34,7 @@
   "dependencies": {
     "@formdown/core": "^0.21.0",
     "@formdown/ui": "^0.21.0",
-    "@iyulab/chat-components": "^0.27.3",
+    "@iyulab/chat-components": "0.27.4",
     "@iyulab/components": "^2.30.0",
     "@iyulab/desktop-compact": "^0.14.0",
     "@iyulab/desktop-patterns": "^0.11.2",
