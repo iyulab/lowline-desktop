@@ -443,25 +443,7 @@ fn record_presentation(
     }
     let root = with_vault(&state, |v| Ok(v.root().to_path_buf()))?;
     let file = presentations_file(&app, &root).map_err(io_error)?;
-    append_line(&file, &presentation.to_string()).map_err(io_error)
-}
-
-fn append_line(file: &Path, line: &str) -> std::io::Result<()> {
-    use std::io::Write;
-    if let Some(dir) = file.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let mut f = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(file)?;
-    f.write_all(
-        format!(
-            "{line}
-"
-        )
-        .as_bytes(),
-    )
+    tauri_kit_fs::append_line(&file, &presentation.to_string()).map_err(io_error)
 }
 
 /// This device's record of the suggestions it has shown for the open vault; empty before the first.
@@ -1343,19 +1325,5 @@ id: t
         // FNV-1a's published test vectors: a changed name would orphan every device's record.
         assert_eq!(fnv1a(b""), 0xcbf2_9ce4_8422_2325);
         assert_eq!(fnv1a(b"a"), 0xaf63_dc4c_8601_ec8c);
-    }
-
-    #[test]
-    fn appends_presentations_line_by_line() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("presentations").join("v.jsonl");
-        append_line(&file, r#"{"a":1}"#).unwrap();
-        append_line(&file, r#"{"a":2}"#).unwrap();
-        assert_eq!(
-            std::fs::read_to_string(&file).unwrap(),
-            "{\"a\":1}
-{\"a\":2}
-"
-        );
     }
 }
