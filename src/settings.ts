@@ -11,7 +11,7 @@ export interface ModelSettings {
 }
 
 export interface Settings {
-  /** Whether to look for a newer release when the app starts and once a day while it runs. */
+  /** Whether to look for a newer release — at start and every twelve hours — and download it in the background. */
   checkForUpdates: boolean
   /** Whether the person has been told, once, what leaves this computer. */
   outboundToldOnce: boolean

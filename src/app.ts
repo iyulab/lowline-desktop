@@ -17,7 +17,7 @@ import { NEW_TEMPLATE, documentsOf, placeId, placeOf, sidebarEntries, templatesA
 import { onNavigationRefused, onWritten, openLink, vault, type VaultInfo } from './vault-client.js'
 import { openVault, readVault, resumeVault, onVaultChanged } from './vault-snapshot.js'
 import { confirmDiscard, hasUnsaved, setDiscardQuestion } from './unsaved.js'
-import { UpdateWatch, update, type AvailableUpdate } from './updates.js'
+import { RELEASES_PAGE, toTell, update, type UpdateView } from './updates.js'
 import { DEFAULT_SETTINGS, settings as deviceSettings, type ModelSettings, type Settings } from './settings.js'
 import './templates-view.js'
 import './documents-view.js'
@@ -72,6 +72,9 @@ export class LlApp extends LitElement {
       align-items: center;
       gap: var(--dc-space-2);
       margin: 0 0 var(--dc-space-2);
+    }
+    .notice-bar a {
+      color: var(--dc-color-accent-text);
     }
     .notice {
       margin: 0 0 var(--dc-space-2);
@@ -133,10 +136,12 @@ export class LlApp extends LitElement {
   @state() private notice = ''
   /** This device's settings, once read. */
   @state() private settings?: Settings
-  /** A newer release the person has not put off; installed only when they say so. */
-  @state() private available?: AvailableUpdate
+  /** Where updating stands; a newer release is installed only when the person says so. */
+  @state() private updateView?: UpdateView
+  /** The release the person put off in this run of the app: not told of again until a newer one. */
+  @state() private putOff?: string
   @state() private installing = false
-  private readonly updates = new UpdateWatch(update.check, (found) => (this.available = found))
+  private unlistenUpdates?: Promise<() => void>
   /** Where the app was when it was last used, to be shown once the vault it reopened is read. */
   private resumeAt?: { place: Place; tab: Tab }
   /** What the documents view is to show, asked for from elsewhere: a table row's document, a new one naming another. */
@@ -216,6 +221,7 @@ export class LlApp extends LitElement {
     })
     void this.resume()
     void this.loadSettings()
+    this.unlistenUpdates = update.onChange(() => void update.status().then((v) => (this.updateView = v ?? undefined), () => {}))
     this.addEventListener('ll-open-document', (e) => {
       const { path, template } = (e as CustomEvent<{ path: string; template: string }>).detail
       this.openIn(template, { path })
@@ -274,7 +280,7 @@ export class LlApp extends LitElement {
     onWritten.delete(this.onTemplateWritten)
     void this.unlisten?.then((stop) => stop())
     void this.unlistenRefused?.then((stop) => stop())
-    this.updates.stop()
+    void this.unlistenUpdates?.then((stop) => stop())
   }
 
   private async loadSettings() {
@@ -284,11 +290,10 @@ export class LlApp extends LitElement {
   /** Takes settings into effect: looking for updates starts or stops with its setting. */
   private applySettings(next: Settings) {
     this.settings = next
-    if (next.checkForUpdates) this.updates.start()
-    else {
-      this.updates.stop()
-      this.available = undefined
-    }
+    void update.watch(next.checkForUpdates).then(
+      (view) => (this.updateView = next.checkForUpdates ? (view ?? undefined) : undefined),
+      () => {},
+    )
   }
 
   private changeSettings(next: Settings) {
@@ -303,6 +308,21 @@ export class LlApp extends LitElement {
       this.aboutOutbound = true
       this.showingAbout = true
     }
+  }
+
+  /** The newer release, downloaded or on its way — or failed to download, with where to get it by hand. */
+  private renderUpdate() {
+    const tell = toTell(this.updateView, this.putOff)
+    if (!tell?.available) return nothing
+    const version = tell.available
+    return html`<p class="notice-bar update" role="status">
+      ${tell.failed ? strings.updateDownloadFailed(version) : strings.updateAvailable(version, tell.ready)}
+      ${tell.failed ? html`<a href=${RELEASES_PAGE}>${strings.updateReleasePage}</a>` : nothing}
+      <dc-button size="sm" ?disabled=${this.installing} @click=${() => void this.installUpdate()}
+        >${this.installing ? strings.updateInstalling : strings.updateInstall}</dc-button
+      >
+      <dc-button size="sm" variant="secondary" ?disabled=${this.installing} @click=${() => (this.putOff = version)}>${strings.updateLater}</dc-button>
+    </p>`
   }
 
   /** Installs the newer release — after the unsaved-edits question, since the app restarts. */
@@ -611,17 +631,7 @@ export class LlApp extends LitElement {
                 <dc-button size="sm" @click=${() => this.toldOutbound(false)}>${strings.outboundOnceOk}</dc-button>
               </p>`
             : nothing}
-          ${this.available
-            ? html`<p class="notice-bar update" role="status">
-                ${strings.updateAvailable(this.available.version)}
-                <dc-button size="sm" ?disabled=${this.installing} @click=${() => void this.installUpdate()}
-                  >${this.installing ? strings.updateInstalling : strings.updateInstall}</dc-button
-                >
-                <dc-button size="sm" variant="secondary" ?disabled=${this.installing} @click=${() => (this.available = undefined)}
-                  >${strings.updateLater}</dc-button
-                >
-              </p>`
-            : nothing}
+          ${this.renderUpdate()}
           ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : ''}
           ${this.notice ? html`<p class="notice" role="status">${this.notice}</p>` : ''}
           ${!info

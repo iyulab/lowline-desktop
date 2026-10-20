@@ -28,6 +28,8 @@ tauri-kit-diagnostics = { version = "0.23.0", features = ["appinsights"] }
 tauri-kit-fs = "0.23.0"
 # The sidecar as a loopback helper: a per-launch token, its port, and the blocking HTTP client to it.
 tauri-kit-sidecar = { version = "0.23.0", features = ["loopback-client"] }
+# When to look for a newer release, the background download and what is kept between launches.
+tauri-kit-update = "0.23.0"
 tauri-kit-watch = "0.23.0"
 
 # Deleting moves a file to the system's trash (Recycle Bin, Trash, freedesktop trash), where the

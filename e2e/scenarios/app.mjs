@@ -212,6 +212,13 @@ export default {
     try {
       await app.reopen(vault)
       await app.cdp.waitFor(`${banner}.includes('새 판 99.0.0')`, 'the newer release told', { timeoutMs: 15_000 })
+      // Its installer is downloaded in the background — here from nowhere: said, with where to get it by hand.
+      await app.cdp.waitFor(`${banner}.includes('받지 못했습니다')`, 'the failed download told', { timeoutMs: 30_000 })
+      assert.equal(
+        await app.cdp.evaluate(`__e2e.all('p.update a')[0]?.getAttribute('href')`),
+        'https://github.com/iyulab/lowline-releases/releases/latest',
+        'the release page offered',
+      )
       // Put off: told no more in this run of the app, and nothing installed.
       await app.click('dc-button', '나중에')
       await app.cdp.waitFor(`${banner} === ''`, 'put off')

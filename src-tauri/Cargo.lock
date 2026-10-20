@@ -2334,6 +2334,7 @@ dependencies = [
  "tauri-kit-diagnostics",
  "tauri-kit-fs",
  "tauri-kit-sidecar",
+ "tauri-kit-update",
  "tauri-kit-watch",
  "tauri-kit-webview",
  "tauri-plugin-dialog",
@@ -4303,6 +4304,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e4a7d5ce257434ec53a6e6c42a5ddfeec96a0ceee72b91ba33a452b8d1e27d4"
 dependencies = [
  "getrandom 0.4.3",
+ "serde",
+ "serde_json",
+ "tauri-kit-fs",
+]
+
+[[package]]
+name = "tauri-kit-update"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94605e2afd216ae521177080ef76b94f9d57335e8b1cd87ff677a0d780d1e6b9"
+dependencies = [
  "serde",
  "serde_json",
  "tauri-kit-fs",
