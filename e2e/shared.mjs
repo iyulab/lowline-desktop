@@ -123,10 +123,16 @@ export async function shown(app) {
       }
       return out })()`,
   )
+  // Where the app is, and how long the page takes to answer: a wait that timed out on a page that answers at once
+  // and holds the vault was slow; one on a page that answers late, or holds no vault, was stuck.
+  const asked = Date.now()
+  const vault = await app.cdp.evaluate(`document.querySelector('ll-app')?.vaultInfo?.name ?? null`)
+  const answeredIn = Date.now() - asked
+  const at = await app.where()
   // The error reports hold a failure's kind and frames only, nothing of the page: safe to print. Only those
   // written since the run began and not caused on purpose — the folder keeps every run's.
   const reported = (await reportLines()).filter((line) => !reportsSeen.has(line)).slice(-3)
-  return `page: ${JSON.stringify(said)}\n    sidecar: ${JSON.stringify(sidecar)}\n    reports: ${reported.length ? reported.join('\n             ') : 'none this run'}`
+  return `page: ${JSON.stringify(said)}\n    app: ${JSON.stringify({ vault, ...at })} · the page answered in ${answeredIn} ms\n    sidecar: ${JSON.stringify(sidecar)}\n    reports: ${reported.length ? reported.join('\n             ') : 'none this run'}`
 }
 
 const LOGS = join(process.env.LOCALAPPDATA ?? tmpdir(), IDENTIFIER, 'logs')
