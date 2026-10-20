@@ -1,3 +1,4 @@
+using Undoc;
 using Unhwp;
 using Unpdf;
 
@@ -29,7 +30,7 @@ public static class SourceFileFailure
 }
 
 /// <summary>
-/// Blank forms as they are handed out — HWP, HWPX and PDF files — read into Markdown, so the chat that writes templates
+/// Blank forms as they are handed out — HWP, HWPX, PDF, Word and Excel files — read into Markdown, so the chat that writes templates
 /// can draft one from the form's own fields, rows and choices. The file is read here and goes nowhere else.
 /// </summary>
 public static class SourceFiles
@@ -38,7 +39,7 @@ public static class SourceFiles
     public const int Limit = 16_000;
 
     /// <summary>The kinds of file read, by extension.</summary>
-    public static readonly IReadOnlyList<string> Extensions = ["hwp", "hwpx", "pdf"];
+    public static readonly IReadOnlyList<string> Extensions = ["hwp", "hwpx", "pdf", "docx", "xlsx"];
 
     /// <summary><paramref name="request"/>'s file as Markdown, or why not.</summary>
     public static SourceFileReply Read(SourceFileRequest request)
@@ -51,9 +52,14 @@ public static class SourceFiles
         string markdown;
         try
         {
-            markdown = extension == "pdf" ? Pdf(request.Path) : Hwp(request.Path);
+            markdown = extension switch
+            {
+                "pdf" => Pdf(request.Path),
+                "docx" or "xlsx" => Office(request.Path),
+                _ => Hwp(request.Path),
+            };
         }
-        catch (Exception e) when (e is UnhwpException or UnpdfException or IOException or UnauthorizedAccessException)
+        catch (Exception e) when (e is UnhwpException or UnpdfException or UndocException or IOException or UnauthorizedAccessException)
         {
             return new SourceFileReply(false, name, null, SourceFileFailure.Unreadable);
         }
@@ -106,6 +112,12 @@ public static class SourceFiles
     {
         using var document = UnhwpDocument.ParseFile(path);
         return document.ToMarkdown(new Unhwp.MarkdownOptions());
+    }
+
+    static string Office(string path)
+    {
+        using var document = UndocDocument.ParseFile(path);
+        return document.ToMarkdown(new Undoc.MarkdownOptions());
     }
 
     static string Pdf(string path)

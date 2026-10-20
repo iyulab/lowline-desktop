@@ -236,7 +236,7 @@ public sealed class ResponseContractTests
             // A blank form read into Markdown; one of a kind not read, and one that is not there: the kind, never the parser's words.
             ["sourceFile"] = new JsonArray(
                 await Post("/files/markdown", new { path = blankForm }),
-                await Post("/files/markdown", new { path = Path.Combine(Path.GetTempPath(), "양식.docx") }),
+                await Post("/files/markdown", new { path = Path.Combine(Path.GetTempPath(), "양식.txt") }),
                 await Post("/files/markdown", new { path = Path.Combine(Path.GetTempPath(), "없는 양식.hwp") })),
             // The models on this computer — one here, one not — as getting the one not here ready goes: before, while it is
             // fetched, once it runs; and as the recommended one will not start. Asking to get one ready answers where that

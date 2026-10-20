@@ -4,9 +4,9 @@ namespace Lowline.Host.Tests;
 public sealed class SourceFilesTests
 {
     [Fact]
-    public void Reads_only_hwp_hwpx_and_pdf()
+    public void Reads_only_hwp_hwpx_pdf_docx_and_xlsx()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.docx");
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.txt");
         File.WriteAllText(path, "not read");
         try
         {
@@ -23,16 +23,116 @@ public sealed class SourceFilesTests
     {
         Assert.Equal((false, SourceFileFailure.Unreadable), Read(Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.hwp")));
 
-        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.pdf");
-        File.WriteAllText(path, "plain text, no PDF");
+        foreach (var extension in new[] { "pdf", "docx" })
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.{extension}");
+            File.WriteAllText(path, "plain text, not what the name says");
+            try
+            {
+                Assert.Equal((false, SourceFileFailure.Unreadable), Read(path));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public void Reads_a_word_form_with_its_table()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.docx");
+        File.WriteAllBytes(path, MinimalDocx("물품 청구서", [["일련번호", "품명", "청구량"], ["1", "", ""], ["2", "", ""], ["3", "", ""]]));
         try
         {
-            Assert.Equal((false, SourceFileFailure.Unreadable), Read(path));
+            var reply = SourceFiles.Read(new SourceFileRequest(path));
+            Assert.True(reply.Ok, reply.Failure);
+            Assert.Contains("물품 청구서", reply.Markdown);
+            Assert.Equal([["일련번호", "품명", "청구량"]], SourceFiles.RepeatedRows(reply.Markdown!));
         }
         finally
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public void Reads_an_excel_form_with_its_rows()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xlsx");
+        File.WriteAllBytes(path, MinimalXlsx([["일련번호", "품명", "청구량"], ["1", "", ""], ["2", "", ""], ["3", "", ""]]));
+        try
+        {
+            var reply = SourceFiles.Read(new SourceFileRequest(path));
+            Assert.True(reply.Ok, reply.Failure);
+            Assert.Contains("품명", reply.Markdown);
+            Assert.Equal([["일련번호", "품명", "청구량"]], SourceFiles.RepeatedRows(reply.Markdown!));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>A workbook of one sheet holding <paramref name="rows"/>, every cell a string written in place.</summary>
+    internal static byte[] MinimalXlsx(string[][] rows)
+    {
+        static string Column(int i) => ((char)('A' + i)).ToString();
+        var sheet = string.Concat(rows.Select((r, y) => $"<row r=\"{y + 1}\">"
+            + string.Concat(r.Select((c, x) => c.Length == 0 ? "" : $"<c r=\"{Column(x)}{y + 1}\" t=\"inlineStr\"><is><t>{System.Security.SecurityElement.Escape(c)}</t></is></c>"))
+            + "</row>"));
+        return Zip(new()
+        {
+            ["[Content_Types].xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+                + "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                + "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"
+                + "<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>",
+            ["_rels/.rels"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>",
+            ["xl/workbook.xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
+                + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"청구서\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+            ["xl/_rels/workbook.xml.rels"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>",
+            ["xl/worksheets/sheet1.xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>"
+                + sheet + "</sheetData></worksheet>",
+        });
+    }
+
+    /// <summary>A zip package of <paramref name="parts"/>, by name.</summary>
+    private static byte[] Zip(Dictionary<string, string> parts)
+    {
+        using var bytes = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(bytes, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            foreach (var (name, xml) in parts)
+            {
+                using var writer = new StreamWriter(zip.CreateEntry(name).Open());
+                writer.Write(xml);
+            }
+        }
+        return bytes.ToArray();
+    }
+
+    /// <summary>A Word document holding a heading and one table of <paramref name="rows"/> — the least a blank form is.</summary>
+    internal static byte[] MinimalDocx(string heading, string[][] rows)
+    {
+        static string Escape(string text) => System.Security.SecurityElement.Escape(text);
+        static string Paragraph(string text) => $"<w:p><w:r><w:t xml:space=\"preserve\">{Escape(text)}</w:t></w:r></w:p>";
+        var table = "<w:tbl><w:tblPr><w:tblBorders><w:insideH w:val=\"single\"/><w:insideV w:val=\"single\"/></w:tblBorders></w:tblPr>"
+            + string.Concat(rows.Select(r => "<w:tr>" + string.Concat(r.Select(c => $"<w:tc>{Paragraph(c)}</w:tc>")) + "</w:tr>"))
+            + "</w:tbl>";
+        return Zip(new()
+        {
+            ["[Content_Types].xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+                + "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                + "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/></Types>",
+            ["_rels/.rels"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/></Relationships>",
+            ["word/document.xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"
+                + Paragraph(heading) + table + "</w:body></w:document>",
+        });
     }
 
     [Fact]

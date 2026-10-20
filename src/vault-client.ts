@@ -305,7 +305,7 @@ export const model = {
   /** A reply about `template` — its source as it stands — to the conversation, by the model set up, with the key kept for its preset. */
   author: (setting: { preset: string; baseUrl: string | null; model: string }, template: string, turns: ChatTurn[], source?: ChatSource | null) =>
     invoke<ChatReply>('host_chat_author', { request: { ...setting, template, turns, source: source ?? null } }),
-  /** A blank form — an HWP, HWPX or PDF file at `path` — read into Markdown on this computer, for `author` to start from. */
+  /** A blank form — an HWP, HWPX, PDF, Word or Excel file at `path` — read into Markdown on this computer, for `author` to start from. */
   sourceFile: (path: string) => invoke<SourceFileReply>('host_source_file', { path }),
   /**
    * What the model set up says to count for `question` about `template`'s documents — its reply, to be checked by the app —

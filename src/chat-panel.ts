@@ -302,7 +302,7 @@ export class LlChatPanel extends LitElement {
 
   /** A blank form file the person picks, for the chat to draft the template from. */
   private async pickFile() {
-    const path = await open({ title: strings.chatFromFileTitle, filters: [{ name: strings.chatFromFileKinds, extensions: ['hwp', 'hwpx', 'pdf'] }] })
+    const path = await open({ title: strings.chatFromFileTitle, filters: [{ name: strings.chatFromFileKinds, extensions: ['hwp', 'hwpx', 'pdf', 'docx', 'xlsx'] }] })
     if (typeof path === 'string') await this.fromFile(path)
   }
 

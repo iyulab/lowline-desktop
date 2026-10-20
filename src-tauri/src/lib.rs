@@ -692,7 +692,7 @@ fn chat_author_body(request: &ChatAuthor, key: Option<&str>) -> String {
     .to_string()
 }
 
-/// A blank form the person picked — an HWP, HWPX or PDF file — read into Markdown by the sidecar, for the chat that
+/// A blank form the person picked — an HWP, HWPX, PDF, Word or Excel file — read into Markdown by the sidecar, for the chat that
 /// writes templates to start from (`SourceFileReply`). The file is read on this computer and sent nowhere.
 #[tauri::command]
 async fn host_source_file(
