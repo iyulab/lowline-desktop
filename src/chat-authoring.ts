@@ -119,6 +119,27 @@ export function spreadRows(draft: string): string[] {
 }
 
 /**
+ * The fields a draft made from a blank form kept from the template it replaced (`before`) though the form never names
+ * them — a new template's `제목`, `상태`, `메모` left beside the form's own fields — by name; empty when there are none.
+ * A field is named by the form when its name or its label, spaces aside, is in the form's text.
+ */
+export function leftoverFields(draft: string, before: string, form: string): string[] {
+  const fields = (source: string) => {
+    try {
+      return parseFormdown(source).forms.map((f) => ({ name: f.name, label: f.label ?? f.name }))
+    } catch {
+      return []
+    }
+  }
+  const plain = (text: string) => text.replace(/[\s_]+/g, '')
+  const said = plain(form)
+  const was = new Set(fields(before).map((f) => f.name))
+  return fields(draft)
+    .filter((f) => was.has(f.name) && !said.includes(plain(f.name)) && !said.includes(plain(f.label)))
+    .map((f) => f.name)
+}
+
+/**
  * What stands in the way of a row template working beside the template it belongs to (id `parent`): its own problems, an
  * id of its own, and a field naming the parent's documents.
  */

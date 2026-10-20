@@ -120,13 +120,13 @@ public sealed class ChatAuthoringMeasureTests
                 local, TimeSpan.FromMinutes(5), ct);
             clock.Stop();
             Assert.True(reply.Ok, $"{c.Id}: {reply.Failure}");
-            lines.Add(JsonSerializer.Serialize(new { c.Id, c.Ask, c.Fields, c.Judged, conditional = c.Conditional ?? [], computed = c.Computed ?? [], rows = c.Rows ?? [], reply = reply.Text, ms = clock.ElapsedMilliseconds }, Json));
+            lines.Add(JsonSerializer.Serialize(new { c.Id, c.Ask, c.Fields, c.Judged, conditional = c.Conditional ?? [], computed = c.Computed ?? [], rows = c.Rows ?? [], form = source?.Markdown, formName = source?.Name, reply = reply.Text, ms = clock.ElapsedMilliseconds }, Json));
         }
         await File.WriteAllLinesAsync(output!, lines, ct);
     }
 
     /// <summary>A draft the app asks for again: its request, the first reply, and what the app says is wrong with it.</summary>
-    private sealed record AskedAgain(string Id, string Ask, string First, string Retry);
+    private sealed record AskedAgain(string Id, string Ask, string First, string Retry, string? Form = null, string? FormName = null);
 
     /// <summary>
     /// The second time the chat asks, as it does when a draft has problems: the conversation as it went — the request and
@@ -154,7 +154,8 @@ public sealed class ChatAuthoringMeasureTests
             var clock = Stopwatch.StartNew();
             var reply = await ChatAuthoring.ReplyAsync(
                 new ChatAuthorRequest(ChatAuthoring.LocalPreset, null, null, model, Starter,
-                    [new ChatTurn("user", retry.Ask), new ChatTurn("assistant", retry.First), new ChatTurn("user", retry.Retry)]),
+                    [new ChatTurn("user", retry.Ask), new ChatTurn("assistant", retry.First), new ChatTurn("user", retry.Retry)],
+                    retry.Form is null ? null : new ChatSource(retry.FormName ?? "", retry.Form)),
                 local, TimeSpan.FromMinutes(5), ct);
             clock.Stop();
             Assert.True(reply.Ok, $"{retry.Id}: {reply.Failure}");

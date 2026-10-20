@@ -6,7 +6,7 @@ import '@iyulab/chat-components/dist/components/prompt/UPrompt.js'
 import '@iyulab/chat-components/dist/components/blocks/UMarkedBlock.js'
 import { strings } from './strings.js'
 import { failureText, modelLabel } from './model-settings.js'
-import { draftProblems, draftsOf, fieldChanges, retryMessage, rowProblems, sourceId, spreadRows, tidyDraft, wordsOf } from './chat-authoring.js'
+import { draftProblems, draftsOf, fieldChanges, leftoverFields, retryMessage, rowProblems, sourceId, spreadRows, tidyDraft, wordsOf } from './chat-authoring.js'
 import { planWords, queryPlan, type ReadPlan } from './chat-query.js'
 import { fileName, fileNameFor } from './documents.js'
 import { cellText, countColumns, referringTemplates, templateSnapshot, type AggregateAnswer, type CountColumn, type TemplateField, type TemplateSnapshot } from './projection.js'
@@ -323,10 +323,11 @@ export class LlChatPanel extends LitElement {
       return
     }
     this.source = { name: read.name ?? name, markdown: read.markdown }
-    await this.author(strings.chatFromFileAsk(this.source.name))
+    await this.author(strings.chatFromFileAsk(this.source.name), true)
   }
 
-  private async author(text: string) {
+  /** `fromForm`: the request to draft the template from the blank form just picked. */
+  private async author(text: string, fromForm = false) {
     const model = this.model
     if (!model || !text.trim()) return
     if (this.prompt) this.prompt.value = ''
@@ -339,7 +340,7 @@ export class LlChatPanel extends LitElement {
       // The template and, for a table of repeated rows, a template for one row whose documents point at it — each checked.
       const read = (text: string | null) => {
         const drafts = text ? draftsOf(text, id) : null
-        if (!drafts) return { draft: null, rows: [] as Row[], problems: [] as string[], spread: [] as string[] }
+        if (!drafts) return { draft: null, rows: [] as Row[], problems: [] as string[], spread: [] as string[], left: [] as string[] }
         const parent = sourceId(drafts.draft) ?? id
         const rows = drafts.rows.map((r) => tidyDraft(r)).map((source) => ({ source, title: titleOf(source), problems: rowProblems(source, parent), parent }))
         const problems = [
@@ -347,21 +348,23 @@ export class LlChatPanel extends LitElement {
           ...rows.flatMap((r) => r.problems.map((p) => strings.chatRowProblem(r.title, p))),
           ...drafts.reversed.map((r) => strings.chatRowReversed(titleOf(r), parent ?? '')),
         ]
-        // A row spread over numbered fields works, but is no row: said when asking again, not as a problem in the editor.
-        return { draft: drafts.draft, rows, problems, spread: spreadRows(tidyDraft(drafts.draft)) }
+        // A row spread over numbered fields works, but is no row; a field of the template a blank form replaced that the
+        // form never names is the template's, not the form's: both said when asking again, not as problems in the editor.
+        const left = fromForm && this.source ? leftoverFields(tidyDraft(drafts.draft), template, this.source.markdown) : []
+        return { draft: drafts.draft, rows, problems, spread: spreadRows(tidyDraft(drafts.draft)), left }
       }
       let reply = await models.author(model, template, this.turns, this.source)
       if (ask !== this.asked) return
-      let { draft, rows, problems, spread } = read(reply.ok ? reply.text : null)
-      if (reply.ok && draft && (problems.length > 0 || spread.length > 0)) {
+      let { draft, rows, problems, spread, left } = read(reply.ok ? reply.text : null)
+      if (reply.ok && draft && (problems.length > 0 || spread.length > 0 || left.length > 0)) {
         // Asked once more, with what is wrong — the conversation as it went, the retry not shown.
-        const again = [...this.turns, { role: 'assistant' as const, text: reply.text! }, { role: 'user' as const, text: retryMessage([...problems, ...spread.map(strings.chatRowsSpread)]) }]
+        const again = [...this.turns, { role: 'assistant' as const, text: reply.text! }, { role: 'user' as const, text: retryMessage([...problems, ...spread.map(strings.chatRowsSpread), ...(left.length ? [strings.chatFormLeftover(left)] : [])]) }]
         const second = await models.author(model, template, again, this.source)
         if (ask !== this.asked) return
         const retried = read(second.ok ? second.text : null)
         if (retried.draft) {
           reply = second
-          ;({ draft, rows, problems, spread } = retried)
+          ;({ draft, rows, problems, spread, left } = retried)
         }
       }
       if (!reply.ok || reply.text === null) {

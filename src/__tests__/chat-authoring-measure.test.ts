@@ -13,7 +13,7 @@
 // template starts as.
 import { describe, expect, it } from 'vitest'
 import { parseFormdown } from '@formdown/core'
-import { draftOf, draftProblems, draftsOf, retryMessage, rowProblems, sourceId, spreadRows, tidyDraft } from '../chat-authoring.js'
+import { draftOf, draftProblems, draftsOf, leftoverFields, retryMessage, rowProblems, sourceId, spreadRows, tidyDraft } from '../chat-authoring.js'
 import { templateSnapshot, type TemplateSnapshot } from '../projection.js'
 import { starterTemplate, strings } from '../strings.js'
 
@@ -42,12 +42,15 @@ interface Asked {
   computed?: string[]
   /** The fields of a row repeated down a table: asked to be a template of their own, pointing at this one's documents. */
   rows?: string[]
+  /** The blank form handed over with the request, as read: its text and the name it is shown by. */
+  form?: string
+  formName?: string
   reply: string
   ms: number
 }
 
 /** How one reply reads as a draft, against what its request asked for. */
-function judge(asked: Asked, reply: string) {
+function judge(asked: Asked, reply: string, starter: string) {
   const drafts = draftsOf(reply, STARTER_ID)
   const draft = drafts?.draft ?? null
   const tidied = draft === null ? null : tidyDraft(draft)
@@ -86,6 +89,8 @@ function judge(asked: Asked, reply: string) {
     // As the chat says when it asks again (`chat-panel.ts`).
     spread: tidied === null ? [] : spreadRows(tidied),
     reversed: (drafts?.reversed ?? []).map((r) => strings.chatRowReversed(r.match(/^#[ \t]+(.+)$/m)?.[1].trim() ?? '', parent ?? '')),
+    // A field of the template the blank form replaced, left beside the form's own.
+    left: asked.form && tidied !== null ? leftoverFields(tidied, starter, asked.form) : [],
   }
 }
 
@@ -113,6 +118,7 @@ function report(model: string, title: string, rows: [Asked, Judged, number][]) {
         (conditional.length ? ` · on a condition ${onCondition.length}/${conditional.length}` : '') +
         (asked.computed?.length ? ` · computed ${computed.length}/${asked.computed.length}` : '') +
         (judged.rowsKept === null ? '' : ` · rows ${judged.rowsKept ? 'a template of their own' : judged.numbered ? 'spread over numbered fields' : 'not apart'}`) +
+        (judged.left.length ? ` · left over ${judged.left.join(', ')}` : '') +
         ` · ${snapshot?.fields.map((f) => `${f.name}:${f.type}`).join(' ') ?? ''}`,
     )
   }
@@ -128,14 +134,23 @@ describe.runIf(env.LOWLINE_CHAT_AUTHORING_MEASURE)('drafts a model on this compu
     const { model, template } = JSON.parse(head) as { model: string; template: string }
     expect(template, 'the request starts from the template a new one starts as').toBe(starterTemplate('new-template'))
     const asked = lines.map((line) => JSON.parse(line) as Asked)
-    const first = asked.map((a) => [a, judge(a, a.reply), a.ms] as [Asked, Judged, number])
+    const first = asked.map((a) => [a, judge(a, a.reply, template), a.ms] as [Asked, Judged, number])
     report(model, 'first draft', first)
 
     // What the chat would say back: only a draft that has problems is asked for again.
     if (env.LOWLINE_CHAT_AUTHORING_RETRIES_OUT) {
       const retries = first
-        .filter(([, j]) => j.draft !== null && (j.problems.length > 0 || j.spread.length > 0 || j.reversed.length > 0))
-        .map(([a, j]) => JSON.stringify({ id: a.id, ask: a.ask, first: a.reply, retry: retryMessage([...j.problems, ...j.spread.map(strings.chatRowsSpread), ...j.reversed]) }))
+        .filter(([, j]) => j.draft !== null && (j.problems.length > 0 || j.spread.length > 0 || j.reversed.length > 0 || j.left.length > 0))
+        .map(([a, j]) =>
+          JSON.stringify({
+            id: a.id,
+            ask: a.ask,
+            first: a.reply,
+            retry: retryMessage([...j.problems, ...j.spread.map(strings.chatRowsSpread), ...j.reversed, ...(j.left.length ? [strings.chatFormLeftover(j.left)] : [])]),
+            form: a.form,
+            formName: a.formName,
+          }),
+        )
       fs.writeFileSync(env.LOWLINE_CHAT_AUTHORING_RETRIES_OUT, retries.join('\n') + (retries.length ? '\n' : ''))
       console.log(`${model} · ${retries.length} drafts to ask for again`)
     }
@@ -153,7 +168,7 @@ describe.runIf(env.LOWLINE_CHAT_AUTHORING_MEASURE)('drafts a model on this compu
       const shown = first.map(([a, j, ms]): [Asked, Judged, number] => {
         const again = second.get(a.id)
         if (!again || draftOf(again.reply, STARTER_ID) === null) return [a, j, ms]
-        return [a, judge(a, again.reply), ms + again.ms]
+        return [a, judge(a, again.reply, template), ms + again.ms]
       })
       report(model, 'after the chat asks once more', shown)
     }

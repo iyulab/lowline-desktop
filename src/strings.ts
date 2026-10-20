@@ -413,6 +413,8 @@ export const strings = {
   // Asking again: a row of a table spread over numbered fields instead of a template of its own.
   chatRowsSpread: (shape: string) =>
     `칸 «${shape}»(N = 1, 2, 3…)처럼 같은 줄을 번호로 펼쳤습니다. 그 한 줄을 서식 하나로 따로 써서 두 번째 formdown 블록에 담고(새 id, 맨 앞 칸은 이 서식의 문서를 가리키는 칸), 이 서식에서는 그 칸들을 빼 주세요.`,
+  chatFormLeftover: (names: string[]) =>
+    `빈 서식에 없는 칸 ${names.map((n) => `«${n}»`).join('·')}이(가) 남았습니다 — 이전 서식의 칸입니다. 빈 서식에 있는 칸만 두고 그 칸들을 빼 주세요.`,
   chatRowsSpreadLeft: '같은 줄을 번호로 펼친 칸이 남았습니다 — 줄마다 문서가 되게 하려면 «줄은 서식 하나로 따로»라고 다시 부탁해 보세요.',
   chatRowSaveFirst: '이 서식을 먼저 저장하세요 — 줄 서식이 가리킬 서식이 볼트에 있어야 줄이 이어집니다.',
   chatRowReversed:(title: string, parent: string) =>

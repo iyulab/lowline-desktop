@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { draftOf, draftProblems, draftsOf, fieldChanges, retryMessage, rowProblems, sourceId, tidyDraft, wordsOf } from '../chat-authoring.ts'
+import { draftOf, draftProblems, draftsOf, fieldChanges, leftoverFields, retryMessage, rowProblems, sourceId, tidyDraft, wordsOf } from '../chat-authoring.ts'
 
 const fence = '```'
 const before = '---\nid: intake\nversion: 1\n---\n# 접수\n\n@요청: [textarea rows=3]\n'
@@ -71,5 +71,13 @@ describe('the chat that writes templates', () => {
   it('names the fields a draft adds and takes away', () => {
     expect(fieldChanges(before, after)).toEqual({ added: ['기한'], removed: [] })
     expect(fieldChanges(after, before)).toEqual({ added: [], removed: ['기한'] })
+  })
+
+  it('names the fields a draft from a blank form kept from the template it replaced, when the form never names them', () => {
+    const starter = '---\nid: new\nversion: 1\n---\n# 새 서식\n\n제목: ___@제목\n\n@상태: [select options="열림,닫힘"]\n\n@메모: [textarea rows=4]\n'
+    const form = '| 제목 | |\n| :--- | :--- |\n| 운용부서명 | |\n| 품명 | 청구량 |'
+    const draft = '---\nid: new\nversion: 1\n---\n# 물품 청구서\n\n@제목: [text]\n@운용부서명: [text]\n@상태: [select options="열림,닫힘"]\n@메모: [textarea]\n'
+    expect(leftoverFields(draft, starter, form)).toEqual(['상태', '메모'])
+    expect(leftoverFields(draft.replace('@메모: [textarea]\n', '').replace('@상태: [select options="열림,닫힘"]\n', ''), starter, form)).toEqual([])
   })
 })
