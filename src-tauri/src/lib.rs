@@ -948,9 +948,17 @@ fn open_window(app: &AppHandle) -> tauri::Result<()> {
     } else {
         None
     };
+    // What a person types into a form stays in the vault: the web view does not remember it for
+    // autofill in its own profile, outside the vault. Copies of the profile a runtime update took
+    // before autofill was off would still hold entries, so they go before the window opens.
+    #[cfg(windows)]
+    if let Ok(data) = app.path().app_local_data_dir() {
+        let _ = tauri_kit_webview::remove_profile_snapshots(&data);
+    }
     let navigating = app.clone();
     let dev = dev_url.clone();
     let builder = tauri::WebviewWindowBuilder::from_config(app, &config)?
+        .general_autofill_enabled(false)
         .on_navigation(move |to| navigation::allow(&navigating, to, dev.as_ref()));
     // On Windows the web view's own lock refuses new windows and says so; a handler here would
     // take them before it.
@@ -963,6 +971,11 @@ fn open_window(app: &AppHandle) -> tauri::Result<()> {
         })
     };
     let window = builder.build()?;
+    // Entries an earlier version let the profile keep.
+    #[cfg(windows)]
+    window.with_webview(|webview| {
+        let _ = tauri_kit_webview::forget_form_entries(&webview.controller());
+    })?;
     #[cfg(windows)]
     navigation::lock(&window, dev_url.as_ref())?;
     #[cfg(not(windows))]
@@ -1013,6 +1026,16 @@ fn start_reports(app: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    // On Windows the window is drawn by WebView2, installed apart from the app. Without it the framework
+    // stops with a message of its own, in English; say it in the app's words first.
+    #[cfg(windows)]
+    if tauri_kit_webview::runtime() == tauri_kit_webview::Runtime::Missing {
+        tauri_kit_webview::alert(
+            "Lowline 창을 열 수 없습니다",
+            "이 컴퓨터에 Microsoft Edge WebView2 런타임이 없습니다. Microsoft 웹사이트에서 «WebView2 런타임»을 설치한 뒤 Lowline을 다시 시작해 주세요.",
+        );
+        std::process::exit(1);
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         // The page decides which clicks open a link (`open_link`); the plugin's own script, which takes
