@@ -97,6 +97,19 @@ function relativeDays(period: Period, today: Date): { from: string; to: string }
  */
 const ASKS_BLANK = /비어|비었|빈 |빈칸|공란|없는|없이|없고|안 적|안 쓴|안 채|미입력|미기재|누락|blank|empty|missing/i
 
+/**
+ * Whether `question` names the choice `value` of `field` — as written, by the label the form shows for it, or without
+ * a part in parentheses ("Risk 1" for `Risk 1 (High)`) — letter case and spaces aside.
+ */
+function namesChoice(question: string, value: string, field: TemplateField): boolean {
+  const plain = (text: string) => text.toLowerCase().replace(/\s+/g, '')
+  const said = plain(question)
+  const label = field.optionLabels?.[value]
+  return [value, label, value.replace(/\s*\([^)]*\)\s*/g, ' ')]
+    .filter((text): text is string => !!text && plain(text).length > 0)
+    .some((text) => said.includes(plain(text)))
+}
+
 /** The JSON object in the reply's last fenced block — or the reply itself — or null. */
 function objectOf(reply: string): Record<string, unknown> | null {
   const blocks = [...reply.matchAll(/```[ \t]*(?:json)?[ \t]*\r?\n([\s\S]*?)```/g)].map((m) => m[1])
@@ -122,9 +135,10 @@ function objectOf(reply: string): Record<string, unknown> | null {
  * of a date-and-time field, from the start of the first to the end of the last. A field that refers to other documents
  * holds their ids: one named by its name in `names` is kept as its id. A reply that counts `of` another template counts
  * one of `referring` — by its name or its id — and is checked against that template's columns instead. Given the
- * `question`, a condition that a field is empty is kept only when the question speaks of something blank. A `sum` names a
- * number field of those columns; one of another kind — a model adding up a date where the question asked how many — is
- * left out, and what was counted says so by saying no sum.
+ * `question`, a condition that a field is empty is kept only when the question speaks of something blank, and one that a
+ * choice field holds a choice only when the question names that choice. A `sum` names a number field of those columns;
+ * one of another kind — a model adding up a date where the question asked how many — is left out, and what was counted
+ * says so by saying no sum.
  */
 export function queryPlan(
   reply: string,
@@ -192,6 +206,9 @@ export function queryPlan(
       filters.push({ column: field.name, op: 'atMost', value: timed ? `${to}T23:59:59` : to })
       continue
     }
+    // A choice the question never names is the model's own addition ("accidents per aircraft kind" counted only where the
+    // damage was substantial): left out, as an unasked blank is.
+    if (op === 'equal' && field.options.length > 0 && question !== undefined && !namesChoice(question, text, field)) continue
     if (op === 'equal' && field.options.length > 0 && !field.options.includes(text)) return { problem: 'bad-filter', field: field.name }
     const id = op === 'equal' && field.reference ? names?.idOf(field.reference, text) : undefined
     filters.push({ column: field.name, op: op as ColumnFilter['op'], value: id ?? text })

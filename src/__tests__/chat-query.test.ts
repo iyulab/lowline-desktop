@@ -54,6 +54,23 @@ describe('what a reply asks to count', () => {
       })
   })
 
+  it('keeps a choice only when the question names it — as written, by its label, or without its part in parentheses', () => {
+    const graded = templateSnapshot(`---
+id: inspection
+version: 1
+---
+@위험도: [select options="Risk 1 (High),Risk 2 (Medium)"]
+@결과: [select options="pass=합격,fail=불합격"]
+`).fields
+    const asking = (filters: string, question: string) =>
+      queryPlan(`{"groupBy": [], "filters": [${filters}]}`, graded, new Date(), undefined, [], question)
+    const kept = (column: string, value: string) => ({ plan: { groupBy: [], filters: [{ column, op: 'equal', value }] } })
+    expect(asking('{"field": "결과", "op": "equal", "value": "fail"}', '위험도별로 몇 건?')).toEqual({ plan: { groupBy: [], filters: [] } })
+    expect(asking('{"field": "결과", "op": "equal", "value": "fail"}', '불합격은 몇 건?')).toEqual(kept('결과', 'fail'))
+    expect(asking('{"field": "결과", "op": "equal", "value": "fail"}', 'FAIL 몇 건?')).toEqual(kept('결과', 'fail'))
+    expect(asking('{"field": "위험도", "op": "equal", "value": "Risk 1 (High)"}', '위험도 높음(Risk 1) 검사는 몇 건?')).toEqual(kept('위험도', 'Risk 1 (High)'))
+  })
+
   it('passes on that the question cannot be counted from the template, as the model put it', () => {
     expect(queryPlan('{"unanswerable": "담당자 칸이 없습니다"}', fields)).toEqual({ unanswerable: '담당자 칸이 없습니다' })
   })
