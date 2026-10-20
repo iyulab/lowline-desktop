@@ -6,19 +6,24 @@
 //! prints one line with it; every request carries the token. The sidecar never touches vault files —
 //! the shell hands it what it needs.
 //!
-//! A sidecar that ends during the session is started again, a few times at most: the next request or
-//! status check finds it gone (`Sidecar::is_running`), and asks for the host to be launched again. What
-//! the sidecar held is the vault the UI handed it, so the UI hands it over again once it is back.
+//! A sidecar that ends during the session is started again by a supervisor
+//! (`tauri_kit_sidecar::supervise`), a few times within a few minutes at most; after that it stays
+//! down and is said to have failed. What the sidecar held is the vault the UI handed it, so the UI
+//! hands it over again once it is back. The sidecar also watches the shell's process
+//! (`PARENT_VARIABLE`), and quits when the shell is gone without having stopped it.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Serialize;
 use tauri_kit_sidecar::loopback::{
     Client, Fault, Loopback, LoopbackOptions, Response, TransportError,
+};
+use tauri_kit_sidecar::supervise::{
+    Event, RestartPolicy, Started, State, SuperviseOptions, Supervisor,
 };
 use tauri_kit_sidecar::Sink;
 
@@ -26,18 +31,18 @@ use tauri_kit_sidecar::Sink;
 pub const TOKEN_VARIABLE: &str = "LOWLINE_HOST_TOKEN";
 /// Must match `VaultProjection.CacheVariable` in `src-host/Lowline.Host`.
 pub const CACHE_VARIABLE: &str = "LOWLINE_HOST_CACHE";
+/// Must match `HostLifecycle.ParentVariable` in `src-host/Lowline.Host`.
+pub const PARENT_VARIABLE: &str = "LOWLINE_HOST_PARENT";
 /// Must match `ReadyLine.Prefix` in `src-host/Lowline.Host`.
 const READY_PREFIX: &str = "lowline-host port=";
 const START_DEADLINE: Duration = Duration::from_secs(30);
-/// How many times a sidecar that ended is started again in one session, before it is said to have failed.
-const MAX_RESTARTS: u32 = 3;
+/// How often a sidecar that ended is started again before it is said to have failed: so many starts
+/// within so long.
+const RESTARTS: RestartPolicy = RestartPolicy {
+    limit: 3,
+    window: Duration::from_secs(300),
+};
 const STOP_GRACE: Duration = Duration::from_secs(3);
-
-/// A running host and how to reach it.
-pub struct Host {
-    sidecar: Loopback,
-    client: HostClient,
-}
 
 /// How to reach the host: its port and this launch's token. Cheap to clone into a worker thread.
 #[derive(Clone)]
@@ -82,37 +87,33 @@ pub fn answer(response: Response) -> Result<String, CallError> {
         .map_or(CallError::Status(response.status), CallError::Failed))
 }
 
-impl Host {
-    /// Starts the host at `exe`, keeping its projection caches in `cache`, and waits until it has
-    /// said where it listens and answered `/health`.
-    pub fn start(exe: &Path, stderr_log: PathBuf, cache: &Path) -> Result<Self, String> {
-        let mut cmd = Command::new(exe);
-        cmd.env(CACHE_VARIABLE, cache);
-        let mut options = LoopbackOptions::new(TOKEN_VARIABLE, READY_PREFIX);
-        options.ready_timeout = START_DEADLINE;
-        options.stderr = Sink::File(stderr_log);
-        let sidecar =
-            Loopback::start(cmd, &options).map_err(|e| format!("the host did not start: {e}"))?;
-        let client = HostClient {
-            client: sidecar.client().clone(),
-        };
-        let host = Host { sidecar, client };
-        host.client
-            .get("/health")
-            .map_err(|e| format!("the host does not answer: {e}"))?;
-        Ok(host)
-    }
-
-    /// Whether the host's process still runs.
-    fn is_running(&mut self) -> bool {
-        self.sidecar.sidecar().is_running()
-    }
-
-    /// Asks the host to stop, then stops whatever is left of it.
-    pub fn stop(self) {
-        let _ = self.client.client.post_json("/shutdown", "");
-        let _ = self.sidecar.shutdown(STOP_GRACE);
-    }
+/// Starts the host at `exe`, keeping its projection caches in `cache`, and waits until it has said
+/// where it listens and answered `/health`: one start, for the supervisor to make again.
+pub fn launch(
+    exe: &Path,
+    stderr_log: PathBuf,
+    cache: &Path,
+) -> Result<Started<HostClient>, String> {
+    let mut cmd = Command::new(exe);
+    cmd.env(CACHE_VARIABLE, cache)
+        .env(PARENT_VARIABLE, std::process::id().to_string());
+    let mut options = LoopbackOptions::new(TOKEN_VARIABLE, READY_PREFIX);
+    options.ready_timeout = START_DEADLINE;
+    options.stderr = Sink::File(stderr_log);
+    let sidecar =
+        Loopback::start(cmd, &options).map_err(|e| format!("the host did not start: {e}"))?;
+    let client = HostClient {
+        client: sidecar.client().clone(),
+    };
+    // Dropped on the error below, the process is stopped with it.
+    let (sidecar, _) = sidecar.into_parts();
+    client
+        .get("/health")
+        .map_err(|e| format!("the host does not answer: {e}"))?;
+    Ok(Started {
+        sidecar,
+        value: client,
+    })
 }
 
 impl HostClient {
@@ -146,107 +147,128 @@ pub enum HostStatus {
     Failed { message: String },
 }
 
-/// Launches the host in the background; `true` when it is started again after it ended.
-type Launch = Box<dyn Fn(bool) + Send + Sync>;
+/// What the supervisor did, for the shell to report and tell the UI.
+pub enum Supervised {
+    /// The host ended and is running again.
+    Restarted,
+    /// The host ended and a start after it failed.
+    RestartFailed,
+    /// The host ended too often and stays down.
+    Down,
+}
 
 /// The host, once started, and its status.
 #[derive(Default)]
 pub struct HostState {
-    pub host: Mutex<Option<Host>>,
-    pub status: Mutex<Option<HostStatus>>,
-    launch: OnceLock<Launch>,
-    restarts: AtomicU32,
+    supervisor: Mutex<Option<Supervisor<HostClient>>>,
+    /// Why the first start failed, when it did.
+    failed: Mutex<Option<String>>,
     /// Stopped for good — the app ends, or an update is about to replace the sidecar: never started again.
     stopped: AtomicBool,
 }
 
 impl HostState {
-    /// Launches the host with `launch`, which is kept to launch it again if it ends.
-    pub fn launch_with(&self, launch: impl Fn(bool) + Send + Sync + 'static) {
-        if self.launch.set(Box::new(launch)).is_ok() {
-            (self.launch.get().expect("just set"))(false);
+    /// Starts the host with `launch` and keeps it running with it, telling `on_event` what the
+    /// supervisor did. Waits for the first start: call it off the main thread.
+    pub fn start(
+        &self,
+        launch: impl Fn() -> Result<Started<HostClient>, String> + Send + Sync + 'static,
+        mut on_event: impl FnMut(Supervised) + Send + 'static,
+    ) -> Result<(), String> {
+        let options = SuperviseOptions {
+            restart: RESTARTS,
+            ..SuperviseOptions::default()
+        };
+        let started = Supervisor::start(launch, options, move |event| {
+            on_event(match event {
+                Event::Restarted { .. } => Supervised::Restarted,
+                Event::RestartFailed { .. } => Supervised::RestartFailed,
+                Event::Down { .. } => Supervised::Down,
+            })
+        });
+        match started {
+            // Started while the app was stopping it for good: it does not stay.
+            Ok(supervisor) if self.stopped.load(Ordering::SeqCst) => {
+                stop(&supervisor);
+                Ok(())
+            }
+            Ok(supervisor) => {
+                *self.supervisor.lock().expect("host poisoned") = Some(supervisor);
+                Ok(())
+            }
+            Err(message) => {
+                *self.failed.lock().expect("host poisoned") = Some(message.clone());
+                Err(message)
+            }
         }
     }
 
     pub fn status(&self) -> HostStatus {
-        self.find_ended();
-        self.status
-            .lock()
-            .expect("host status poisoned")
-            .clone()
-            .unwrap_or(HostStatus::Starting)
-    }
-
-    /// When the running host has ended, lets it go and launches it again — or, after it has ended too
-    /// often, says it failed. Nothing is launched once the host was stopped for good.
-    fn find_ended(&self) {
-        {
-            let mut host = self.host.lock().expect("host poisoned");
-            if !host.as_mut().is_some_and(|running| !running.is_running()) {
-                return;
-            }
-            *host = None;
-        }
-        if self.stopped.load(Ordering::SeqCst) {
-            return;
-        }
-        let ended = self.restarts.fetch_add(1, Ordering::SeqCst) + 1;
-        let status = if ended > MAX_RESTARTS {
-            HostStatus::Failed {
-                message: format!("the sidecar ended {ended} times"),
-            }
-        } else {
-            HostStatus::Starting
-        };
-        let again = matches!(status, HostStatus::Starting);
-        *self.status.lock().expect("host status poisoned") = Some(status);
-        if again {
-            if let Some(launch) = self.launch.get() {
-                launch(true);
-            }
-        }
-    }
-
-    pub fn set(&self, result: Result<Host, String>) {
-        let status = match result {
-            // Started while the app was stopping it for good: it does not stay.
-            Ok(host) if self.stopped.load(Ordering::SeqCst) => {
-                host.stop();
-                return;
-            }
-            Ok(host) => {
-                *self.host.lock().expect("host poisoned") = Some(host);
-                HostStatus::Ready
-            }
+        match self.client() {
+            Ok(_) => HostStatus::Ready,
+            Err(_) if self.is_starting() => HostStatus::Starting,
             Err(message) => HostStatus::Failed { message },
-        };
-        *self.status.lock().expect("host status poisoned") = Some(status);
+        }
+    }
+
+    /// Whether the host is on its way: its first start under way, or a start after it ended.
+    fn is_starting(&self) -> bool {
+        match self.supervisor.lock().expect("host poisoned").as_ref() {
+            Some(supervisor) => supervisor.state() == State::Restarting,
+            None => self.failed.lock().expect("host poisoned").is_none(),
+        }
     }
 
     /// A client for the running host, or why there is none.
     pub fn client(&self) -> Result<HostClient, String> {
-        self.find_ended();
-        // The lock is let go before asking the status, which takes it again: held across that call — as a
-        // `match` on the guard holds it — the thread waits on itself for good, and every later caller with it.
-        let running = self
-            .host
+        // Each lock is let go before the next is taken: no caller ever holds two.
+        let state = self
+            .supervisor
             .lock()
             .expect("host poisoned")
             .as_ref()
-            .map(|host| host.client.clone());
-        running.ok_or_else(|| match self.status() {
-            HostStatus::Failed { message } => message,
-            _ => "the sidecar is still starting".into(),
-        })
+            .map(|supervisor| (supervisor.state(), supervisor.current()));
+        let Some((state, client)) = state else {
+            return Err(self
+                .failed
+                .lock()
+                .expect("host poisoned")
+                .clone()
+                .unwrap_or_else(|| "the sidecar is still starting".into()));
+        };
+        match state {
+            State::Running => Ok(client),
+            State::Restarting => Err("the sidecar is still starting".into()),
+            State::Down => Err(format!(
+                "the sidecar ended {} times within {} minutes",
+                RESTARTS.limit + 1,
+                RESTARTS.window.as_secs() / 60
+            )),
+            State::Stopped => Err("the sidecar was stopped".into()),
+        }
     }
 
     /// Stops the host if it runs, for good. Called when the app exits, and before an update replaces it.
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
-        if let Some(host) = self.host.lock().expect("host poisoned").take() {
-            host.stop();
+        let supervisor = self.supervisor.lock().expect("host poisoned").take();
+        if let Some(supervisor) = supervisor {
+            stop(&supervisor);
         }
     }
+
+    /// A first start that failed — what the UI is then told.
+    #[cfg(test)]
+    fn fail(&self, message: &str) {
+        *self.failed.lock().expect("host poisoned") = Some(message.into());
+    }
+}
+
+/// Asks the host to stop, then stops whatever is left of it.
+fn stop(supervisor: &Supervisor<HostClient>) {
+    supervisor.stop(STOP_GRACE, |client| {
+        let _ = client.post_json("/shutdown", "");
+    });
 }
 
 /// The host executable inside the app's resources.
@@ -318,7 +340,7 @@ mod tests {
     #[test]
     fn a_request_once_starting_failed_says_why() {
         let state = std::sync::Arc::new(HostState::default());
-        state.set(Err("the host did not start".into()));
+        state.fail("the host did not start");
         let failed = state.clone();
         assert_eq!(
             returns_soon(move || failed.client().err()).as_deref(),

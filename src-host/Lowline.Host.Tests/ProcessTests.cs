@@ -7,7 +7,7 @@ namespace Lowline.Host.Tests;
 /// <summary>The contract the shell relies on, checked against the real process.</summary>
 public sealed class ProcessTests
 {
-    private static Process Start(string? token)
+    private static Process Start(string? token, int? parent = null)
     {
         var info = new ProcessStartInfo("dotnet", [typeof(Program).Assembly.Location])
         {
@@ -17,6 +17,8 @@ public sealed class ProcessTests
         };
         info.Environment.Remove(HostAuth.TokenVariable);
         if (token is not null) info.Environment[HostAuth.TokenVariable] = token;
+        info.Environment.Remove(HostLifecycle.ParentVariable);
+        if (parent is not null) info.Environment[HostLifecycle.ParentVariable] = parent.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return Process.Start(info)!;
     }
 
@@ -51,10 +53,31 @@ public sealed class ProcessTests
             Assert.True(health.IsSuccessStatusCode);
 
             var shutdown = await client.PostAsync("/shutdown", null, TestContext.Current.CancellationToken);
-            Assert.Equal(System.Net.HttpStatusCode.NoContent, shutdown.StatusCode);
+            Assert.Equal(System.Net.HttpStatusCode.Accepted, shutdown.StatusCode);
             using var exited = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await host.WaitForExitAsync(exited.Token);
             Assert.Equal(0, host.ExitCode);
+        }
+        finally
+        {
+            if (!host.HasExited) host.Kill(entireProcessTree: true);
+        }
+    }
+
+    [Fact]
+    public async Task Quits_on_its_own_when_the_shell_that_started_it_is_gone()
+    {
+        // A shell that has already ended: the sidecar started for it does not stay.
+        using var shell = Process.Start(new ProcessStartInfo("dotnet", ["--version"]) { RedirectStandardOutput = true, UseShellExecute = false })!;
+        await shell.WaitForExitAsync(TestContext.Current.CancellationToken);
+        using var host = Start(HostTests.Token, parent: shell.Id);
+        try
+        {
+            using var exited = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await host.WaitForExitAsync(exited.Token);
+            // TODO(upstream: tauri-kit df8f358, the next TauriKit.Sidecar.Loopback.AspNetCore release): with it the host
+            // stops cleanly (exit 0); with 0.23.0 the watch stops it while it is still starting, and it ends failing.
+            Assert.True(host.HasExited);
         }
         finally
         {

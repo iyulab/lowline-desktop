@@ -2,7 +2,8 @@
 // writes vault files — the shell owns every file, and hands documents over as parsed values.
 //
 // Started by the shell as a loopback sidecar (TauriKit.Sidecar.Loopback) with a per-launch token in
-// LOWLINE_HOST_TOKEN and the directory for projection caches in LOWLINE_HOST_CACHE. It listens on
+// LOWLINE_HOST_TOKEN, the directory for projection caches in LOWLINE_HOST_CACHE and the shell's process id in
+// LOWLINE_HOST_PARENT — the sidecar quits when that process is gone. It listens on
 // 127.0.0.1, on a port the OS picks, and prints one ready line with it; every request must carry the token
 // and name this computer as its host.
 using Lowline.Host;
@@ -25,6 +26,10 @@ builder.Services.AddSingleton<LocalModels>();
 builder.Services.AddSingleton(services => new VaultProjection(
     services.GetRequiredService<IConfiguration>()[VaultProjection.CacheVariable],
     services.GetRequiredService<HostFailures>()));
+
+// Quits when the shell is gone without having stopped it — killed, say. Tests start the host without one.
+if (int.TryParse(builder.Configuration[HostLifecycle.ParentVariable], out var parent) && parent > 0)
+    builder.Services.AddParentProcessWatch(parent);
 
 var app = builder.Build();
 
@@ -95,15 +100,8 @@ app.MapPost("/chat/extract", (ChatExtractRequest request, LocalModels local, Can
 // Failures of work no request waited on, since the last time the shell asked.
 app.MapPost("/failures/take", (HostFailures failures) => failures.Take());
 
-app.MapPost("/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
-{
-    context.Response.OnCompleted(() =>
-    {
-        lifetime.StopApplication();
-        return Task.CompletedTask;
-    });
-    return Results.NoContent();
-});
+// The shell asks before it stops the process, so writes under way finish.
+app.MapShutdown();
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {

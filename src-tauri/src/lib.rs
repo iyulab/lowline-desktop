@@ -823,44 +823,41 @@ fn encode_segment(s: &str) -> String {
         .collect()
 }
 
-/// Starts the sidecar off the main thread, so the window opens while it starts.
+/// Starts the sidecar off the main thread, so the window opens while it starts, and keeps it running:
+/// a sidecar that ends is started again (see [`host`]) and, once it is back, told to the UI — it has
+/// nothing of the vault, which the UI hands it again.
 fn start_host(app: &tauri::AppHandle) {
-    let launcher = app.clone();
-    app.state::<HostState>()
-        .launch_with(move |again| launch_host(&launcher, again));
-}
-
-/// Starts the sidecar in the background. Started `again` after it ended, it is told to the UI once it is
-/// ready: it has nothing of the vault, which the UI hands it again.
-fn launch_host(app: &tauri::AppHandle, again: bool) {
-    if again {
-        report(report::new(report::Layer::Host, "HostEnded", ""));
-    }
     let app = app.clone();
     std::thread::spawn(move || {
-        let result = (|| {
-            let exe = host::executable(&app.path().resource_dir().map_err(|e| e.to_string())?);
-            let log = app
-                .path()
+        let launcher = app.clone();
+        let launch = move || {
+            let path = launcher.path();
+            let exe = host::executable(&path.resource_dir().map_err(|e| e.to_string())?);
+            let log = path
                 .app_log_dir()
                 .map_err(|e| e.to_string())?
                 .join("host.stderr.log");
             // Projection caches are this device's, outside any vault, and can always be rebuilt.
-            let cache = app
-                .path()
+            let cache = path
                 .app_local_data_dir()
                 .map_err(|e| e.to_string())?
                 .join("projections");
-            host::Host::start(&exe, log, &cache)
-        })();
-        if result.is_err() {
+            host::launch(&exe, log, &cache)
+        };
+        let told = app.clone();
+        let on_event = move |event| match event {
+            host::Supervised::Restarted => {
+                report(report::new(report::Layer::Host, "HostEnded", ""));
+                let _ = told.emit(HOST_RESTARTED, ());
+            }
             // Why it failed is a message, and messages do not leave the device: the kind says enough.
+            host::Supervised::RestartFailed => {
+                report(report::new(report::Layer::Host, "HostStartFailed", ""))
+            }
+            host::Supervised::Down => report(report::new(report::Layer::Host, "HostDown", "")),
+        };
+        if app.state::<HostState>().start(launch, on_event).is_err() {
             report(report::new(report::Layer::Host, "HostStartFailed", ""));
-        }
-        let ready = result.is_ok();
-        app.state::<HostState>().set(result);
-        if again && ready {
-            let _ = app.emit(HOST_RESTARTED, ());
         }
     });
 }
