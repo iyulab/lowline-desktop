@@ -52,7 +52,7 @@ export const strings = {
     '앱이 오류로 실패하면 고치는 데 필요한 정보만 iyulab에 보냅니다: 실패한 부분과 종류, Lowline 자신의 코드 위치, 앱 판 번호, Windows 판. 이 정보는 Microsoft Azure(한국 중부)에 90일 동안 저장되며, 접속 IP 주소는 저장하지 않습니다. 첫 안정판이 나오기 전까지는 오류 보고를 끌 수 없으며, 안정판부터는 설정에서 끌 수 있습니다.',
     '새 판 확인을 켜 두면 열두 시간에 한 번 GitHub에서 새 판이 있는지 확인하고, 있으면 설치 파일을 뒤에서 받아 둡니다. 설치는 «지금 설치»를 누를 때만 합니다. 위에서 끌 수 있습니다.',
   ],
-  outboundOnce: '오류가 나면 문서 내용 없이 실패 정보만 iyulab에 보내고, 새 판이 나왔는지 GitHub에서 확인합니다.',
+  outboundOnce: '오류가 나면 문서 내용 없이 실패 정보만 iyulab에 보내고, 새 판이 나왔는지 GitHub에서 확인해 받아 둡니다.',
   outboundOnceMore: '자세히',
   outboundOnceOk: '알겠습니다',
   updateAvailable: (version: string, ready: boolean) =>
