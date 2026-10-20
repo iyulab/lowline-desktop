@@ -52,6 +52,28 @@ public sealed class SourceFilesTests
         }
     }
 
+    [Fact]
+    public void Finds_tables_of_numbered_rows_to_fill_with_the_columns_above_them()
+    {
+        var form = string.Join('\n',
+            "| 연월일 | | 운용부서명 | |",
+            "| :--- | :--- | :--- | :--- |",
+            "| 일련번호 | 품명 | 청구량 | 용도 |",
+            "| 1 | | | |",
+            "| 2 | | | |",
+            "| 3 | | | |",
+            "",
+            "| 항목 | 결과 |",
+            "| :--- | :--- |",
+            "| 1 | 정상 |",
+            "| 2 | 불량 |",
+            "| 3 | 정상 |");
+
+        var rows = SourceFiles.RepeatedRows(form);
+
+        Assert.Equal([["일련번호", "품명", "청구량", "용도"]], rows); // the second table's rows are filled in already: a list, not rows to add
+    }
+
     /// <summary>A one-page PDF showing <paramref name="text"/> (ASCII) in a standard font — the least a reader must read.</summary>
     internal static byte[] MinimalPdf(string text)
     {

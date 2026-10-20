@@ -64,6 +64,44 @@ public static class SourceFiles
         return new SourceFileReply(true, name, markdown, null);
     }
 
+    /// <summary>
+    /// The tables of <paramref name="markdown"/> that leave rows to fill one after another — at least three rows numbered
+    /// 1, 2, 3 … with nothing else in them — each as the column names of the row just above them. A model reading the form
+    /// sees a table; this says which tables are rows a person adds, to be written as a template of their own.
+    /// </summary>
+    public static IReadOnlyList<IReadOnlyList<string>> RepeatedRows(string markdown)
+    {
+        List<IReadOnlyList<string>> found = [];
+        List<string[]> table = [];
+        foreach (var line in markdown.Split('\n').Append(""))
+        {
+            var text = line.Trim();
+            if (text.StartsWith('|'))
+            {
+                if (!IsDivider(text)) table.Add(Cells(text));
+                continue;
+            }
+            if (Numbered(table) is { } header) found.Add(header);
+            table = [];
+        }
+        return found;
+
+        static string[] Cells(string row) => [.. row.Trim('|').Split('|').Select(c => c.Trim())];
+        static bool IsDivider(string row) => Cells(row).All(c => c.Length > 0 && c.All(ch => ch is '-' or ':'));
+        static IReadOnlyList<string>? Numbered(List<string[]> rows)
+        {
+            for (var i = 1; i < rows.Count; i++)
+            {
+                var n = 0;
+                while (i + n < rows.Count && rows[i + n][0] == (n + 1).ToString() && rows[i + n].Skip(1).All(c => c.Length == 0)) n++;
+                if (n < 3) continue;
+                string[] header = [.. rows[i - 1].Where(c => c.Length > 0)];
+                if (header.Length >= 2) return header;
+            }
+            return null;
+        }
+    }
+
     static string Hwp(string path)
     {
         using var document = UnhwpDocument.ParseFile(path);

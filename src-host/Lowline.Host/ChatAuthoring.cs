@@ -129,6 +129,12 @@ public static class ChatAuthoring
         - 같은 칸 묶음을 줄마다 새로 적는 표(일련번호 1, 2, 3…이 붙은 빈 줄들)는 위 규칙대로 줄 서식을 두 번째 ```formdown 블록에 따로 씁니다.
         - 법령 이름·서식 번호·개정일 머리말, 결재란, 서명·날인 칸(«(인 또는 서명)»), 작성 안내문은 칸으로 만들지 않습니다 — 확정은 사람이 Lowline에서 하고, 서명은 출력한 종이에 합니다.
         - 빈 서식에는 판단 칸 표시가 없습니다. 사람이 말하지 않으면 `lowline:`·`suggest:`를 넣지 않습니다.
+        """ + string.Concat(SourceFiles.RepeatedRows(source.Markdown).Select(RowsNote));
+
+    /// <summary>A table of rows to add one after another, found in the blank form: said outright, with its columns.</summary>
+    static string RowsNote(IReadOnlyList<string> columns) => $"""
+
+        - 이 빈 서식에서 «{string.Join(" · ", columns)}» 표는 번호 붙은 빈 줄을 하나씩 채우는 표입니다. 이 서식에는 그 칸을 넣지 않습니다(`{columns[0]}_1_…`처럼 번호로 펼치지 않습니다). 그 한 줄을 줄 서식으로 두 번째 ```formdown 블록에 씁니다 — 맨 앞 칸은 이 서식의 문서를 가리키는 칸, 그다음 «{string.Join(" · ", columns.Skip(1))}»(번호 칸은 빼도 됩니다).
         """;
 
     /// <summary>The preset of the model running on this computer (<see cref="LocalModels"/>) — Lowline's, not IronProw's.</summary>
