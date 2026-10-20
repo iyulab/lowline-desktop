@@ -45,7 +45,23 @@ export function settingsFrom(written: string | null): Settings {
   }
 }
 
+/**
+ * The settings to write: `s` over what the file holds, so a setting this release does not know — one a newer
+ * release added, before the person went back to this one — is kept for it rather than dropped.
+ */
+export function settingsText(s: Settings, written: string | null): string {
+  let kept: Record<string, unknown> = {}
+  try {
+    const parsed: unknown = written ? JSON.parse(written) : null
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) kept = parsed as Record<string, unknown>
+  } catch {
+    // Unreadable: nothing of it is kept, as nothing of it was read.
+  }
+  return JSON.stringify({ ...kept, ...s })
+}
+
 export const settings = {
   read: async () => settingsFrom(await invoke<string | null>('read_settings')),
-  write: (s: Settings) => invoke<void>('write_settings', { settings: JSON.stringify(s) }),
+  write: async (s: Settings) =>
+    invoke<void>('write_settings', { settings: settingsText(s, await invoke<string | null>('read_settings')) }),
 }

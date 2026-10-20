@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, settingsFrom } from '../settings.ts'
+import { DEFAULT_SETTINGS, settingsFrom, settingsText } from '../settings.ts'
 
 describe('settings', () => {
   it('are the defaults before any was written, and when what was written cannot be read', () => {
@@ -41,5 +41,15 @@ describe('settings', () => {
   it('write the model back as read, so a setting changed elsewhere does not drop it', () => {
     const read = settingsFrom('{"model":{"preset":"anthropic","baseUrl":null,"model":"claude"}}')
     expect(settingsFrom(JSON.stringify({ ...read, checkForUpdates: false })).model).toEqual(read.model)
+  })
+
+  it('keeps a setting this release does not know when it writes, for the release that wrote it', () => {
+    const newer = JSON.stringify({ checkForUpdates: true, outboundToldOnce: true, model: null, theme: 'dark' })
+    const written = JSON.parse(settingsText({ ...DEFAULT_SETTINGS, checkForUpdates: false }, newer))
+    expect(written).toEqual({ checkForUpdates: false, outboundToldOnce: false, model: null, theme: 'dark' })
+    // Nothing to keep from a missing or unreadable file.
+    expect(JSON.parse(settingsText(DEFAULT_SETTINGS, null))).toEqual(DEFAULT_SETTINGS)
+    expect(JSON.parse(settingsText(DEFAULT_SETTINGS, '{not json'))).toEqual(DEFAULT_SETTINGS)
+    expect(JSON.parse(settingsText(DEFAULT_SETTINGS, '[1]'))).toEqual(DEFAULT_SETTINGS)
   })
 })
