@@ -90,6 +90,13 @@ function relativeDays(period: Period, today: Date): { from: string; to: string }
   }
 }
 
+/**
+ * Whether `question` asks about something left blank: a condition that a field is empty is kept only then. A small
+ * model adds one to questions that never said so ("accidents per aircraft kind" counted only where the damage is
+ * blank); what was counted is said in words either way.
+ */
+const ASKS_BLANK = /비어|비었|빈 |빈칸|공란|없는|없이|없고|안 적|안 쓴|안 채|미입력|미기재|누락|blank|empty|missing/i
+
 /** The JSON object in the reply's last fenced block — or the reply itself — or null. */
 function objectOf(reply: string): Record<string, unknown> | null {
   const blocks = [...reply.matchAll(/```[ \t]*(?:json)?[ \t]*\r?\n([\s\S]*?)```/g)].map((m) => m[1])
@@ -114,7 +121,8 @@ function objectOf(reply: string): Record<string, unknown> | null {
  * becomes its first and last day;
  * of a date-and-time field, from the start of the first to the end of the last. A field that refers to other documents
  * holds their ids: one named by its name in `names` is kept as its id. A reply that counts `of` another template counts
- * one of `referring` — by its name or its id — and is checked against that template's columns instead. A `sum` names a
+ * one of `referring` — by its name or its id — and is checked against that template's columns instead. Given the
+ * `question`, a condition that a field is empty is kept only when the question speaks of something blank. A `sum` names a
  * number field of those columns; one of another kind — a model adding up a date where the question asked how many — is
  * left out, and what was counted says so by saying no sum.
  */
@@ -124,6 +132,7 @@ export function queryPlan(
   today: Date = new Date(),
   names?: DocumentNames,
   referring: readonly ReferringCount[] = [],
+  question?: string,
 ): ReadPlan {
   const asked = objectOf(reply)
   if (!asked) return { problem: 'no-plan' }
@@ -169,7 +178,7 @@ export function queryPlan(
     if (!field) return { problem: 'unknown-field', field: String(name) }
     if (typeof op !== 'string' || !OPS.has(op)) return { problem: 'bad-filter', field: field.name }
     if (op === 'empty') {
-      filters.push({ column: field.name, op, value: '' })
+      if (question === undefined || ASKS_BLANK.test(question)) filters.push({ column: field.name, op, value: '' })
       continue
     }
     const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : ''

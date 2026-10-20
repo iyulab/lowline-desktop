@@ -62,7 +62,7 @@ describe.runIf(env.LOWLINE_CHAT_MEASURE)('replies a model on this computer made 
         continue
       }
       const { question, meant: wanted, reply, ms } = read
-      const plan = queryPlan(reply, set!.fields, today, undefined, set!.counts)
+      const plan = queryPlan(reply, set!.fields, today, undefined, set!.counts, question)
       const right = JSON.stringify(sorted(plan)) === JSON.stringify(sorted(queryPlan(wanted, set!.fields, today, undefined, set!.counts)))
       const counted = tally.get(set!.name) ?? { meant: 0, asked: 0 }
       tally.set(set!.name, { meant: counted.meant + (right ? 1 : 0), asked: counted.asked + 1 })

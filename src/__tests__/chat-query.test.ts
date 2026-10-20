@@ -45,6 +45,15 @@ describe('what a reply asks to count', () => {
     expect(queryPlan('{"filters": [{"field": "지역", "op": "contains", "value": " "}]}', fields)).toEqual({ problem: 'bad-filter', field: '지역' })
   })
 
+  it('keeps a condition that a field is blank only when the question speaks of something blank', () => {
+    const reply = '{"groupBy": ["원인"], "filters": [{"field": "지역", "op": "empty"}]}'
+    expect(queryPlan(reply, fields, new Date(), undefined, [], '원인별로 몇 건?')).toEqual({ plan: { groupBy: ['원인'], filters: [] } })
+    for (const question of ['지역이 비어 있는 것 원인별로?', '지역 안 적힌 기록은 원인별로?', '지역 없는 방문 원인별로'])
+      expect(queryPlan(reply, fields, new Date(), undefined, [], question)).toEqual({
+        plan: { groupBy: ['원인'], filters: [{ column: '지역', op: 'empty', value: '' }] },
+      })
+  })
+
   it('passes on that the question cannot be counted from the template, as the model put it', () => {
     expect(queryPlan('{"unanswerable": "담당자 칸이 없습니다"}', fields)).toEqual({ unanswerable: '담당자 칸이 없습니다' })
   })

@@ -264,7 +264,7 @@ export class LlChatPanel extends LitElement {
         fail(strings.chatFailed(failureText(reply.failure, reply.statusCode)))
         return
       }
-      const read = queryPlan(reply.text, columns, new Date(), names, referring)
+      const read = queryPlan(reply.text, columns, new Date(), names, referring, question)
       if (!('plan' in read)) {
         fail(notCounted(read))
         return
