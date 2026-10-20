@@ -674,6 +674,9 @@ struct ChatAuthor {
     model: String,
     template: String,
     turns: Vec<serde_json::Value>,
+    /// The blank form the person handed the chat to start from (`ChatSource`), when there is one.
+    #[serde(default)]
+    source: Option<serde_json::Value>,
 }
 
 fn chat_author_body(request: &ChatAuthor, key: Option<&str>) -> String {
@@ -684,8 +687,21 @@ fn chat_author_body(request: &ChatAuthor, key: Option<&str>) -> String {
         "model": request.model,
         "template": request.template,
         "turns": request.turns,
+        "source": request.source,
     })
     .to_string()
+}
+
+/// A blank form the person picked — an HWP, HWPX or PDF file — read into Markdown by the sidecar, for the chat that
+/// writes templates to start from (`SourceFileReply`). The file is read on this computer and sent nowhere.
+#[tauri::command]
+async fn host_source_file(
+    path: String,
+    state: State<'_, HostState>,
+) -> Result<serde_json::Value, String> {
+    let client = state.client()?;
+    let body = serde_json::json!({ "path": path }).to_string();
+    host_json(blocking(move || client.post_json("/files/markdown", &body)).await?)
 }
 
 /// A reply of the chat that writes templates. The key kept for the preset goes to the sidecar with this request only;
@@ -1074,6 +1090,7 @@ pub fn run() {
             host_local_models,
             host_local_prepare,
             host_chat_author,
+            host_source_file,
             host_chat_extract,
             host_chat_query,
             credentials::model_key_kept,

@@ -371,9 +371,23 @@ export const strings = {
   chat: '채팅',
   chatClose: '채팅 닫기',
   chatModelChange: '모델 바꾸기',
+  chatFromFile: '빈 서식 파일에서',
+  chatFromFileTitle: '빈 서식 파일 고르기',
+  chatFromFileKinds: '한글·PDF 서식',
+  chatFromFileAsk: (name: string) => `빈 서식 «${name}»으로 이 서식을 만들어 주세요.`,
+  chatFromFileFailed: (name: string, failure: string | null) =>
+    `«${name}»을 읽지 못했습니다. ${
+      failure === 'unsupported'
+        ? '한글(HWP·HWPX)과 PDF 서식만 읽습니다.'
+        : failure === 'empty'
+          ? '파일에 글이 없습니다 — 스캔한 서식은 글로 읽지 못합니다.'
+          : failure === 'too-long'
+            ? '빈 서식으로 보기엔 글이 너무 깁니다.'
+            : '파일이 열리지 않거나 손상되었습니다.'
+    }`,
   chatPlaceholder: '서식을 어떻게 바꿀지 말해 보세요',
   chatEmpty:
-    '이 채팅은 생성형 AI 모델이 답합니다. 칸을 넣거나 빼거나 고치는 것을 말로 부탁하면, 바뀐 서식을 편집기에 넣습니다. 쓴 것은 초안이고, 저장은 직접 합니다.',
+    '이 채팅은 생성형 AI 모델이 답합니다. 칸을 넣거나 빼거나 고치는 것을 말로 부탁하면, 바뀐 서식을 편집기에 넣습니다. 종이 서식이 있으면 «빈 서식 파일에서»로 그 한글(HWP)·PDF 파일에서 시작할 수 있습니다. 쓴 것은 초안이고, 저장은 직접 합니다.',
   chatYou: '나',
   chatWriting: '쓰는 중…',
   chatStopped: '멈췄습니다.',

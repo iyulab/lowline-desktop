@@ -55,6 +55,21 @@ public sealed class ChatAuthoringTests
     }
 
     [Fact]
+    public void Hands_the_model_a_blank_form_the_person_picked_after_the_rules_and_only_when_there_is_one()
+    {
+        var form = "| 일련번호 | 품명 | 청구량 |\n| :--- | :--- | :--- |\n| 1 | | |";
+        Assert.DoesNotContain("빈 서식", ChatAuthoring.Instructions(Template));
+
+        var told = ChatAuthoring.Instructions(Template, new ChatSource("물품청구서.hwp", form));
+
+        Assert.Contains("«물품청구서.hwp»", told);
+        Assert.Contains(form, told);
+        Assert.True(told.IndexOf(form, StringComparison.Ordinal) > told.IndexOf("@요청: [textarea rows=3]", StringComparison.Ordinal),
+            "the form comes after the template it is carried into");
+        Assert.Contains("(인 또는 서명)", told); // a signature box is no field: it is signed on paper
+    }
+
+    [Fact]
     public async Task Says_a_key_was_refused_without_the_providers_own_words()
     {
         var (app, baseUrl) = await ModelConnectionTests.StandIn(async context =>

@@ -536,6 +536,26 @@
       "statusCode": 0
     }
   ],
+  "sourceFile": [
+    {
+      "ok": true,
+      "name": "신청서.pdf",
+      "markdown": "Requester name: \\_\\_\\_\\_",
+      "failure": null
+    },
+    {
+      "ok": false,
+      "name": "양식.docx",
+      "markdown": null,
+      "failure": "unsupported"
+    },
+    {
+      "ok": false,
+      "name": "없는 양식.hwp",
+      "markdown": null,
+      "failure": "unreadable"
+    }
+  ],
   "localPrepare": [
     {
       "model": "gguf:qwen3-balanced",
@@ -708,6 +728,12 @@
     "localGetting": [
       "model",
       "runtime"
+    ],
+    "sourceFailure": [
+      "unsupported",
+      "unreadable",
+      "empty",
+      "too-long"
     ]
   }
 }

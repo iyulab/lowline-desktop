@@ -10,7 +10,8 @@ import { draftProblems, draftsOf, fieldChanges, retryMessage, rowProblems, sourc
 import { planWords, queryPlan, type ReadPlan } from './chat-query.js'
 import { fileName, fileNameFor } from './documents.js'
 import { cellText, countColumns, referringTemplates, templateSnapshot, type AggregateAnswer, type CountColumn, type TemplateField, type TemplateSnapshot } from './projection.js'
-import { host, model as models, vault, type ChatTurn } from './vault-client.js'
+import { open } from '@tauri-apps/plugin-dialog'
+import { host, model as models, vault, type ChatSource, type ChatTurn } from './vault-client.js'
 import { SidecarUnavailable, readVault, syncVault } from './vault-snapshot.js'
 import { documentNames, type DocumentNames } from './references.js'
 import { templateId } from './template-revision.js'
@@ -204,6 +205,8 @@ export class LlChatPanel extends LitElement {
   @query('u-prompt') private prompt?: HTMLElement & { value?: string }
   /** Bumped by every message and by stopping: a reply to an older one is let go. */
   private asked = 0
+  /** The blank form the person handed the chat, sent with every request of the conversation once picked. */
+  private source: ChatSource | null = null
 
   /** The conversation of the task shown. */
   private get shown(): Shown[] {
@@ -297,6 +300,32 @@ export class LlChatPanel extends LitElement {
     }
   }
 
+  /** A blank form file the person picks, for the chat to draft the template from. */
+  private async pickFile() {
+    const path = await open({ title: strings.chatFromFileTitle, filters: [{ name: strings.chatFromFileKinds, extensions: ['hwp', 'hwpx', 'pdf'] }] })
+    if (typeof path === 'string') await this.fromFile(path)
+  }
+
+  /** The blank form at `path`, read on this computer and handed to the chat with a request to draft the template from it. */
+  async fromFile(path: string) {
+    const name = path.split(/[\\/]/).pop() ?? path
+    const fail = (failure: string | null) =>
+      (this.shown = [...this.shown, { role: 'assistant', text: strings.chatFromFileFailed(name, failure), failed: true }])
+    let read
+    try {
+      read = await models.sourceFile(path)
+    } catch {
+      fail(null)
+      return
+    }
+    if (!read.ok || read.markdown === null) {
+      fail(read.failure)
+      return
+    }
+    this.source = { name: read.name ?? name, markdown: read.markdown }
+    await this.author(strings.chatFromFileAsk(this.source.name))
+  }
+
   private async author(text: string) {
     const model = this.model
     if (!model || !text.trim()) return
@@ -321,13 +350,13 @@ export class LlChatPanel extends LitElement {
         // A row spread over numbered fields works, but is no row: said when asking again, not as a problem in the editor.
         return { draft: drafts.draft, rows, problems, spread: spreadRows(tidyDraft(drafts.draft)) }
       }
-      let reply = await models.author(model, template, this.turns)
+      let reply = await models.author(model, template, this.turns, this.source)
       if (ask !== this.asked) return
       let { draft, rows, problems, spread } = read(reply.ok ? reply.text : null)
       if (reply.ok && draft && (problems.length > 0 || spread.length > 0)) {
         // Asked once more, with what is wrong — the conversation as it went, the retry not shown.
         const again = [...this.turns, { role: 'assistant' as const, text: reply.text! }, { role: 'user' as const, text: retryMessage([...problems, ...spread.map(strings.chatRowsSpread)]) }]
-        const second = await models.author(model, template, again)
+        const second = await models.author(model, template, again, this.source)
         if (ask !== this.asked) return
         const retried = read(second.ok ? second.text : null)
         if (retried.draft) {
@@ -502,6 +531,9 @@ export class LlChatPanel extends LitElement {
       <div class="model">
         <span>${modelLabel(this.model)}</span>
         <dc-button size="sm" variant="ghost" @click=${() => (this.settingUp = true)}>${strings.chatModelChange}</dc-button>
+        ${this.mode === 'author'
+          ? html`<dc-button size="sm" variant="ghost" ?disabled=${this.writing} @click=${() => void this.pickFile()}>${strings.chatFromFile}</dc-button>`
+          : nothing}
       </div>
       <dc-segmented-control
         size="sm"

@@ -196,6 +196,9 @@ public sealed class ResponseContractTests
         });
         await using var _refusing = refusingApp;
 
+        var blankForm = Path.Combine(Directory.CreateTempSubdirectory().FullName, "신청서.pdf");
+        File.WriteAllBytes(blankForm, SourceFilesTests.MinimalPdf("Requester name: ____"));
+
         var observed = new Dictionary<string, object> { ["부서"] = "영업" };
         var responses = new JsonObject
         {
@@ -230,6 +233,11 @@ public sealed class ResponseContractTests
             ["chatExtract"] = new JsonArray(
                 await Post("/chat/extract", new { preset = "custom", baseUrl = listingUrl, model = "qwen3-4b", template = "# 접수", text = "김민수 님 요청" }),
                 await Post("/chat/extract", new { preset = "custom", baseUrl = refusingUrl, apiKey = "sk-wrong", model = "qwen3-4b", template = "", text = "안녕" })),
+            // A blank form read into Markdown; one of a kind not read, and one that is not there: the kind, never the parser's words.
+            ["sourceFile"] = new JsonArray(
+                await Post("/files/markdown", new { path = blankForm }),
+                await Post("/files/markdown", new { path = Path.Combine(Path.GetTempPath(), "양식.docx") }),
+                await Post("/files/markdown", new { path = Path.Combine(Path.GetTempPath(), "없는 양식.hwp") })),
             // The models on this computer — one here, one not — as getting the one not here ready goes: before, while it is
             // fetched, once it runs; and as the recommended one will not start. Asking to get one ready answers where that
             // stands: started, already on its way, or refused for a model not offered.
@@ -244,6 +252,7 @@ public sealed class ResponseContractTests
                 ["probeFailure"] = Words(typeof(ModelFailure)),
                 ["localPhase"] = Words(typeof(LocalPhase)),
                 ["localGetting"] = Words(typeof(LocalGetting)),
+                ["sourceFailure"] = Words(typeof(SourceFileFailure)),
             },
         };
         var written = Zeroed(responses)!.ToJsonString(Written).ReplaceLineEndings("\n") + "\n";

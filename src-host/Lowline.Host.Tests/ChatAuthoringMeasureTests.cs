@@ -9,7 +9,8 @@ namespace Lowline.Host.Tests;
 /// each request's reply, with the fields it asks for and the ones it asks to be judged, for the app's side to judge as
 /// the app reads drafts (<c>src/__tests__/chat-authoring-measure.test.ts</c>). A measurement, not a test of the model:
 /// only that each reply arrives is asserted. Runs only with <c>LOWLINE_CHAT_AUTHORING_MEASURE</c> naming the file to
-/// write and the model (<c>LOWLINE_CHAT_MODEL</c>, the recommended one by default) already on this computer.
+/// write and the model (<c>LOWLINE_CHAT_MODEL</c>, the recommended one by default) already on this computer; the requests
+/// that hand over a blank form file run only with <c>LOWLINE_BLANK_FORMS</c> naming the folder of them.
 /// </summary>
 public sealed class ChatAuthoringMeasureTests
 {
@@ -39,7 +40,17 @@ public sealed class ChatAuthoringMeasureTests
     /// their own whose documents point at this one's.
     /// </summary>
     private sealed record Case(
-        string Id, string Ask, string[] Fields, string[] Judged, string[]? Conditional = null, string[]? Computed = null, string[]? Rows = null);
+        string Id, string Ask, string[] Fields, string[] Judged, string[]? Conditional = null, string[]? Computed = null, string[]? Rows = null,
+        BlankForm? From = null);
+
+    /// <summary>
+    /// A blank form handed to the chat, as the app's «빈 서식 파일에서» does: the file under <c>LOWLINE_BLANK_FORMS</c> and
+    /// the name the person would see it by. A case with one runs only when that folder is set.
+    /// </summary>
+    private sealed record BlankForm(string File, string Name);
+
+    /// <summary>What the app sends when a blank form is picked (its <c>chatFromFileAsk</c>).</summary>
+    private static string FromFileAsk(string name) => $"빈 서식 «{name}»으로 이 서식을 만들어 주세요.";
 
     private static readonly Case[] Cases =
     [
@@ -65,6 +76,16 @@ public sealed class ChatAuthoringMeasureTests
             ["행사명", "개최자", "종목", "참석", "안전관리책임자", "비상구", "응급", "조치", "종합"], ["종합"], ["조치"]),
         new("requisition", "물품청구서 서식으로 바꿔 줘. 운용부서명, 예산과목, 청구일을 받고, 품목마다 품명, 청구량, 단가, 금액, 용도를 열다섯 줄까지 적을 수 있게 해 줘.",
             ["운용부서", "예산과목", "청구일", "품명", "청구량", "단가", "금액", "용도"], [], Computed: ["금액"], Rows: ["품명", "청구량", "단가", "금액", "용도"]),
+        // The same kind of request made by handing over the blank form itself, read from its HWP file.
+        new("requisition-file", FromFileAsk("물품청구서.hwp"),
+            ["품명", "청구량", "단가", "금액", "용도"], [], Computed: ["금액"], Rows: ["품명", "청구량", "단가", "금액", "용도"],
+            From: new("goods/form.hwp", "물품청구서.hwp")),
+        new("fire-check-file", FromFileAsk("소방시설 외관점검표.hwp"),
+            ["대상명", "동호수", "점검일", "점검자", "전화번호"], [],
+            From: new("fire_unit/form.hwp", "소방시설 외관점검표.hwp")),
+        new("disclosure-file", FromFileAsk("정보공개청구서.hwp"),
+            ["성명", "생년월일", "주소", "전화", "청구", "공개", "수령"], [],
+            From: new("inforeq/form.hwp", "정보공개청구서.hwp")),
     ];
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerOptions.Web) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -82,11 +103,20 @@ public sealed class ChatAuthoringMeasureTests
         List<string> lines = [JsonSerializer.Serialize(new { model, template = Starter }, Json)];
         // `LOWLINE_CHAT_AUTHORING_CASES` (ids, comma-separated) asks only those.
         var only = Environment.GetEnvironmentVariable("LOWLINE_CHAT_AUTHORING_CASES")?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var blankForms = Environment.GetEnvironmentVariable("LOWLINE_BLANK_FORMS");
         foreach (var c in Cases.Where(c => only is not { Length: > 0 } || only.Contains(c.Id)))
         {
+            ChatSource? source = null;
+            if (c.From is { } from)
+            {
+                if (string.IsNullOrEmpty(blankForms)) continue;
+                var read = SourceFiles.Read(new SourceFileRequest(Path.Combine(blankForms, from.File)));
+                Assert.True(read.Ok, $"{c.Id}: {read.Failure}");
+                source = new ChatSource(from.Name, read.Markdown!);
+            }
             var clock = Stopwatch.StartNew();
             var reply = await ChatAuthoring.ReplyAsync(
-                new ChatAuthorRequest(ChatAuthoring.LocalPreset, null, null, model, Starter, [new ChatTurn("user", c.Ask)]),
+                new ChatAuthorRequest(ChatAuthoring.LocalPreset, null, null, model, Starter, [new ChatTurn("user", c.Ask)], source),
                 local, TimeSpan.FromMinutes(5), ct);
             clock.Stop();
             Assert.True(reply.Ok, $"{c.Id}: {reply.Failure}");

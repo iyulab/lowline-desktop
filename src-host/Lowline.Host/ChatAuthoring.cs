@@ -14,9 +14,13 @@ public sealed record ChatTurn(string Role, string Text);
 /// <summary>
 /// What the shell asks for a chat reply about a template: the endpoint and model the person set up, the key the shell
 /// read from the credential store for this one request (never kept here), the template's source as it stands in the
-/// editor, and the conversation so far, the person's last message last.
+/// editor, the conversation so far, the person's last message last — and the blank form the person handed the chat
+/// to start from, when there is one.
 /// </summary>
-public sealed record ChatAuthorRequest(string Preset, string? BaseUrl, string? ApiKey, string Model, string Template, IReadOnlyList<ChatTurn> Turns);
+public sealed record ChatAuthorRequest(string Preset, string? BaseUrl, string? ApiKey, string Model, string Template, IReadOnlyList<ChatTurn> Turns, ChatSource? Source = null);
+
+/// <summary>A blank form the person picked, as <see cref="SourceFiles"/> read it: the file's name and its Markdown.</summary>
+public sealed record ChatSource(string Name, string Markdown);
 
 /// <summary>The model's reply; or, when there is none, why — as one of <see cref="ModelFailure"/>'s, never the provider's words.</summary>
 public sealed record ChatReply(bool Ok, string? Text, string? Failure, int? StatusCode);
@@ -38,7 +42,7 @@ public static class ChatAuthoring
     public static readonly TimeSpan Deadline = TimeSpan.FromSeconds(100);
 
     /// <summary>What the model is told before the conversation: how a Lowline template is written, and the one it works on.</summary>
-    public static string Instructions(string template) => $"""
+    public static string Instructions(string template, ChatSource? source = null) => $"""
         당신은 Lowline 서식을 함께 쓰는 도우미입니다. 서식은 Formdown 문법의 마크다운 파일 하나이고, 사람이 그 서식으로 문서를 채웁니다.
 
         서식의 규칙:
@@ -106,6 +110,25 @@ public static class ChatAuthoring
         ```formdown
         {template}
         ```
+        """ + (source is null ? "" : SourceSection(source));
+
+    /// <summary>The blank form the person handed the chat, after the instructions: what it is and how to carry it over.</summary>
+    static string SourceSection(ChatSource source) => $"""
+
+
+        사람이 준 빈 서식 «{source.Name}» — 종이 서식 파일을 마크다운으로 읽은 것입니다(표는 마크다운 표, 칸 경계가 어긋날 수 있습니다):
+        ```markdown
+        {source.Markdown}
+        ```
+        이 빈 서식으로 만들어 달라고 하면, 지금 서식의 본문을 빈 서식대로 새로 씁니다:
+        - 지금 서식에 있던 칸 가운데 빈 서식에 없는 칸(새 서식의 `제목`·`상태`·`메모` 같은)은 뺍니다. front matter의 `id`와 `version`은 그대로 둡니다.
+        - 서식 제목(`# 제목`)은 빈 서식의 제목을 씁니다.
+        - 사람이 채우는 빈칸마다 칸 하나를 위 규칙대로 만듭니다. 칸 이름은 그 빈칸 옆에 적힌 이름을 그대로 씁니다(띄어쓰기는 밑줄로). 칸 줄은 `@`로 시작합니다 — 빈 서식의 표 모양(`|`)을 서식에 옮겨 쓰지 않습니다.
+        - `□`·`[ ]` 같은 고르는 표시가 붙은 글은 선택지입니다 — 하나만 고르면 `radio`, 여럿이면 `checkbox`.
+        - 점검표처럼 항목마다 같은 선택지(«□ 정상 □ 불량»)가 붙은 표는, 항목마다 그 선택지의 `radio` 칸을 하나씩 만듭니다(칸 이름은 항목 이름). 항목들을 긴 글 칸 하나로 합치지 않습니다.
+        - 같은 칸 묶음을 줄마다 새로 적는 표(일련번호 1, 2, 3…이 붙은 빈 줄들)는 위 규칙대로 줄 서식을 두 번째 ```formdown 블록에 따로 씁니다.
+        - 법령 이름·서식 번호·개정일 머리말, 결재란, 서명·날인 칸(«(인 또는 서명)»), 작성 안내문은 칸으로 만들지 않습니다 — 확정은 사람이 Lowline에서 하고, 서명은 출력한 종이에 합니다.
+        - 빈 서식에는 판단 칸 표시가 없습니다. 사람이 말하지 않으면 `lowline:`·`suggest:`를 넣지 않습니다.
         """;
 
     /// <summary>The preset of the model running on this computer (<see cref="LocalModels"/>) — Lowline's, not IronProw's.</summary>
@@ -118,7 +141,7 @@ public static class ChatAuthoring
     public static Task<ChatReply> ReplyAsync(ChatAuthorRequest request, LocalModels local, TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (request.Turns.Count == 0) return Task.FromResult(new ChatReply(false, null, ModelFailure.Invalid, null));
-        List<ChatMessage> messages = [new(ChatRole.System, Instructions(request.Template))];
+        List<ChatMessage> messages = [new(ChatRole.System, Instructions(request.Template, request.Source))];
         messages.AddRange(request.Turns.Select(t => new ChatMessage(t.Role == "assistant" ? ChatRole.Assistant : ChatRole.User, t.Text)));
         return SendAsync(new ChatModel(request.Preset, request.BaseUrl, request.ApiKey, request.Model), messages, local, timeout, cancellationToken);
     }

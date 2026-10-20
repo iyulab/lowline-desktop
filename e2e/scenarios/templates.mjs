@@ -1,10 +1,33 @@
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { parseFormdown, readFrontMatter } from '@formdown/core'
 import { TEMPLATE, BUG, INTAKE, documentsIn, fileValues } from '../shared.mjs'
 import { SETTINGS, q } from '../app.mjs'
+
+/** A one-page PDF showing `text` (ASCII) in a standard font: a blank form as small as one gets. */
+function minimalPdf(text) {
+  const content = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET`
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ]
+  let pdf = '%PDF-1.4\n'
+  const offsets = objects.map((object, i) => {
+    const at = pdf.length
+    pdf += `${i + 1} 0 obj\n${object}\nendobj\n`
+    return at
+  })
+  const xref = pdf.length
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return Buffer.from(pdf, 'ascii')
+}
 
 /** A request's body as text: its chunks put together first, so a character split between two is read whole. */
 const bodyOf = (req) =>
@@ -272,7 +295,9 @@ export default {
             ? `넣었습니다.\n\n${fence}formdown\n${draft('@제목: [text]\n')}${fence}`
             : asked.length === 2
               ? `고쳤습니다.\n\n${fence}formdown\n${draft('')}${fence}`
-              : `단계를 줄 서식으로 나눴습니다.\n\n${fence}formdown\n${draft('')}${fence}\n\n${fence}formdown\n${row}${fence}`
+              : asked.length === 3
+                ? `단계를 줄 서식으로 나눴습니다.\n\n${fence}formdown\n${draft('')}${fence}\n\n${fence}formdown\n${row}${fence}`
+                : `빈 서식의 칸을 옮겼습니다.\n\n${fence}formdown\n${draft('@신청인: [text]\n')}${fence}`
         res.end(JSON.stringify({ id: 'c', object: 'chat.completion', created: 0, model: 'large-8b', choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }] }))
       })
     })
@@ -364,6 +389,24 @@ export default {
       await app.cdp.waitFor(`!__e2e.one('button.item', '재현 단계')`, 'the row template gone from the sidebar')
       await app.cdp.evaluate(`[...${chat}.querySelectorAll('.note[role=status]')].at(-2).querySelector('dc-button').click()`)
       await app.cdp.waitFor(`__e2e.one('textarea')?.value === ${JSON.stringify(before)}`, 'the source as it was again')
+      await app.click('dc-button', '저장')
+      await app.status('저장했습니다')
+
+      // A blank form file to start from, a PDF: read on this computer, its text and name sent with the request, the request
+      // in the person's words, the draft put in the editor.
+      const form = join(await mkdtemp(join(tmpdir(), 'lowline-form-')), '신청서.pdf')
+      await writeFile(form, minimalPdf('Requester name: ____'))
+      // The system's file picker is the operating system's; the scenario hands the panel the path it would have answered.
+      assert.ok(await app.cdp.evaluate(`[...${chat}.querySelectorAll('.model dc-button')].some((b) => b.textContent.includes('빈 서식 파일에서'))`), 'a way to start from a blank form file')
+      await app.cdp.evaluate(`__e2e.all('ll-chat-panel')[0].fromFile(${q(form)}).then(() => true)`)
+      await app.cdp.waitFor(`[...${chat}.querySelectorAll('.note[role=status]')].some((n) => /넣은 칸:[^/]*신청인/.test(n.textContent))`, 'the draft from the blank form put into the editor', { timeoutMs: 30_000 })
+      assert.equal(asked.length, 4, 'one request for the blank form')
+      assert.match(asked[3].messages[0].content, /«신청서\.pdf»[\s\S]*Requester name/, "the form's name and text after the rules")
+      assert.equal(asked[3].messages.at(-1).content, '빈 서식 «신청서.pdf»으로 이 서식을 만들어 주세요.', "the request in the person's words")
+      assert.doesNotMatch(asked[3].messages.at(-1).content, /Requester name/, 'the form is not pasted into what the person said')
+      assert.equal(await readFile(join(vault, TEMPLATE), 'utf8'), before, 'nothing saved: the person saves')
+      await app.cdp.evaluate(`[...${chat}.querySelectorAll('.note[role=status]')].at(-1).querySelector('dc-button').click()`)
+      await app.cdp.waitFor(`__e2e.one('textarea')?.value === ${JSON.stringify(before)}`, 'the source as it was, once more')
       await app.click('dc-button', '저장')
       await app.status('저장했습니다')
 

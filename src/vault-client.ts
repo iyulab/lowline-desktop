@@ -209,6 +209,23 @@ export const host = {
   similar: (path: string) => invoke<CaseHit[]>('host_similar', { request: { path } }),
 }
 
+/** A blank form the person handed the chat that writes templates: the file's name and its text as Markdown. */
+export interface ChatSource {
+  name: string
+  markdown: string
+}
+
+/** Why a picked file could not be read (the sidecar's `SourceFiles`). */
+export type SourceFileFailure = 'unsupported' | 'unreadable' | 'empty' | 'too-long'
+
+/** A picked file as Markdown, or why not. */
+export interface SourceFileReply {
+  ok: boolean
+  name: string | null
+  markdown: string | null
+  failure: SourceFileFailure | null
+}
+
 /** Why a model endpoint did not answer, for the app to say in its own words (the sidecar's `ModelFailure`). */
 export type ModelFailure =
   | 'invalid'
@@ -286,8 +303,10 @@ export const model = {
   /** Starts getting a model ready on this computer, fetching what is not here; `local` follows it. */
   prepareLocal: (id: string) => invoke<LocalModelProgress>('host_local_prepare', { model: id }),
   /** A reply about `template` — its source as it stands — to the conversation, by the model set up, with the key kept for its preset. */
-  author: (setting: { preset: string; baseUrl: string | null; model: string }, template: string, turns: ChatTurn[]) =>
-    invoke<ChatReply>('host_chat_author', { request: { ...setting, template, turns } }),
+  author: (setting: { preset: string; baseUrl: string | null; model: string }, template: string, turns: ChatTurn[], source?: ChatSource | null) =>
+    invoke<ChatReply>('host_chat_author', { request: { ...setting, template, turns, source: source ?? null } }),
+  /** A blank form — an HWP, HWPX or PDF file at `path` — read into Markdown on this computer, for `author` to start from. */
+  sourceFile: (path: string) => invoke<SourceFileReply>('host_source_file', { path }),
   /**
    * What the model set up says to count for `question` about `template`'s documents — its reply, to be checked by the app —
    * told what the documents its fields refer to are counted by (`referred`) and which templates' documents refer to its
