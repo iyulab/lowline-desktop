@@ -176,7 +176,7 @@ export default {
     const { version } = JSON.parse(await readFile(join(here, '..', 'src-tauri', 'tauri.conf.json'), 'utf8'))
     await app.cdp.waitFor(`${about}.open && ${text}.includes(${q(`판 ${version}`)})`, 'the about dialog with the version')
     const shown = await app.cdp.evaluate(text)
-    for (const part of ['© iyulab', 'AGPL-3.0', '어떤 보증도 없이', 'https://github.com/iyulab/lowline'])
+    for (const part of ['© iyulab', 'AGPL-3.0', '어떤 보증도 없이', 'https://github.com/iyulab/lowline-desktop'])
       assert.ok(shown.includes(part), `${part} in ${shown}`)
     // The notices are read only when opened: the file the installer lays beside the app.
     await app.click('summary', '함께 쓰는 소프트웨어의 고지')

@@ -39,7 +39,7 @@ export const strings = {
   aboutLicense:
     'Lowline은 GNU Affero General Public License 3.0(AGPL-3.0)으로 배포됩니다. 이 라이선스에 따라 고치고 다시 배포할 수 있으며, 법이 허용하는 한 어떤 보증도 없이 제공됩니다.',
   aboutSource: '소스 코드',
-  aboutSourceUrl: 'https://github.com/iyulab/lowline',
+  aboutSourceUrl: 'https://github.com/iyulab/lowline-desktop',
   aboutNotices: '함께 쓰는 소프트웨어의 고지',
   aboutNoticesLoading: '읽는 중…',
   aboutNoticesFailed: '고지 파일을 읽지 못했습니다. 설치 폴더의 THIRD-PARTY-NOTICES.txt에 같은 내용이 있습니다.',
