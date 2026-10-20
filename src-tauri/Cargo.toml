@@ -30,15 +30,16 @@ tauri-kit-fs = "0.23.0"
 tauri-kit-sidecar = { version = "0.23.0", features = ["loopback-client"] }
 tauri-kit-watch = "0.23.0"
 
-[target.'cfg(windows)'.dependencies]
-# Holds the window's web view to the app's own pages below Tauri's navigation handler: frames,
-# the requests of refused navigations, new windows and other programs' schemes too.
-tauri-kit-webview = "0.23.0"
 # Deleting moves a file to the system's trash (Recycle Bin, Trash, freedesktop trash), where the
 # person restores it from — the vault keeps no trash of its own.
 trash = "5.2.9"
 tauri-plugin-updater = "2.13.1"
 tauri-plugin-opener = "2"
+
+[target.'cfg(windows)'.dependencies]
+# Holds the window's web view to the app's own pages below Tauri's navigation handler: frames,
+# the requests of refused navigations, new windows and other programs' schemes too.
+tauri-kit-webview = "0.23.0"
 
 [dev-dependencies]
 # The in-memory credential store the tests keep keys in, never the real one.
