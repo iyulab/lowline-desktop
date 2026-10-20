@@ -78,7 +78,7 @@ public static class ChatQuery
         서식:
         ```formdown
         {{template}}
-        ```{{Referred(referred)}}{{Referring(referring)}}
+        ```{{Referred(referred)}}{{Referring(referring, template)}}
         """;
 
     /// <summary>
@@ -97,15 +97,29 @@ public static class ChatQuery
     /// The templates whose documents refer to the template's — said with the fields that do and what their documents are
     /// counted by, and how to count them by the document each names — or nothing when none does.
     /// </summary>
-    private static string Referring(IReadOnlyList<ReferringTemplate>? referring) => referring is not { Count: > 0 }
+    private static string Referring(IReadOnlyList<ReferringTemplate>? referring, string template) => referring is not { Count: > 0 }
         ? ""
         : "\n" + $$"""
             이 서식의 문서를 가리키는 다른 서식이 있습니다. 그 서식의 기록을 세려면 `"of"`에 그 서식의 이름을 넣고, 그 서식의 칸 이름을 씁니다:
             {{string.Join("\n", referring.Select(t => $"- `{t.Name}` — {string.Join(", ", t.Via.Select(v => $"`{v}`"))} 칸이 이 서식의 문서를 가리킵니다. 셀 수 있는 칸: {string.Join(", ", t.Columns.Select(Column))}"))}}
             이 서식의 문서마다 그것을 가리키는 기록을 세려면(「{{referring[0].Name}} 기록이 많은 것」) 가리키는 칸으로 묶습니다: `{"of": "{{referring[0].Name}}", "groupBy": ["{{referring[0].Via[0]}}"]}`.
             세는 것이 그 서식의 기록이면 `of`를 쓰고, 이 서식의 문서 자체이면 쓰지 않습니다: 「{{referring[0].Name}} 기록이 가장 많은 3개」는 `{"of": "{{referring[0].Name}}", "groupBy": ["{{referring[0].Via[0]}}"], "top": 3}`, 이 서식의 문서가 칸 값마다 몇 개인지는 `of` 없이 이 서식의 칸으로 묶습니다.
-            {{ReferringByField(referring[0])}}{{ReferringSum(referring[0])}}
+            {{ReferringByField(referring[0])}}{{OwnCount(referring[0], template)}}{{ReferringSum(referring[0])}}
             """;
+
+    /// <summary>
+    /// How to count the template's own documents by one of its choice fields — "requisitions per department" counts the
+    /// requisitions, not the item rows naming them: no `of`, and the field by its own name. Said with the template's title
+    /// and first choice field; nothing when it has neither.
+    /// </summary>
+    private static string OwnCount(ReferringTemplate referring, string template)
+    {
+        var title = System.Text.RegularExpressions.Regex.Match(template, @"^#[ \t]+(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var choice = System.Text.RegularExpressions.Regex.Match(template, @"^@([^\s:(]+)[^:\n]*:\s*\[(?:select|radio)\b", System.Text.RegularExpressions.RegexOptions.Multiline);
+        if (!title.Success || !choice.Success) return "";
+        var (name, field) = (title.Groups[1].Value.Trim(), choice.Groups[1].Value);
+        return " " + $$"""반대로 「{{field}}별 {{name}} 수」는 {{referring.Name}} 기록이 아니라 이 서식의 문서를 세므로 `of` 없이 이 서식의 칸 그대로 묶습니다: `{"groupBy": ["{{field}}"]}` — `{{referring.Via[0]}}.{{field}}`가 아닙니다.""" + "\n";
+    }
 
     /// <summary>
     /// How to count the referring template's records by a field of the document each names — "accidents by aircraft
