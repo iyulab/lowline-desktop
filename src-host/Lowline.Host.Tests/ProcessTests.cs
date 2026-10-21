@@ -75,9 +75,8 @@ public sealed class ProcessTests
         {
             using var exited = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             await host.WaitForExitAsync(exited.Token);
-            // TODO(upstream: tauri-kit df8f358, the next TauriKit.Sidecar.Loopback.AspNetCore release): with it the host
-            // stops cleanly (exit 0); with 0.23.0 the watch stops it while it is still starting, and it ends failing.
-            Assert.True(host.HasExited);
+            // The watch lets it finish starting, then stops it cleanly.
+            Assert.Equal(0, host.ExitCode);
         }
         finally
         {

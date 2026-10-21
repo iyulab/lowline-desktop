@@ -76,6 +76,7 @@ public sealed class LocalModelsTests
         }
 
         public IAsyncEnumerable<string> GenerateAsync(string prompt, GenerationOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<TextStreamChunk> GenerateStreamAsync(string prompt, GenerationOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public IAsyncEnumerable<string> GenerateChatAsync(IEnumerable<LMSupply.Generator.Models.ChatMessage> messages, GenerationOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<string> GenerateCompleteAsync(string prompt, GenerationOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<GenerationResult> GenerateCompleteResultAsync(string prompt, GenerationOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
