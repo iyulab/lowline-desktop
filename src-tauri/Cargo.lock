@@ -2334,6 +2334,7 @@ dependencies = [
  "tauri-kit-diagnostics",
  "tauri-kit-fs",
  "tauri-kit-sidecar",
+ "tauri-kit-state",
  "tauri-kit-update",
  "tauri-kit-watch",
  "tauri-kit-webview",

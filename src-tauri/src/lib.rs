@@ -315,7 +315,6 @@ fn trash_file(path: String, state: State<AppState>) -> CommandResult<()> {
     with_vault(&state, |v| v.trash(&path))
 }
 
-/// Deletes a file for good — once the person has chosen that for a file the trash would not take.
 /// In a debug build, `LOWLINE_EXPORT_TO` names a folder exports go to without the save dialog —
 /// the end-to-end scenarios cannot answer a system dialog. Release builds always ask.
 fn export_folder_for_tests() -> Option<PathBuf> {
@@ -364,6 +363,7 @@ async fn export_file(
     Ok(path.file_name().map(|n| n.to_string_lossy().into_owned()))
 }
 
+/// Deletes a file for good — once the person has chosen that for a file the trash would not take.
 #[tauri::command]
 fn remove_file(path: String, state: State<AppState>) -> CommandResult<()> {
     with_vault(&state, |v| v.remove(&path))
@@ -408,13 +408,28 @@ fn presentations_file(app: &tauri::AppHandle, root: &Path) -> std::io::Result<Pa
     let dir = app
         .path()
         .app_local_data_dir()
-        .map_err(std::io::Error::other)?;
-    let name = format!("{:016x}.jsonl", fnv1a(root.to_string_lossy().as_bytes()));
-    Ok(dir.join("presentations").join(name))
+        .map_err(std::io::Error::other)?
+        .join("presentations");
+    Ok(presentations_in(&dir, root))
 }
 
-/// FNV-1a: a name for a vault that stays the same from one build to the next, which std's hasher
-/// does not promise.
+/// The vault's file in `dir`, named by [`tauri_kit_state::folder_key`] — the same for every way of
+/// writing the vault's path. A file under the name earlier releases gave it (a hash of the path as
+/// written) is moved there the first time, so the device keeps its record.
+fn presentations_in(dir: &Path, root: &Path) -> PathBuf {
+    let file = dir.join(format!("{}.jsonl", tauri_kit_state::folder_key(root)));
+    let earlier = dir.join(format!(
+        "{:016x}.jsonl",
+        fnv1a(root.to_string_lossy().as_bytes())
+    ));
+    if !file.exists() && earlier.exists() {
+        // Not moved (another window moved it first, or the disk said no): the next read tries again.
+        let _ = std::fs::rename(&earlier, &file);
+    }
+    file
+}
+
+/// FNV-1a over a vault's path as written: the name earlier releases gave its presentations file.
 fn fnv1a(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325, |h, b| {
         (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
@@ -912,8 +927,6 @@ fn report_error(kind: String, stack: String) {
     report(report::new(report::Layer::Ui, &kind, &stack));
 }
 
-/// Starts writing error reports, and reports a panic of the shell — to disk only, from the panic
-/// itself: a panicking process is no place to send anything.
 /// Opens a link the person clicked in a template or document body in the system's own app for it
 /// — the browser, the mail app — and says whether it did: a link to anything but the web or mail
 /// is not opened (see [`navigation::opens_outside`]). An e2e build, which must not open a browser
@@ -983,6 +996,8 @@ fn open_window(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Starts writing error reports, and reports a panic of the shell — to disk only, from the panic
+/// itself: a panicking process is no place to send anything.
 fn start_reports(app: &tauri::AppHandle) {
     let Ok(dir) = app.path().app_log_dir() else {
         return;
@@ -1345,8 +1360,27 @@ id: t
 
     #[test]
     fn names_a_vault_the_same_way_every_build() {
-        // FNV-1a's published test vectors: a changed name would orphan every device's record.
+        // FNV-1a's published test vectors: the earlier name must still be found to be moved.
         assert_eq!(fnv1a(b""), 0xcbf2_9ce4_8422_2325);
         assert_eq!(fnv1a(b"a"), 0xaf63_dc4c_8601_ec8c);
+    }
+
+    #[test]
+    fn a_vaults_presentations_move_from_the_earlier_name_once_and_are_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = tempfile::tempdir().unwrap();
+        let earlier = dir.path().join(format!(
+            "{:016x}.jsonl",
+            fnv1a(vault.path().to_string_lossy().as_bytes())
+        ));
+        std::fs::write(&earlier, "{\"shown\":1}\n").unwrap();
+
+        let file = presentations_in(dir.path(), vault.path());
+        assert_ne!(file, earlier);
+        assert!(!earlier.exists());
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "{\"shown\":1}\n");
+        // Asked again, or by another spelling of the same folder, it is the same file.
+        assert_eq!(presentations_in(dir.path(), vault.path()), file);
+        assert_eq!(presentations_in(dir.path(), &vault.path().join(".")), file);
     }
 }
