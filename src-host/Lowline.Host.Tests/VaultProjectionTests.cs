@@ -5,7 +5,7 @@ namespace Lowline.Host.Tests;
 
 public sealed class VaultProjectionTests
 {
-    private static readonly TemplateSnapshot BugReport = new("bug-report@1",
+    private static readonly TemplateSnapshot BugReport = Templates.Of("bug-report@1",
     [
         new TemplateField("제목", "text"),
         new TemplateField("심각도", "select"),
@@ -49,7 +49,7 @@ public sealed class VaultProjectionTests
     [Fact]
     public async Task Counts_documents_per_value_the_largest_first_each_with_the_documents_it_is_made_of()
     {
-        var visits = new TemplateSnapshot("visit@1", [new TemplateField("원인", "select"), new TemplateField("방문일", "date"), new TemplateField("제목", "text")]);
+        var visits = Templates.Of("visit@1", [new TemplateField("원인", "select"), new TemplateField("방문일", "date"), new TemplateField("제목", "text")]);
         static DocumentSnapshot Visit(string path, string json) =>
             new(path, "visit@1", JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!);
         await using var vault = new VaultProjection();
@@ -89,8 +89,8 @@ public sealed class VaultProjectionTests
     [Fact]
     public async Task Sums_a_number_field_per_group_the_largest_sum_first_saying_how_many_had_a_value()
     {
-        var request = new TemplateSnapshot("request@1", [new TemplateField("이름", "text"), new TemplateField("예산", "number")]);
-        var item = new TemplateSnapshot("item@1",
+        var request = Templates.Of("request@1", [new TemplateField("이름", "text"), new TemplateField("예산", "number")]);
+        var item = Templates.Of("item@1",
             [new TemplateField("청구서", "select", Reference: "request"), new TemplateField("품명", "text"), new TemplateField("금액", "number")]);
         static DocumentSnapshot Of(string path, string template, string json, string? id = null) =>
             new(path, template, JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!, Id: id);
@@ -132,8 +132,8 @@ public sealed class VaultProjectionTests
     [Fact]
     public async Task Counts_documents_by_a_field_of_the_document_they_refer_to_as_it_holds_it_now()
     {
-        var customer = new TemplateSnapshot("customer@2", [new TemplateField("이름", "text"), new TemplateField("지역", "select"), new TemplateField("등록일", "date")]);
-        var inquiry = new TemplateSnapshot("inquiry@1",
+        var customer = Templates.Of("customer@2", [new TemplateField("이름", "text"), new TemplateField("지역", "select"), new TemplateField("등록일", "date")]);
+        var inquiry = Templates.Of("inquiry@1",
             [new TemplateField("고객", "select", Reference: "customer"), new TemplateField("담당", "select"), new TemplateField("태그", "checkbox", Multiple: true)]);
         static DocumentSnapshot Of(string path, string template, string json, string? id = null) =>
             new(path, template, JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!, Id: id);
@@ -242,7 +242,7 @@ public sealed class VaultProjectionTests
     [Fact]
     public async Task Date_fields_are_dates_the_same_on_every_computer_and_an_unreadable_one_empties_only_its_field()
     {
-        var visits = new TemplateSnapshot("visit@1",
+        var visits = Templates.Of("visit@1",
         [
             new TemplateField("제목", "text"),
             new TemplateField("방문일", "date"),
@@ -282,7 +282,7 @@ public sealed class VaultProjectionTests
     [Fact]
     public async Task An_unreadable_number_empties_only_its_field_and_is_said_where()
     {
-        var orders = new TemplateSnapshot("order@1", [new TemplateField("제목", "text"), new TemplateField("수량", "number")]);
+        var orders = Templates.Of("order@1", [new TemplateField("제목", "text"), new TemplateField("수량", "number")]);
         static DocumentSnapshot Order(string path, string json) =>
             new(path, "order@1", JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!);
 
@@ -306,7 +306,7 @@ public sealed class VaultProjectionTests
     {
         // A cache filled before date fields were dates holds them as text: the same template, its field now a
         // date, rebuilds the table rather than comparing text.
-        static TemplateSnapshot Visits(string type) => new("visit@1", [new TemplateField("방문일", type)]);
+        static TemplateSnapshot Visits(string type) => Templates.Of("visit@1", [new TemplateField("방문일", type)]);
         var documents = new[]
         {
             new DocumentSnapshot("문서/1.md", "visit@1", new Dictionary<string, JsonElement> { ["방문일"] = JsonSerializer.SerializeToElement("2026-1-9") }),
@@ -332,20 +332,4 @@ public sealed class VaultProjectionTests
         Assert.Null(await vault.TableAsync("other@1", Ct));
         Assert.Empty((await vault.TableAsync("bug-report@1", Ct))!.Rows);
     }
-
-    [Theory]
-    [InlineData("text", false, ColumnType.Text)]
-    [InlineData("select", false, ColumnType.Text)]
-    [InlineData("radio", false, ColumnType.Text)]
-    [InlineData("textarea", false, ColumnType.Text)]
-    [InlineData("date", false, ColumnType.Timestamp)]
-    [InlineData("datetime-local", false, ColumnType.Timestamp)]
-    [InlineData("month", false, ColumnType.Text)]
-    [InlineData("time", false, ColumnType.Text)]
-    [InlineData("checkbox", false, ColumnType.Boolean)]
-    [InlineData("checkbox", true, ColumnType.Jsonb)]
-    [InlineData("number", false, ColumnType.Decimal)]
-    [InlineData("range", false, ColumnType.Decimal)]
-    public void Maps_formdown_field_types_to_column_types(string type, bool multiple, ColumnType expected) =>
-        Assert.Equal(expected, VaultProjection.ColumnTypeOf(new TemplateField("f", type, multiple)));
 }

@@ -9,13 +9,13 @@ namespace Lowline.Host.Tests;
 /// </summary>
 public sealed class ProjectionCacheTests : IDisposable
 {
-    private static readonly TemplateSnapshot Note = new("note@1",
+    private static readonly TemplateSnapshot Note = Templates.Of("note@1",
     [
         new TemplateField("제목", "text"),
         new TemplateField("분류", "select"),
     ]);
 
-    private static readonly TemplateSnapshot Memo = new("memo@1", [new TemplateField("제목", "text")]);
+    private static readonly TemplateSnapshot Memo = Templates.Of("memo@1", [new TemplateField("제목", "text")]);
 
     private readonly string _directory = Directory.CreateTempSubdirectory("lowline-cache-").FullName;
 

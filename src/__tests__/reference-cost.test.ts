@@ -7,8 +7,8 @@ import type { DocumentSnapshot, TemplateSnapshot } from '../projection.js'
 import { referenceChoices, referringDocuments, withReferenceNames } from '../references.js'
 
 const field = (name: string, reference?: string) => ({ name, label: name, type: 'select', multiple: false, options: [], ...(reference ? { reference } : {}) })
-const customer: TemplateSnapshot = { ref: 'customer@1', fields: [field('등급')], suggest: [] }
-const inquiry: TemplateSnapshot = { ref: 'inquiry@1', fields: [field('고객', 'customer'), field('상위', 'inquiry'), field('분류')], suggest: [] }
+const customer: TemplateSnapshot = { ref: 'customer@1', fields: [field('등급')], suggest: [], schema: {} }
+const inquiry: TemplateSnapshot = { ref: 'inquiry@1', fields: [field('고객', 'customer'), field('상위', 'inquiry'), field('분류')], suggest: [], schema: {} }
 const templates = [customer, inquiry]
 const names = new Map([['customer@1', '고객'], ['inquiry@1', '문의']])
 

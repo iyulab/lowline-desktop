@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Formbase.Core.Primitives;
 using Formbase.Core.Query;
 using Formbase.Core.Schema;
+using Formbase.Formdown;
 
 namespace Lowline.Host;
 
@@ -15,17 +17,33 @@ public sealed record TemplateField(
 
 /// <summary>
 /// A column a template's documents can be counted by: one of its own fields, or — through <see cref="Via"/>, a field of it
-/// that names a document of template <see cref="Target"/> — a field of that document, read as it holds it now.
+/// that names a document of template <see cref="Target"/> — a field of that document, read as it holds it now — with
+/// its column as the projection declares it (<see cref="Hint"/>).
 /// </summary>
-public sealed record CountColumn(string Name, TemplateField Field, string? Via = null, string? Target = null);
+public sealed record CountColumn(string Name, TemplateField Field, FieldHint Hint, string? Via = null, string? Target = null);
 
 /// <summary>
 /// A template: its `id@version`, its fields in template order, the judgment fields its author
 /// turned suggestions on for (none unless named), and for those whose values name a broader class in their leading
-/// characters, how many characters (<see cref="Coarse"/> — front matter `lowline.coarse`).
+/// characters, how many characters (<see cref="Coarse"/> — front matter `lowline.coarse`) — and formdown's schema of
+/// those fields (<see cref="Schema"/>, its <c>getSchema</c>), which the projection declares their columns from.
 /// </summary>
 public sealed record TemplateSnapshot(
-    string Ref, IReadOnlyList<TemplateField> Fields, IReadOnlyList<string>? Suggest = null, IReadOnlyDictionary<string, int>? Coarse = null);
+    string Ref, IReadOnlyList<TemplateField> Fields, IReadOnlyList<string>? Suggest = null, IReadOnlyDictionary<string, int>? Coarse = null,
+    JsonElement? Schema = null)
+{
+    /// <summary>
+    /// Each field's column — its type and heading — as Formbase's formdown adapter reads the schema, so a formdown type
+    /// has one reading. The UI sends every template's schema; one without it cannot be projected.
+    /// </summary>
+    public IReadOnlyDictionary<string, FieldHint> Columns() =>
+        FormdownAdapter.AdaptSchema(
+                (Schema ?? throw new InvalidOperationException($"template {Ref} came without its schema")).GetRawText(),
+                FormTypeRef.Create(Ref),
+                // Only the fields are kept: the table is named where the template is declared.
+                Ref)
+            .Hints.Fields.ToDictionary(f => f.Name, StringComparer.Ordinal);
+}
 
 /// <summary>
 /// A document: where it lives in the vault, its template, its recorded values, when it was last
@@ -171,14 +189,24 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
     {
         // The snapshot holds each template once, at its version now: a reference names it by its id.
         var byId = templates.ToDictionary(t => IdOf(t.Ref), StringComparer.Ordinal);
+        var own = template.Columns();
         return
         [
-            .. template.Fields.Select(f => new CountColumn(f.Name, f)),
+            .. template.Fields.Select(f => new CountColumn(f.Name, f, own[f.Name])),
             .. template.Fields
                 .Where(f => !f.Multiple && f.Reference is not null && byId.ContainsKey(f.Reference))
-                .SelectMany(f => byId[f.Reference!].Fields
-                    .Where(g => g.Reference is null)
-                    .Select(g => new CountColumn($"{f.Name}.{g.Name}", g, f.Name, byId[f.Reference!].Ref))),
+                .SelectMany(f =>
+                {
+                    var target = byId[f.Reference!];
+                    var theirs = target.Columns();
+                    // Read from the referred document as it holds the field now, found by what it is known by.
+                    return target.Fields
+                        .Where(g => g.Reference is null)
+                        .Select(g => new CountColumn($"{f.Name}.{g.Name}", g,
+                            new FieldHint($"{f.Name}.{g.Name}", theirs[g.Name].Type, Nullable: true, SourceKey: null, FieldBinding.Reference,
+                                new EntityRef(FormTypeRef.Create(target.Ref), g.Name, TargetLookup.Field(IdColumn), f.Name)),
+                            f.Name, target.Ref));
+                }),
         ];
     }
 
@@ -452,7 +480,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             var filters = query.Filters ?? [];
             if (groupBy.Distinct().Count() != groupBy.Count || groupBy.Concat(filters.Select(f => f.Column)).Any(c => !columns.ContainsKey(c) && c != PathColumn))
                 throw new ArgumentException("a column that is neither one of the template's fields nor one it refers to", nameof(query));
-            if (query.Sum is { } sum && (!columns.TryGetValue(sum, out var summed) || ColumnTypeOf(summed.Field) != ColumnType.Decimal))
+            if (query.Sum is { } sum && (!columns.TryGetValue(sum, out var summed) || summed.Hint.Type != ColumnType.Decimal))
                 throw new ArgumentException("a sum of a column that is not a number field", nameof(query));
             var evidence = Math.Clamp(query.Evidence ?? DefaultEvidence, 1, MaxEvidence);
             return await _cache.AggregateAsync(snapshot, columns, groupBy, [.. filters.Select(f => f.ToFieldFilter())], evidence, query.Sum, cancellationToken);
@@ -547,18 +575,6 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             _gate.Release();
         }
     }
-
-    /// <summary>The Formbase column type for a Formdown field.</summary>
-    public static ColumnType ColumnTypeOf(TemplateField field) => field.Type switch
-    {
-        "checkbox" when field.Multiple => ColumnType.Jsonb,
-        "checkbox" => ColumnType.Boolean,
-        "number" or "range" => ColumnType.Decimal,
-        // A date, or a date and time, without a zone: Formbase reads both as UTC, so a day is the same
-        // day on every computer, and ranges compare dates rather than text.
-        "date" or "datetime-local" => ColumnType.Timestamp,
-        _ => ColumnType.Text,
-    };
 
     public async ValueTask DisposeAsync()
     {

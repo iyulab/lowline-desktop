@@ -52,7 +52,7 @@ public sealed class HostTests : IClassFixture<HostTests.Factory>
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
         var ingest = await client.PostAsync("/vault/ingest?vault=D%3A%2F%EB%B3%BC%ED%8A%B8", new StringContent("""
-            {"templates": [{"ref": "bug-report@1", "fields": [{"name": "제목", "type": "text"}, {"name": "재현됨", "type": "checkbox"}]}],
+            {"templates": [{"ref": "bug-report@1", "fields": [{"name": "제목", "type": "text"}, {"name": "재현됨", "type": "checkbox"}], "schema": {"제목": {"type": "text"}, "재현됨": {"type": "checkbox"}}}],
              "documents": [{"path": "문서/a.md", "template": "bug-report@1", "values": {"제목": "멈춤", "재현됨": true}}]}
             """, System.Text.Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
         ingest.EnsureSuccessStatusCode();
@@ -79,7 +79,7 @@ public sealed class HostTests : IClassFixture<HostTests.Factory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
         var ct = TestContext.Current.CancellationToken;
         (await client.PostAsync("/vault/ingest", new StringContent("""
-            {"templates": [{"ref": "intake@1", "fields": [{"name": "요청", "type": "text"}]}],
+            {"templates": [{"ref": "intake@1", "fields": [{"name": "요청", "type": "text"}], "schema": {"요청": {"type": "text"}}}],
              "documents": [{"path": "문서/a.md", "template": "intake@1", "values": {"요청": "노트북 배터리가 금방 닳아요"}},
                            {"path": "문서/b.md", "template": "intake@1", "values": {"요청": "노트북 배터리가 부풀었어요"}},
                            {"path": "문서/c.md", "template": "intake@1", "values": {"요청": "휴가를 쓰고 싶어요"}}]}
@@ -138,7 +138,7 @@ public sealed class HostTests : IClassFixture<HostTests.Factory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
         var ct = TestContext.Current.CancellationToken;
         var ingest = await client.PostAsync("/vault/ingest", new StringContent("""
-            {"templates": [{"ref": "intake@1", "fields": [{"name": "요청", "type": "textarea"}, {"name": "담당", "type": "select"}], "suggest": ["담당"]}],
+            {"templates": [{"ref": "intake@1", "fields": [{"name": "요청", "type": "textarea"}, {"name": "담당", "type": "select"}], "suggest": ["담당"], "schema": {"요청": {"type": "textarea"}, "담당": {"type": "select"}}}],
              "documents": [{"path": "문서/a.md", "template": "intake@1", "values": {"요청": "노트북 배터리가 금방 닳아요", "담당": "장비"}, "conflicted": true}]}
             """, System.Text.Encoding.UTF8, "application/json"), ct);
         ingest.EnsureSuccessStatusCode();

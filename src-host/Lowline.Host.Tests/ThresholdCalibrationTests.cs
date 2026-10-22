@@ -10,7 +10,7 @@ namespace Lowline.Host.Tests;
 /// </summary>
 public sealed class ThresholdCalibrationTests
 {
-    private static readonly TemplateSnapshot Routing = new("routing@1",
+    private static readonly TemplateSnapshot Routing = Templates.Of("routing@1",
     [
         new TemplateField("부서", "select"),
         new TemplateField("유형", "select"),
@@ -82,7 +82,7 @@ public sealed class ThresholdCalibrationTests
             + $" ({(right + wrong == 0 ? 0 : 100.0 * right / (right + wrong)):F0}% right, promised {(promised.Count == 0 ? 0 : 100 * promised.Average()):F0}%)", ct);
     }
 
-    private static readonly TemplateSnapshot Approved = new("approved@1",
+    private static readonly TemplateSnapshot Approved = Templates.Of("approved@1",
     [
         new TemplateField("부서", "select"),
         new TemplateField("유형", "select"),
@@ -166,7 +166,7 @@ public sealed class ThresholdCalibrationTests
 
     private static readonly string[] Noise = ["부서", "공정", "교대", "라인", "등급", "지역", "유형"];
 
-    private static readonly TemplateSnapshot Faults = new("faults@1",
+    private static readonly TemplateSnapshot Faults = Templates.Of("faults@1",
     [
         .. Noise.Select(n => new TemplateField(n, "select")),
         new TemplateField("설비", "select"),
@@ -244,7 +244,7 @@ public sealed class ThresholdCalibrationTests
     private static readonly string[] Surnames = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오", "서", "신", "권", "황"];
     private static readonly string[] Given = ["민준", "서연", "지호", "하은", "도윤", "수아", "예준", "지우", "시우", "서윤"];
 
-    private static readonly TemplateSnapshot Staffed = new("staffed@1",
+    private static readonly TemplateSnapshot Staffed = Templates.Of("staffed@1",
     [
         .. Noise.Select(n => new TemplateField(n, "select")),
         new TemplateField("팀", "select"),

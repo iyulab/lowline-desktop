@@ -4,7 +4,7 @@ namespace Lowline.Host.Tests;
 
 public sealed class CaseIndexTests
 {
-    private static readonly TemplateSnapshot Intake = new("intake@1",
+    private static readonly TemplateSnapshot Intake = Templates.Of("intake@1",
     [
         new TemplateField("요청", "text"),
         new TemplateField("부서", "select"),
@@ -12,7 +12,7 @@ public sealed class CaseIndexTests
         new TemplateField("태그", "checkbox", Multiple: true),
     ]);
 
-    private static readonly TemplateSnapshot Bug = new("bug-report@1", [new TemplateField("제목", "text")]);
+    private static readonly TemplateSnapshot Bug = Templates.Of("bug-report@1", [new TemplateField("제목", "text")]);
 
     private static DocumentSnapshot Doc(string path, string json, string template = "intake@1", bool conflicted = false, string? id = null) =>
         new(path, template, JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!, Conflicted: conflicted, Id: id);

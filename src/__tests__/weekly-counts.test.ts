@@ -7,6 +7,7 @@ const template = (ref: string, suggest: string[]): TemplateSnapshot => ({
   ref,
   fields: [{ name: '요청', type: 'textarea', label: '요청', multiple: false, options: [] }, ...suggest.map((name) => ({ name, type: 'select', label: name, multiple: false, options: [] }))],
   suggest,
+  schema: {},
 })
 
 const intake = template('intake@1', ['담당', '긴급'])

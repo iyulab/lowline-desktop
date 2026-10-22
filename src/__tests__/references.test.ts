@@ -3,8 +3,8 @@ import type { DocumentSnapshot, TemplateSnapshot } from '../projection.js'
 import { namedEvidence, referenceChoices, referringDocuments, referringTable, withReferenceNames } from '../references.js'
 
 const field = (name: string, reference?: string) => ({ name, label: name, type: 'select', multiple: false, options: [], ...(reference ? { reference } : {}) })
-const customer: TemplateSnapshot = { ref: 'customer@2', fields: [field('등급')], suggest: [] }
-const inquiry: TemplateSnapshot = { ref: 'inquiry@1', fields: [field('고객', 'customer'), field('상위', 'inquiry'), field('분류')], suggest: [] }
+const customer: TemplateSnapshot = { ref: 'customer@2', fields: [field('등급')], suggest: [], schema: {} }
+const inquiry: TemplateSnapshot = { ref: 'inquiry@1', fields: [field('고객', 'customer'), field('상위', 'inquiry'), field('분류')], suggest: [], schema: {} }
 const doc = (path: string, id: string, template: string): DocumentSnapshot => ({ path, id, template, values: {} })
 const documents = [
   doc('문서/한빛상사.md', 'c-2', 'customer@2'),

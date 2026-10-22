@@ -4,7 +4,7 @@ namespace Lowline.Host.Tests;
 
 public sealed class CurvesTests
 {
-    private static readonly TemplateSnapshot Intake = new("intake@1",
+    private static readonly TemplateSnapshot Intake = Templates.Of("intake@1",
     [
         new TemplateField("요청", "textarea"),
         new TemplateField("부서", "text"),

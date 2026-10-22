@@ -5,7 +5,7 @@ namespace Lowline.Host.Tests;
 
 public sealed class SuggestionsTests
 {
-    private static readonly TemplateSnapshot Intake = new("intake@1",
+    private static readonly TemplateSnapshot Intake = Templates.Of("intake@1",
     [
         new TemplateField("요청", "textarea"),
         new TemplateField("부서", "text"),
@@ -67,7 +67,7 @@ public sealed class SuggestionsTests
     /// A hundred and twenty requests, each worded once, whose words say which kind it is: no value settled alongside ever
     /// repeats, so only similar documents can answer 분류 — and they do over far more answers than they must rest on.
     /// </summary>
-    private static readonly TemplateSnapshot Kinds = new("kinds@1",
+    private static readonly TemplateSnapshot Kinds = Templates.Of("kinds@1",
         [new TemplateField("내용", "textarea"), new TemplateField("분류", "select", Options: ["인쇄", "화면", "연결"])],
         Suggest: ["분류"]);
 
@@ -115,7 +115,7 @@ public sealed class SuggestionsTests
     public async Task Similar_documents_are_not_offered_while_the_person_types()
     {
         // Replayed before typing only: once a character is typed, the field is left to values settled alongside.
-        var typed = Kinds with { Fields = [new TemplateField("내용", "textarea"), new TemplateField("분류", "text")] };
+        var typed = Templates.Of(Kinds.Ref, [new TemplateField("내용", "textarea"), new TemplateField("분류", "text")], Kinds.Suggest, Kinds.Coarse);
         await using var vault = await Selected(new VaultSnapshot([typed], KindRequests(120)));
 
         var before = await vault.SuggestAsync(new SuggestRequest("kinds@1", "분류", Values("""{"내용": "모니터 화면 깜빡임 또"}""")), Ct);
@@ -402,7 +402,7 @@ public sealed class SuggestionsTests
         // Each establishment keeps its risk; an inspection's kind is drawn from three and mostly goes with one risk. The
         // establishment's keys keep their value, so they are believed after a settlement or two — in the form the
         // strengths were chosen on and the one suggestions are made with alike.
-        var inspection = new TemplateSnapshot("inspection@1",
+        var inspection = Templates.Of("inspection@1",
         [
             new TemplateField("업소", "text"),
             new TemplateField("유형", "select", Options: ["정기", "민원", "재점검"]),
@@ -435,7 +435,7 @@ public sealed class SuggestionsTests
     public async Task A_field_naming_another_document_decides_a_judgment_field_by_that_documents_id()
     {
         // 고객 names a customer document by its id; which customer it is decides 담당.
-        var inquiry = new TemplateSnapshot("inquiry@1",
+        var inquiry = Templates.Of("inquiry@1",
         [
             new TemplateField("요청", "textarea"),
             new TemplateField("고객", "select"),
@@ -478,7 +478,7 @@ public sealed class SuggestionsTests
     public async Task Answers_from_a_judgment_the_person_already_confirmed_in_the_document()
     {
         // 승인 goes with 담당, and nothing observed says which 담당 a request has: only a confirmed 담당 decides 승인.
-        var routed = new TemplateSnapshot("routed@1",
+        var routed = Templates.Of("routed@1",
         [
             new TemplateField("요청", "textarea"),
             new TemplateField("담당", "select"),
@@ -541,7 +541,7 @@ public sealed class SuggestionsTests
     /// A template whose 담당자 is typed out, and sixty requests where 부서 says only which two people it may be — every
     /// value settled alongside it is right half the time, its first character every time.
     /// </summary>
-    private static readonly TemplateSnapshot Assigned = new("assigned@1",
+    private static readonly TemplateSnapshot Assigned = Templates.Of("assigned@1",
     [
         new TemplateField("요청", "textarea"),
         new TemplateField("부서", "text"),
@@ -835,7 +835,7 @@ public sealed class SuggestionsTests
         // answer each other right by their own requests. 채널 전화 leans to 배송 but backs it only about a third of
         // the time, and 제품 backs nothing: neither may answer 분류 for a request unlike any settled one, however
         // well the repeats did on the replay.
-        var support = new TemplateSnapshot("support@1",
+        var support = Templates.Of("support@1",
         [
             new TemplateField("문의", "textarea"),
             new TemplateField("채널", "select"),
@@ -880,7 +880,7 @@ public sealed class SuggestionsTests
     /// A fault form whose code's first two characters name its chapter: each 설비 has five codes of one chapter, so the
     /// settled values under a 설비 never decide the code, and always decide its chapter.
     /// </summary>
-    private static TemplateSnapshot Fault(IReadOnlyDictionary<string, int>? coarse) => new("fault@1",
+    private static TemplateSnapshot Fault(IReadOnlyDictionary<string, int>? coarse) => Templates.Of("fault@1",
     [
         new TemplateField("설비", "text"),
         new TemplateField("코드", "text"),

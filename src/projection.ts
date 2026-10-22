@@ -1,7 +1,7 @@
 // What the sidecar gets to see of the vault: templates as field lists, documents as values.
 // The UI parses (Formdown lives here); the sidecar projects. Neither re-reads the other's work.
 
-import { parseFormdown } from '@formdown/core'
+import { getSchema, parseFormdown, type FormDownSchema } from '@formdown/core'
 import { documentFrontMatter, holdsValue, templateInfo } from './documents.js'
 import { documentId } from './identity.js'
 import { templateId } from './template-revision.js'
@@ -37,6 +37,11 @@ export interface TemplateSnapshot {
    * Absent when the template names none.
    */
   coarse?: Record<string, number>
+  /**
+   * formdown's schema of exactly `fields`, in their order (`getSchema`): what the sidecar declares the template's columns
+   * from — their types and headings — through Formbase's formdown adapter, so formdown's types have one reading.
+   */
+  schema: FormDownSchema
 }
 
 export interface DocumentSnapshot {
@@ -95,7 +100,8 @@ export function templateSnapshot(source: string): TemplateSnapshot {
   })
   const suggest = suggestFields(parsed.frontMatter?.data, fields)
   const coarse = coarseFields(parsed.frontMatter?.data, fields, suggest)
-  return { ref, fields, suggest, ...(coarse ? { coarse } : {}) }
+  const schema = getSchema({ ...parsed, forms: unique })
+  return { ref, fields, suggest, ...(coarse ? { coarse } : {}), schema }
 }
 
 /**

@@ -11,7 +11,7 @@ namespace Lowline.Host.Tests;
 /// </summary>
 public sealed class RebuildCostTests
 {
-    internal static readonly TemplateSnapshot Intake = new("intake@1",
+    internal static readonly TemplateSnapshot Intake = Templates.Of("intake@1",
     [
         new TemplateField("요청", "textarea"),
         new TemplateField("부서", "text"),
@@ -113,7 +113,7 @@ public sealed class RebuildCostTests
                 suggestions.Stop();
 
                 // Projection alone: a changed field list rebuilds the table with nothing appended.
-                var widened = edited with { Templates = [Intake with { Fields = [.. Intake.Fields, new TemplateField("비고", "text")] }] };
+                var widened = edited with { Templates = [Templates.Of(Intake.Ref, [.. Intake.Fields, new TemplateField("비고", "text")], Intake.Suggest, Intake.Coarse)] };
                 var project = Stopwatch.StartNew();
                 Assert.Equal(0, (await vault.IngestAsync(widened, Ct)).Appended);
                 project.Stop();

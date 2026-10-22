@@ -58,6 +58,83 @@
       ],
       "coarse": {
         "담당": 1
+      },
+      "schema": {
+        "요청": {
+          "type": "textarea",
+          "label": "요청",
+          "position": 1,
+          "htmlAttributes": {
+            "form": "formdown-form-default"
+          },
+          "layout": "vertical"
+        },
+        "부서": {
+          "type": "select",
+          "label": "부서",
+          "position": 2,
+          "options": [
+            {
+              "value": "sales",
+              "label": "영업"
+            },
+            {
+              "value": "dev",
+              "label": "개발"
+            }
+          ],
+          "htmlAttributes": {
+            "form": "formdown-form-default"
+          },
+          "layout": "vertical"
+        },
+        "담당": {
+          "type": "radio",
+          "label": "담당",
+          "position": 3,
+          "options": [
+            {
+              "value": "장비"
+            },
+            {
+              "value": "총무"
+            }
+          ],
+          "htmlAttributes": {
+            "form": "formdown-form-default"
+          },
+          "layout": "vertical"
+        },
+        "태그": {
+          "type": "checkbox",
+          "label": "태그",
+          "position": 4,
+          "options": [
+            {
+              "value": "급함"
+            },
+            {
+              "value": "반복"
+            }
+          ],
+          "htmlAttributes": {
+            "form": "formdown-form-default"
+          },
+          "layout": "vertical"
+        },
+        "고객": {
+          "type": "select",
+          "label": "고객",
+          "position": 5,
+          "relation": {
+            "target": "customer",
+            "type": "fk"
+          },
+          "htmlAttributes": {
+            "form": "formdown-form-default"
+          },
+          "layout": "vertical"
+        }
       }
     }
   ],

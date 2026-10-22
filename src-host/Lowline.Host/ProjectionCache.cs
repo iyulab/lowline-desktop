@@ -105,11 +105,7 @@ internal sealed class ProjectionCache : IAsyncDisposable
                 [
                     new FieldHint(VaultProjection.PathColumn, ColumnType.Text, Nullable: false),
                     new FieldHint(VaultProjection.IdColumn, ColumnType.Text, Nullable: false),
-                    .. VaultProjection.CountColumnsOf(template, vault.Templates).Select(c => c.Via is null
-                        ? new FieldHint(c.Name, VaultProjection.ColumnTypeOf(c.Field))
-                        // Read from the referred document as it holds the field now, found by what it is known by.
-                        : new FieldHint(c.Name, VaultProjection.ColumnTypeOf(c.Field), Nullable: true, SourceKey: null, FieldBinding.Reference,
-                            new EntityRef(FormTypeRef.Create(c.Target!), c.Field.Name, TargetLookup.Field(VaultProjection.IdColumn), c.Via))),
+                    .. VaultProjection.CountColumnsOf(template, vault.Templates).Select(c => c.Hint),
                 ]), cancellationToken);
         }
 

@@ -23,7 +23,8 @@ lowline:
 
 describe('templateSnapshot', () => {
   it('lists the fields in template order with their types', () => {
-    expect(templateSnapshot(template)).toEqual({
+    const { schema: _, ...snapshot } = templateSnapshot(template)
+    expect(snapshot).toEqual({
       ref: 'bug-report@2',
       fields: [
         { name: '제목', label: '제목', type: 'text', multiple: false, options: [] },
@@ -42,6 +43,14 @@ describe('templateSnapshot', () => {
     expect(fields.map((f) => f.name)).toEqual(['제목', '심각도', '재현_절차', '태그'])
     expect(fields[1].type).toBe('select')
     expect(templateSnapshot(twice).suggest).toEqual(['심각도'])
+  })
+
+  it("carries formdown's schema of exactly the fields it lists, in their order — what the sidecar declares columns from", () => {
+    const twice = template.replace('@재현됨: [checkbox]', '@심각도: [text]')
+    const { fields, schema } = templateSnapshot(twice)
+    expect(Object.keys(schema)).toEqual(fields.map((f) => f.name))
+    expect(schema['심각도']).toMatchObject({ type: 'select', options: [{ value: '낮음' }, { value: '높음' }] })
+    expect(schema['재현_절차']).toMatchObject({ type: 'textarea', label: '재현 절차' })
   })
 
   it("carries the template a field refers to by its id, and only for a field that refers to one", () => {
@@ -129,8 +138,8 @@ describe('cellText', () => {
 
 describe('referenceTargets', () => {
   const field = (name: string, reference?: string) => ({ name, label: name, type: 'select', multiple: false, options: [], ...(reference ? { reference } : {}) })
-  const customer = { ref: 'customer@2', fields: [field('이름')], suggest: [] }
-  const inquiry = { ref: 'inquiry@1', fields: [field('고객', 'customer'), field('담당', 'staff')], suggest: [] }
+  const customer = { ref: 'customer@2', fields: [field('이름')], suggest: [], schema: {} }
+  const inquiry = { ref: 'inquiry@1', fields: [field('고객', 'customer'), field('담당', 'staff')], suggest: [], schema: {} }
 
   it('is the templates in the vault some field refers to, by id whatever their revision', () => {
     expect([...referenceTargets([customer, inquiry])]).toEqual(['customer'])

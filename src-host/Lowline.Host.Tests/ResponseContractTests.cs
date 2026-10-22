@@ -26,7 +26,7 @@ public sealed class ResponseContractTests
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    private static readonly TemplateSnapshot Intake = new("intake@1",
+    private static readonly TemplateSnapshot Intake = Templates.Of("intake@1",
     [
         new TemplateField("요청", "textarea"),
         new TemplateField("부서", "select", Options: ["영업", "개발"]),
@@ -50,7 +50,7 @@ public sealed class ResponseContractTests
     // into is counted while typing too, where the prefix decides more than 설비 and every field is kept.
     private static readonly string[] Noise = ["교대", "라인", "등급", "지역", "공정"];
 
-    private static readonly TemplateSnapshot Faults = new("faults@1",
+    private static readonly TemplateSnapshot Faults = Templates.Of("faults@1",
         [.. Noise.Select(n => new TemplateField(n, "select")), new TemplateField("설비", "select"), new TemplateField("고장", "select")],
         Suggest: ["고장"]);
 
@@ -70,7 +70,7 @@ public sealed class ResponseContractTests
 
     // 팀 leaves two people each, and their first characters differ: nothing is suggested before typing, a first character
     // typed is — so a curve carries how typing did.
-    private static readonly TemplateSnapshot Handover = new("handover@1",
+    private static readonly TemplateSnapshot Handover = Templates.Of("handover@1",
         [new TemplateField("요청", "textarea"), new TemplateField("팀", "select", Options: ["가", "나"]), new TemplateField("담당자", "text")],
         Suggest: ["담당자"]);
 
@@ -88,7 +88,7 @@ public sealed class ResponseContractTests
 
     // Each 장비 has five codes of one chapter, and the template names the chapter: the code is never suggested before
     // typing and its chapter always is — so a curve carries how the class did.
-    private static readonly TemplateSnapshot Chapters = new("chapters@1",
+    private static readonly TemplateSnapshot Chapters = Templates.Of("chapters@1",
         [new TemplateField("장비", "text"), new TemplateField("코드", "text")],
         Suggest: ["코드"], Coarse: new Dictionary<string, int> { ["코드"] = 2 });
 
@@ -106,7 +106,7 @@ public sealed class ResponseContractTests
 
     // Every request is worded once, so no value settled alongside ever repeats, but its words say which kind it is: only
     // similar documents answer 분류, and well over enough times for it to be offered — so a curve carries how they did.
-    private static readonly TemplateSnapshot Kinds = new("kinds@1",
+    private static readonly TemplateSnapshot Kinds = Templates.Of("kinds@1",
         [new TemplateField("내용", "textarea"), new TemplateField("분류", "select", Options: ["인쇄", "화면", "연결"])],
         Suggest: ["분류"]);
 
