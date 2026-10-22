@@ -27,9 +27,9 @@
     <PackageReference Include="Formbase.DependencyInjection" Version="0.34.0" />
     <PackageReference Include="Formbase.Formdown" Version="0.34.0" />
     <PackageReference Include="Gil" Version="0.25.0" />
-    <PackageReference Include="IronProw.Core" Version="0.16.2" />
-    <PackageReference Include="IronProw.IronHive" Version="0.16.2" />
-    <PackageReference Include="IronProw.LMSupply" Version="0.16.2" />
+    <PackageReference Include="IronProw.Core" Version="0.17.0" />
+    <PackageReference Include="IronProw.IronHive" Version="0.17.0" />
+    <PackageReference Include="IronProw.LMSupply" Version="0.17.0" />
     <PackageReference Include="LMSupply.Generator" Version="0.136.0" />
     <PackageReference Include="FluxIndex.SDK" Version="0.103.1" />
     <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.103.1" />
