@@ -61,7 +61,8 @@ public sealed record LocalModelPick(string Model);
 /// <summary>What runs a model on this computer — LMSupply in the app, a stand-in in tests.</summary>
 public interface ILocalGenerators
 {
-    bool IsDownloaded(string model);
+    /// <summary>Whether getting <paramref name="model"/> ready would fetch nothing — read from what is on this computer only.</summary>
+    Task<bool> IsDownloadedAsync(string model, CancellationToken cancellationToken);
 
     /// <summary>
     /// Loads <paramref name="model"/>, fetching what is missing only when <paramref name="mayFetch"/> — the person
@@ -80,7 +81,8 @@ public interface ILocalGenerators
 /// </summary>
 public sealed class LmSupplyGenerators : ILocalGenerators
 {
-    public bool IsDownloaded(string model) => LocalGenerator.IsModelDownloaded(model);
+    public Task<bool> IsDownloadedAsync(string model, CancellationToken cancellationToken) =>
+        LocalGenerator.IsModelDownloadedAsync(model, new GeneratorOptions(), cancellationToken);
 
     public async Task<ITextGenerator> LoadAsync(string model, bool mayFetch, IProgress<DownloadProgress> progress, CancellationToken cancellationToken) =>
         await LocalGenerator.LoadAsync(model, new GeneratorOptions
@@ -116,13 +118,14 @@ public sealed class LocalModels(ILocalGenerators generators) : IAsyncDisposable
     /// <summary>The model last started, whose server may still be warm.</summary>
     private string? _last;
 
-    public LocalModelsView View()
+    public async Task<LocalModelsView> ViewAsync(CancellationToken cancellationToken = default)
     {
-        var models = Offered.Select((id, i) =>
+        var models = new List<LocalModel>();
+        foreach (var (id, i) in Offered.Select((id, i) => (id, i)))
         {
             var info = GgufModelRegistry.Resolve(id)!;
-            return new LocalModel(id, info.DisplayName, info.EstimatedSizeBytes ?? 0, generators.IsDownloaded(id), Recommended: i == 0);
-        }).ToList();
+            models.Add(new LocalModel(id, info.DisplayName, info.EstimatedSizeBytes ?? 0, await generators.IsDownloadedAsync(id, cancellationToken), Recommended: i == 0));
+        }
         lock (_progressLock) return new LocalModelsView(models, _progress);
     }
 

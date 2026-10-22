@@ -288,6 +288,7 @@ mod tests {
     fn reply(status: u16, body: &str) -> Response {
         Response {
             status,
+            headers: Vec::new(),
             body: body.into(),
         }
     }

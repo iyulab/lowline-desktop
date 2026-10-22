@@ -30,7 +30,7 @@ public sealed class LocalModelsTests
         /// <summary>When set, a fetch holds after its first progress report until it completes.</summary>
         public TaskCompletionSource? Gate { get; set; }
 
-        public bool IsDownloaded(string model) => Here.Contains(model);
+        public Task<bool> IsDownloadedAsync(string model, CancellationToken cancellationToken) => Task.FromResult(Here.Contains(model));
 
         public async Task<ITextGenerator> LoadAsync(string model, bool mayFetch, IProgress<DownloadProgress> progress, CancellationToken cancellationToken)
         {
@@ -94,7 +94,7 @@ public sealed class LocalModelsTests
     {
         for (var i = 0; i < 200; i++)
         {
-            var progress = local.View().Progress;
+            var progress = (await local.ViewAsync(Ct)).Progress;
             if (progress.Model == model && progress.Phase is "ready" or "failed") return progress;
             await Task.Delay(10, Ct);
         }
@@ -106,7 +106,7 @@ public sealed class LocalModelsTests
     {
         await using var local = new LocalModels(new StandIn());
 
-        var view = local.View();
+        var view = await local.ViewAsync(Ct);
 
         Assert.Equal([Recommended, Larger], view.Models.Select(m => m.Id));
         Assert.Equal([true, false], view.Models.Select(m => m.Recommended));
@@ -123,7 +123,7 @@ public sealed class LocalModelsTests
 
         Assert.Equal("starting", local.Prepare(Larger).Phase);
         Assert.Equal(new LocalModelProgress(Larger, "ready"), await Settled(local, Larger));
-        Assert.True(local.View().Models.Single(m => m.Id == Larger).Downloaded);
+        Assert.True((await local.ViewAsync(Ct)).Models.Single(m => m.Id == Larger).Downloaded);
 
         var reply = await ChatAuthoring.ReplyAsync(Ask(Larger), local, TimeSpan.FromSeconds(20), Ct);
 

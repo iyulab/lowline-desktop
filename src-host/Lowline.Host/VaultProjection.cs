@@ -18,9 +18,11 @@ public sealed record TemplateField(
 /// <summary>
 /// A column a template's documents can be counted by: one of its own fields, or — through <see cref="Via"/>, a field of it
 /// that names a document of template <see cref="Target"/> — a field of that document, read as it holds it now — with
-/// its column as the projection declares it (<see cref="Hint"/>).
+/// its column as the projection declares it (<see cref="Hint"/>). A checkbox group is no column of its template's table but
+/// a section of its own (<see cref="Section"/>): one row per checked option, a document counted by each option it has.
 /// </summary>
-public sealed record CountColumn(string Name, TemplateField Field, FieldHint Hint, string? Via = null, string? Target = null);
+public sealed record CountColumn(
+    string Name, TemplateField Field, FieldHint Hint, string? Via = null, string? Target = null, RelationHint? Section = null);
 
 /// <summary>
 /// A template: its `id@version`, its fields in template order, the judgment fields its author
@@ -33,16 +35,22 @@ public sealed record TemplateSnapshot(
     JsonElement? Schema = null)
 {
     /// <summary>
-    /// Each field's column — its type and heading — as Formbase's formdown adapter reads the schema, so a formdown type
-    /// has one reading. The UI sends every template's schema; one without it cannot be projected.
+    /// The template's declaration as Formbase's formdown adapter reads the schema, so a formdown type has one reading:
+    /// each field's column — its type and heading — in its table (<see cref="TableNameOf"/>), and each checkbox group a
+    /// section of its own. The UI sends every template's schema; one without it cannot be projected.
     /// </summary>
-    public IReadOnlyDictionary<string, FieldHint> Columns() =>
+    public FormdownAdapter.SchemaResult Declaration() =>
         FormdownAdapter.AdaptSchema(
-                (Schema ?? throw new InvalidOperationException($"template {Ref} came without its schema")).GetRawText(),
-                FormTypeRef.Create(Ref),
-                // Only the fields are kept: the table is named where the template is declared.
-                Ref)
-            .Hints.Fields.ToDictionary(f => f.Name, StringComparer.Ordinal);
+            (Schema ?? throw new InvalidOperationException($"template {Ref} came without its schema")).GetRawText(),
+            FormTypeRef.Create(Ref),
+            TableNameOf(Ref));
+
+    /// <summary>Each field's column in the template's table — every field but a checkbox group.</summary>
+    public IReadOnlyDictionary<string, FieldHint> Columns() => Declaration().Hints.Fields.ToDictionary(f => f.Name, StringComparer.Ordinal);
+
+    /// <summary>An opaque table name for a template: Formbase never shows it, only needs it unique.</summary>
+    public static string TableNameOf(string templateRef) =>
+        "t_" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(templateRef)))[..16].ToLowerInvariant();
 }
 
 /// <summary>
@@ -189,10 +197,15 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
     {
         // The snapshot holds each template once, at its version now: a reference names it by its id.
         var byId = templates.ToDictionary(t => IdOf(t.Ref), StringComparer.Ordinal);
-        var own = template.Columns();
+        var declared = template.Declaration();
+        var own = declared.Hints.Fields.ToDictionary(f => f.Name, StringComparer.Ordinal);
+        var sections = (declared.Hints.Relations ?? []).Where(r => r.SectionField is not null).ToDictionary(r => r.SectionField!, StringComparer.Ordinal);
         return
         [
-            .. template.Fields.Select(f => new CountColumn(f.Name, f, own[f.Name])),
+            .. template.Fields.Select(f => sections.TryGetValue(f.Name, out var section)
+                // A checked option is a text value of its section's row.
+                ? new CountColumn(f.Name, f, new FieldHint(f.Name, ColumnType.Text, Nullable: true), Section: section)
+                : new CountColumn(f.Name, f, own[f.Name])),
             .. template.Fields
                 .Where(f => !f.Multiple && f.Reference is not null && byId.ContainsKey(f.Reference))
                 .SelectMany(f =>
@@ -201,7 +214,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
                     var theirs = target.Columns();
                     // Read from the referred document as it holds the field now, found by what it is known by.
                     return target.Fields
-                        .Where(g => g.Reference is null)
+                        .Where(g => g.Reference is null && !g.Multiple)
                         .Select(g => new CountColumn($"{f.Name}.{g.Name}", g,
                             new FieldHint($"{f.Name}.{g.Name}", theirs[g.Name].Type, Nullable: true, SourceKey: null, FieldBinding.Reference,
                                 new EntityRef(FormTypeRef.Create(target.Ref), g.Name, TargetLookup.Field(IdColumn), f.Name)),
@@ -451,7 +464,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
         try
         {
             return _cache is not null && _templates?.TryGetValue(template, out var snapshot) == true
-                ? await _cache.TableAsync(snapshot, [.. filters.Select(f => f.ToFieldFilter())], cancellationToken)
+                ? await _cache.TableAsync(snapshot, ColumnsOf(snapshot), filters, cancellationToken)
                 : null;
         }
         finally
@@ -459,6 +472,10 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             _gate.Release();
         }
     }
+
+    /// <summary>The columns a template's documents can be counted and filtered by, by name.</summary>
+    private Dictionary<string, CountColumn> ColumnsOf(TemplateSnapshot template) =>
+        CountColumnsOf(template, _templates!.Values).ToDictionary(c => c.Name, StringComparer.Ordinal);
 
     /// <summary>The most documents a count carries as its evidence, and how many when the query does not say.</summary>
     public const int MaxEvidence = 20, DefaultEvidence = 5;
@@ -475,7 +492,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
         try
         {
             if (_cache is null || _templates is null || !_templates.TryGetValue(query.Template, out var snapshot)) return null;
-            var columns = CountColumnsOf(snapshot, _templates.Values).ToDictionary(c => c.Name, StringComparer.Ordinal);
+            var columns = ColumnsOf(snapshot);
             var groupBy = query.GroupBy ?? [];
             var filters = query.Filters ?? [];
             if (groupBy.Distinct().Count() != groupBy.Count || groupBy.Concat(filters.Select(f => f.Column)).Any(c => !columns.ContainsKey(c) && c != PathColumn))
@@ -483,7 +500,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             if (query.Sum is { } sum && (!columns.TryGetValue(sum, out var summed) || summed.Hint.Type != ColumnType.Decimal))
                 throw new ArgumentException("a sum of a column that is not a number field", nameof(query));
             var evidence = Math.Clamp(query.Evidence ?? DefaultEvidence, 1, MaxEvidence);
-            return await _cache.AggregateAsync(snapshot, columns, groupBy, [.. filters.Select(f => f.ToFieldFilter())], evidence, query.Sum, cancellationToken);
+            return await _cache.AggregateAsync(snapshot, columns, groupBy, filters, evidence, query.Sum, cancellationToken);
         }
         finally
         {

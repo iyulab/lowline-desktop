@@ -82,7 +82,7 @@ app.MapPost("/similar", (SimilarQuery query, VaultProjection vault, Cancellation
 app.MapPost("/model/probe", (ModelProbe probe, CancellationToken ct) => ModelConnection.ProbeAsync(probe, timeout: null, ct));
 
 // The models offered on this computer and where getting one ready stands; getting one ready, fetching it if it is not here.
-app.MapGet("/model/local", (LocalModels local) => local.View());
+app.MapGet("/model/local", (LocalModels local, CancellationToken cancellationToken) => local.ViewAsync(cancellationToken));
 app.MapPost("/model/local/prepare", (LocalModelPick pick, LocalModels local) => local.Prepare(pick.Model));
 
 // A reply of the chat that writes templates, with the key the shell read from the credential store for this one request.

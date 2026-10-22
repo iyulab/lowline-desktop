@@ -30,18 +30,21 @@ public sealed class FormdownSchemaTests
     [Fact]
     public void Each_kind_of_field_is_the_column_type_the_projection_reads_it_as()
     {
-        var hints = FormdownAdapter.AdaptSchema(EveryKind, FormTypeRef.Create("t@1"), "t_1").Hints.Fields.ToDictionary(f => f.Name);
+        var declared = FormdownAdapter.AdaptSchema(EveryKind, FormTypeRef.Create("t@1"), "t_1");
+        var hints = declared.Hints.Fields.ToDictionary(f => f.Name);
 
         // A number is a decimal whatever its step — values arrive from outside the form too (imports, other programs).
         Assert.Equal(ColumnType.Decimal, hints["금액"].Type);
         Assert.Equal(ColumnType.Decimal, hints["비율"].Type);
-        // A date, or a date and time, without a zone: ranges compare dates rather than text.
-        Assert.Equal(ColumnType.Timestamp, hints["날짜"].Type);
+        // A date is a day, a date and time an instant read without a zone: ranges compare them rather than text.
+        Assert.Equal(ColumnType.Date, hints["날짜"].Type);
         Assert.Equal(ColumnType.Timestamp, hints["일시"].Type);
         Assert.Equal(ColumnType.Boolean, hints["여부"].Type);
         Assert.Equal(ColumnType.Boolean, hints["켬"].Type);
-        // A checkbox with options holds a list.
-        Assert.Equal(ColumnType.Jsonb, hints["태그"].Type);
+        // A checkbox with options is no column but a section of its own: one row per checked option.
+        Assert.False(hints.ContainsKey("태그"));
+        Assert.Equal("태그", Assert.Single(declared.Hints.Relations!, r => r.SectionField is not null).SectionField);
+        Assert.Single(declared.Sections);
         foreach (var text in new[] { "분류", "등급", "고객", "메모", "제목", "첨부", "시각", "전자우편", "달" })
             Assert.Equal(ColumnType.Text, hints[text].Type);
     }
@@ -73,7 +76,8 @@ public sealed class FormdownSchemaTests
     [Fact]
     public void A_column_is_headed_by_the_label_its_author_wrote()
     {
-        var hints = FormdownAdapter.AdaptSchema(EveryKind, FormTypeRef.Create("t@1"), "t_1").Hints.Fields.ToDictionary(f => f.Name);
+        var declared = FormdownAdapter.AdaptSchema(EveryKind, FormTypeRef.Create("t@1"), "t_1");
+        var hints = declared.Hints.Fields.ToDictionary(f => f.Name);
         Assert.Equal("금액 원", hints["금액"].BusinessName);
     }
 }

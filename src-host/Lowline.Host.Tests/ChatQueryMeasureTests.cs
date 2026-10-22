@@ -162,7 +162,7 @@ public sealed class ChatQueryMeasureTests
         Assert.SkipWhen(string.IsNullOrEmpty(output), "set LOWLINE_CHAT_MEASURE to the file to write");
         var model = Environment.GetEnvironmentVariable("LOWLINE_CHAT_MODEL") ?? LocalModels.Offered[0];
         var generators = new LmSupplyGenerators();
-        Assert.SkipUnless(generators.IsDownloaded(model), $"{model} is not on this computer");
+        Assert.SkipUnless(await generators.IsDownloadedAsync(model, TestContext.Current.CancellationToken), $"{model} is not on this computer");
         var ct = TestContext.Current.CancellationToken;
         await using var local = new LocalModels(generators);
         List<string> lines = [];

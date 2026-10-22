@@ -97,7 +97,7 @@ public sealed class ChatAuthoringMeasureTests
         Assert.SkipWhen(string.IsNullOrEmpty(output), "set LOWLINE_CHAT_AUTHORING_MEASURE to the file to write");
         var model = Environment.GetEnvironmentVariable("LOWLINE_CHAT_MODEL") ?? LocalModels.Offered[0];
         var generators = new LmSupplyGenerators();
-        Assert.SkipUnless(generators.IsDownloaded(model), $"{model} is not on this computer");
+        Assert.SkipUnless(await generators.IsDownloadedAsync(model, TestContext.Current.CancellationToken), $"{model} is not on this computer");
         var ct = TestContext.Current.CancellationToken;
         await using var local = new LocalModels(generators);
         List<string> lines = [JsonSerializer.Serialize(new { model, template = Starter }, Json)];
@@ -143,7 +143,7 @@ public sealed class ChatAuthoringMeasureTests
             "set LOWLINE_CHAT_AUTHORING_RETRIES and LOWLINE_CHAT_AUTHORING_SECOND to measure second drafts");
         var model = Environment.GetEnvironmentVariable("LOWLINE_CHAT_MODEL") ?? LocalModels.Offered[0];
         var generators = new LmSupplyGenerators();
-        Assert.SkipUnless(generators.IsDownloaded(model), $"{model} is not on this computer");
+        Assert.SkipUnless(await generators.IsDownloadedAsync(model, TestContext.Current.CancellationToken), $"{model} is not on this computer");
         var ct = TestContext.Current.CancellationToken;
         await using var local = new LocalModels(generators);
         List<string> lines = [];

@@ -7,6 +7,7 @@ using Formbase.Core.Primitives;
 using Formbase.Core.Projection;
 using Formbase.Core.Query;
 using Formbase.Core.Schema;
+using Formbase.Formdown;
 using Formbase.Sqlite;
 using Microsoft.Data.Sqlite;
 
@@ -96,17 +97,23 @@ internal sealed class ProjectionCache : IAsyncDisposable
         }
 
         // Every template is declared before any is projected: a field that refers to another template's documents is a
-        // column read from that template's table, which must be declared to be found.
+        // column read from that template's table, which must be declared to be found. A checkbox group is a section of its
+        // template, declared before it: its rows are cut from the template's documents, one per checked option.
+        var sectionsOf = new Dictionary<string, IReadOnlyList<FormTypeRef>>(StringComparer.Ordinal);
         foreach (var template in vault.Templates)
         {
-            await _hints.DeclareAsync(new FormTypeHints(
-                FormTypeRef.Create(template.Ref),
-                TableName(template.Ref),
+            var declared = template.Declaration();
+            foreach (var section in declared.Sections) await _hints.DeclareAsync(section, cancellationToken);
+            sectionsOf[template.Ref] = [.. declared.Sections.Select(s => s.Type)];
+            await _hints.DeclareAsync(declared.Hints with
+            {
+                Fields =
                 [
                     new FieldHint(VaultProjection.PathColumn, ColumnType.Text, Nullable: false),
                     new FieldHint(VaultProjection.IdColumn, ColumnType.Text, Nullable: false),
-                    .. VaultProjection.CountColumnsOf(template, vault.Templates).Select(c => c.Hint),
-                ]), cancellationToken);
+                    .. VaultProjection.CountColumnsOf(template, vault.Templates).Where(c => c.Section is null).Select(c => c.Hint),
+                ],
+            }, cancellationToken);
         }
 
         int appended = 0, retired = 0;
@@ -147,17 +154,20 @@ internal sealed class ProjectionCache : IAsyncDisposable
                 }
             }
 
-            // Stale on either axis: the raw stream moved past the table, or the fields were redeclared.
-            var status = await _engine.GetProjectionStatusAsync(type, cancellationToken);
-            if (status.State != ProjectionState.Projected
-                && (await _engine.ProjectAsync(type, cancellationToken)).Projected)
+            // Stale on either axis: the raw stream moved past the table, or the fields were redeclared. A section reads the
+            // template's documents, so it is brought up after them.
+            var projected = false;
+            foreach (var table in sectionsOf[template.Ref].Prepend(type))
             {
-                projections.Add(template.Ref);
+                var status = await _engine.GetProjectionStatusAsync(table, cancellationToken);
+                if (status.State != ProjectionState.Projected && (await _engine.ProjectAsync(table, cancellationToken)).Projected)
+                    projected = true;
+                foreach (var skip in await _engine.GetProjectionSkipsAsync(table, cancellationToken))
+                    skipped.Add(new SkippedDocument(await PathOfAsync(skip.DocumentId, present, cancellationToken), skip.Reason));
+                foreach (var skip in await _engine.GetProjectionFieldSkipsAsync(table, cancellationToken))
+                    skippedFields.Add(new SkippedField(template.Ref, await PathOfAsync(skip.DocumentId, present, cancellationToken), skip.Field, skip.Reason));
             }
-            foreach (var skip in await _engine.GetProjectionSkipsAsync(type, cancellationToken))
-                skipped.Add(new SkippedDocument(await PathOfAsync(skip.DocumentId, present, cancellationToken), skip.Reason));
-            foreach (var skip in await _engine.GetProjectionFieldSkipsAsync(type, cancellationToken))
-                skippedFields.Add(new SkippedField(template.Ref, await PathOfAsync(skip.DocumentId, present, cancellationToken), skip.Field, skip.Reason));
+            if (projected) projections.Add(template.Ref);
         }
         return new IngestResult(appended, retired, projections, skipped, skippedFields);
     }
@@ -171,20 +181,75 @@ internal sealed class ProjectionCache : IAsyncDisposable
         return path ?? id.ToString();
     }
 
+    /// <summary>
+    /// The rows of <paramref name="template"/>'s table that <paramref name="filters"/> keep, in path order — a checkbox group's
+    /// cell the options its document has checked, read from its section in the order the document lists them.
+    /// </summary>
     public async Task<ProjectionTable> TableAsync(
-        TemplateSnapshot template, IReadOnlyList<FieldFilter> filters, CancellationToken cancellationToken)
+        TemplateSnapshot template, IReadOnlyDictionary<string, CountColumn> columns, IReadOnlyList<ColumnFilter> filters,
+        CancellationToken cancellationToken)
     {
+        var (fieldFilters, children) = Conditions(columns, filters);
         var result = await _engine.QueryAsync(
             FormTypeRef.Create(template.Ref),
-            new QuerySpec(Filters: filters, OrderBy: [new OrderKey(VaultProjection.PathColumn, Descending: false)]),
+            new QuerySpec(Filters: fieldFilters, OrderBy: [new OrderKey(VaultProjection.PathColumn, Descending: false)], Children: children),
             cancellationToken);
-        var columns = template.Fields.Select(f => new ProjectionColumn(f.Name, f.Type)).ToList();
+        var paths = result.Rows.Select(row => (string)row.Fields[VaultProjection.PathColumn]!).ToList();
+        var checkedOf = new Dictionary<string, Dictionary<string, List<object?>>>(StringComparer.Ordinal);
+        foreach (var column in columns.Values.Where(c => c.Section is not null))
+            checkedOf[column.Name] = await CheckedAsync(column.Section!, paths, cancellationToken);
         var rows = result.Rows
-            .Select(row => new ProjectionRow(
-                (string)row.Fields[VaultProjection.PathColumn]!,
-                template.Fields.ToDictionary(f => f.Name, f => row.Fields.TryGetValue(f.Name, out var v) ? AsWritten(f, v) : null)))
+            .Select((row, i) => new ProjectionRow(
+                paths[i],
+                template.Fields.ToDictionary(f => f.Name, f => checkedOf.TryGetValue(f.Name, out var options)
+                    ? options.TryGetValue(RecordKeyOf(paths[i]).Value, out var list) ? list : null
+                    : row.Fields.TryGetValue(f.Name, out var v) ? AsWritten(f, v) : null)))
             .ToList();
-        return new ProjectionTable(template.Ref, columns, rows);
+        return new ProjectionTable(template.Ref, [.. template.Fields.Select(f => new ProjectionColumn(f.Name, f.Type))], rows);
+    }
+
+    /// <summary>The options each document at <paramref name="paths"/> has checked in a checkbox group, by its record key.</summary>
+    private async Task<Dictionary<string, List<object?>>> CheckedAsync(
+        RelationHint section, IReadOnlyList<string> paths, CancellationToken cancellationToken)
+    {
+        var checkedOf = new Dictionary<string, List<object?>>(StringComparer.Ordinal);
+        if (paths.Count == 0) return checkedOf;
+        var keys = paths.Select(p => (object)RecordKeyOf(p).Value).ToArray();
+        var rows = await _engine.QueryAsync(
+            section.Target, new QuerySpec(Filters: [new FieldFilter(section.KeyField, FilterOperator.In, keys)]), cancellationToken);
+        foreach (var row in rows.Rows)
+        {
+            var parent = (string)row.Fields[section.KeyField]!;
+            if (!checkedOf.TryGetValue(parent, out var list)) checkedOf[parent] = list = [];
+            list.Add(row.Fields[FormdownAdapter.SectionValueField]);
+        }
+        return checkedOf;
+    }
+
+    /// <summary>
+    /// <paramref name="filters"/> as Formbase asks them: a condition on a field of the table as a field filter, one on a
+    /// checkbox group as a condition on its section — the documents with at least one checked option it keeps. That none
+    /// is checked cannot be asked of a section yet, so it is refused.
+    /// </summary>
+    private static (List<FieldFilter> Fields, List<ChildFilter> Children) Conditions(
+        IReadOnlyDictionary<string, CountColumn> columns, IReadOnlyList<ColumnFilter> filters)
+    {
+        var fields = new List<FieldFilter>();
+        var children = new List<ChildFilter>();
+        foreach (var filter in filters)
+        {
+            if (columns.TryGetValue(filter.Column, out var column) && column.Section is { } section)
+            {
+                if (filter.Op == "empty")
+                    throw new ArgumentException($"documents with no option of {filter.Column} checked cannot be asked for", nameof(filters));
+                children.Add(new ChildFilter(section.Name, (filter with { Column = FormdownAdapter.SectionValueField }).ToFieldFilter()));
+            }
+            else
+            {
+                fields.Add(filter.ToFieldFilter());
+            }
+        }
+        return (fields, children);
     }
 
     /// <summary>
@@ -195,18 +260,48 @@ internal sealed class ProjectionCache : IAsyncDisposable
     /// others; of a tie, a group with a blank value after the others, the rest in the order Formbase gives its keys.
     /// </summary>
     public async Task<AggregateAnswer> AggregateAsync(
-        TemplateSnapshot template, IReadOnlyDictionary<string, CountColumn> columns, IReadOnlyList<string> groupBy, IReadOnlyList<FieldFilter> filters,
+        TemplateSnapshot template, IReadOnlyDictionary<string, CountColumn> columns, IReadOnlyList<string> groupBy, IReadOnlyList<ColumnFilter> filters,
         int evidence, string? sum, CancellationToken cancellationToken)
     {
+        var type = FormTypeRef.Create(template.Ref);
+        var (fieldFilters, children) = Conditions(columns, filters);
         var measures = sum is null ? [] : new[] { AggregateMeasure.Sum(sum) };
-        var result = await _engine.AggregateAsync(
-            FormTypeRef.Create(template.Ref), new AggregateSpec(groupBy, filters, evidence) { Measures = measures }, cancellationToken);
-        var groups = result.Groups
-            .Select((g, order) => (Order: order, Group: new CountGroup(
-                groupBy.ToDictionary(c => c, c => g.Key.TryGetValue(c, out var v) && columns.TryGetValue(c, out var column) ? AsWritten(column.Field, v) : null),
-                g.Count,
-                [.. (g.Records ?? []).Select(r => r.Key?.Value).OfType<string>()],
-                sum is null ? null : g.Measures is [var m, ..] ? new GroupSum(m.Value is null ? null : Convert.ToDecimal(m.Value, CultureInfo.InvariantCulture), m.ValueCount) : new GroupSum(null, 0))))
+        CountGroup Counted(AggregateGroup g, IReadOnlyDictionary<string, object?> key) => new(
+            key,
+            g.Count,
+            [.. (g.Records ?? []).Select(r => r.Key?.Value).OfType<string>()],
+            sum is null ? null : g.Measures is [var m, ..] ? new GroupSum(m.Value is null ? null : Convert.ToDecimal(m.Value, CultureInfo.InvariantCulture), m.ValueCount) : new GroupSum(null, 0));
+        var counted = new List<CountGroup>();
+        var byOption = groupBy.Where(c => columns.TryGetValue(c, out var column) && column.Section is not null).ToList();
+        if (byOption is [var grouped])
+        {
+            // Counted by a checkbox group: a document is counted under each option it has checked — its options are its
+            // section's rows. Each option's count is the documents with it checked, kept by the other conditions.
+            if (groupBy.Count > 1)
+                throw new ArgumentException($"{grouped} can be counted by alone, not together with other columns", nameof(groupBy));
+            var section = columns[grouped].Section!;
+            var options = await _engine.AggregateAsync(section.Target, new AggregateSpec([FormdownAdapter.SectionValueField], [], 1), cancellationToken);
+            foreach (var option in options.Groups.Select(g => g.Key[FormdownAdapter.SectionValueField]).OfType<object>())
+            {
+                var withIt = new ChildFilter(section.Name, FieldFilter.Equal(FormdownAdapter.SectionValueField, option));
+                var result = await _engine.AggregateAsync(
+                    type, new AggregateSpec([], fieldFilters, evidence) { Measures = measures, Children = [.. children, withIt] }, cancellationToken);
+                counted.AddRange(result.Groups.Where(g => g.Count > 0).Select(g => Counted(g, new Dictionary<string, object?> { [grouped] = option })));
+            }
+        }
+        else if (byOption.Count > 1)
+        {
+            throw new ArgumentException("a count by more than one checkbox group", nameof(groupBy));
+        }
+        else
+        {
+            var result = await _engine.AggregateAsync(
+                type, new AggregateSpec(groupBy, fieldFilters, evidence) { Measures = measures, Children = children }, cancellationToken);
+            counted.AddRange(result.Groups.Select(g => Counted(g,
+                groupBy.ToDictionary(c => c, c => g.Key.TryGetValue(c, out var v) && columns.TryGetValue(c, out var column) ? AsWritten(column.Field, v) : null))));
+        }
+        var groups = counted
+            .Select((g, order) => (Order: order, Group: g))
             .OrderByDescending(x => x.Group.Sum is { Total: { } total } ? total : (decimal?)null)
             .ThenByDescending(x => x.Group.Count)
             .ThenBy(x => x.Group.Key.Values.Any(v => v is null) ? 1 : 0)
@@ -217,12 +312,12 @@ internal sealed class ProjectionCache : IAsyncDisposable
     }
 
     /// <summary>
-    /// A cell as the field writes it. A date or date-and-time comes back from the table as an instant in
-    /// UTC — which is how its zone-less text was read — so its UTC parts are exactly what was written.
+    /// A cell as the field writes it. A date comes back from the table as a day; a date and time as an instant in UTC —
+    /// which is how its zone-less text was read — so its UTC parts are exactly what was written.
     /// </summary>
     private static object? AsWritten(TemplateField field, object? value) => (field.Type, value) switch
     {
-        ("date", DateTimeOffset at) => at.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        ("date", DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         ("datetime-local", DateTimeOffset at) => at.UtcDateTime.ToString(
             at.Second == 0 && at.Millisecond == 0 ? "yyyy-MM-dd'T'HH:mm" : "yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
         _ => value,
@@ -296,7 +391,4 @@ internal sealed class ProjectionCache : IAsyncDisposable
         _ => node?.DeepClone(),
     };
 
-    /// <summary>An opaque table name for a template: Formbase never shows it, only needs it unique.</summary>
-    private static string TableName(string templateRef) =>
-        "t_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(templateRef)))[..16].ToLowerInvariant();
 }

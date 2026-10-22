@@ -22,18 +22,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Formbase.Core" Version="0.30.1" />
-    <PackageReference Include="Formbase.Sqlite" Version="0.30.1" />
-    <PackageReference Include="Formbase.DependencyInjection" Version="0.30.1" />
-    <PackageReference Include="Formbase.Formdown" Version="0.30.1" />
+    <PackageReference Include="Formbase.Core" Version="0.32.0" />
+    <PackageReference Include="Formbase.Sqlite" Version="0.32.0" />
+    <PackageReference Include="Formbase.DependencyInjection" Version="0.32.0" />
+    <PackageReference Include="Formbase.Formdown" Version="0.32.0" />
     <PackageReference Include="Gil" Version="0.25.0" />
     <PackageReference Include="IronProw.Core" Version="0.16.2" />
     <PackageReference Include="IronProw.IronHive" Version="0.16.2" />
     <PackageReference Include="IronProw.LMSupply" Version="0.16.2" />
-    <PackageReference Include="LMSupply.Generator" Version="0.135.0" />
+    <PackageReference Include="LMSupply.Generator" Version="0.136.0" />
     <PackageReference Include="FluxIndex.SDK" Version="0.103.1" />
     <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.103.1" />
-    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.24.0" />
+    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.25.0" />
     <PackageReference Include="Undoc" Version="0.27.0" />
     <PackageReference Include="Unhwp" Version="0.23.0" />
     <PackageReference Include="Unpdf" Version="0.48.0" />

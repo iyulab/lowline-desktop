@@ -47,6 +47,43 @@ public sealed class VaultProjectionTests
     }
 
     [Fact]
+    public async Task A_checkbox_group_is_shown_filtered_and_counted_by_each_option_checked()
+    {
+        await using var vault = new VaultProjection();
+        await vault.IngestAsync(new VaultSnapshot([BugReport],
+        [
+            Document("문서/a.md", """{"제목": "열기 실패", "심각도": "높음", "태그": ["UI", "저장"], "점수": 2}"""),
+            Document("문서/b.md", """{"제목": "저장 후 멈춤", "심각도": "낮음", "태그": ["저장"], "점수": 5}"""),
+            Document("문서/c.md", """{"제목": "글자 깨짐", "심각도": "높음", "태그": []}"""),
+            Document("문서/d.md", """{"제목": "느림", "심각도": "높음"}"""),
+        ]), Ct);
+
+        // The table shows each document's checked options as it lists them, and nothing for one with none.
+        var table = (await vault.TableAsync("bug-report@1", Ct))!;
+        Assert.Equal<object?[]?>([["UI", "저장"], ["저장"], null, null], table.Rows.Select(r => (object?[]?)(r.Values["태그"] as List<object?>)?.ToArray()).ToArray());
+
+        // An option filters the documents that have it checked, alone or with other conditions.
+        var saved = (await vault.TableAsync("bug-report@1", [new ColumnFilter("태그", "equal", "저장")], Ct))!;
+        Assert.Equal(["문서/a.md", "문서/b.md"], saved.Rows.Select(r => r.Path));
+        var high = (await vault.TableAsync("bug-report@1", [new ColumnFilter("태그", "equal", "저장"), new ColumnFilter("심각도", "equal", "높음")], Ct))!;
+        Assert.Equal(["문서/a.md"], high.Rows.Select(r => r.Path));
+
+        // Counted by the group: a document under each option it has checked, with its documents and a sum over them.
+        var byTag = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그"], Sum: "점수"), Ct))!;
+        Assert.Equal([("저장", 2L, 7m), ("UI", 1L, 2m)], byTag.Groups.Select(g => ((string?)g.Key["태그"], g.Count, g.Sum!.Total!.Value)));
+        Assert.Equal(["문서/a.md", "문서/b.md"], byTag.Groups[0].Evidence);
+        var highByTag = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그"], [new ColumnFilter("심각도", "equal", "높음")]), Ct))!;
+        Assert.Equal([("UI", 1L), ("저장", 1L)], highByTag.Groups.Select(g => ((string?)g.Key["태그"], g.Count)).OrderBy(g => g.Item1, StringComparer.Ordinal));
+        var withSaved = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["심각도"], [new ColumnFilter("태그", "equal", "저장")]), Ct))!;
+        Assert.Equal([("높음", 1L), ("낮음", 1L)], withSaved.Groups.Select(g => ((string?)g.Key["심각도"], g.Count)).OrderByDescending(g => g.Item1, StringComparer.Ordinal));
+
+        // What a section cannot answer yet is refused rather than answered wrong: no option checked, or the group
+        // together with another column.
+        await Assert.ThrowsAsync<ArgumentException>(() => vault.TableAsync("bug-report@1", [new ColumnFilter("태그", "empty", "")], Ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그", "심각도"]), Ct));
+    }
+
+    [Fact]
     public async Task Counts_documents_per_value_the_largest_first_each_with_the_documents_it_is_made_of()
     {
         var visits = Templates.Of("visit@1", [new TemplateField("원인", "select"), new TemplateField("방문일", "date"), new TemplateField("제목", "text")]);
