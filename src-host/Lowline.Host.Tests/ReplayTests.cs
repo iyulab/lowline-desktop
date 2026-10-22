@@ -9,7 +9,10 @@ namespace Lowline.Host.Tests;
 /// what comes before it, and a value typed out asked again as it is typed — and saved, the vault ingested again with it
 /// and its thresholds chosen again as they would be. What was offered for each field is written line by line, for the UI's side to turn into the events a save records
 /// and count them (<c>src/__tests__/replay.test.ts</c>, which writes the snapshot and runs this). Runs only when
-/// <c>LOWLINE_REPLAY_SNAPSHOT</c> names a snapshot; writes the offers to <c>LOWLINE_REPLAY_OFFERS</c>.
+/// <c>LOWLINE_REPLAY_SNAPSHOT</c> names a snapshot; writes the offers to <c>LOWLINE_REPLAY_OFFERS</c>. With
+/// <c>LOWLINE_REPLAY_EVENTS=1</c> the vault also gets, from the next ingest on, what a person did with what was shown: the
+/// value last shown for a field accepted when it is the one saved, corrected when another is — so a field's promise is
+/// counted as the app counts it once people take its suggestions.
 /// </summary>
 public sealed class ReplayTests
 {
@@ -47,6 +50,8 @@ public sealed class ReplayTests
         await vault.ThresholdsSelected.WaitAsync(ct);
 
         var tally = new Dictionary<string, (int Right, int Wrong, int Abstained)>(StringComparer.Ordinal);
+        var recording = Environment.GetEnvironmentVariable("LOWLINE_REPLAY_EVENTS") == "1";
+        var events = new List<SuggestionEvent>();
         await using var offers = new StreamWriter(output, append: false);
         for (var i = played.BroughtIn; i < played.Documents.Count; i++)
         {
@@ -76,9 +81,18 @@ public sealed class ReplayTests
 
                 // A value typed out that was not offered: typed from its start, asked again with each of the first three
                 // characters, and taken once it is offered. While typing, only a value that adds to the text is shown.
-                if (settled is not { Length: > 1 } || suggestion.Value == settled || !Suggestions.Typeable(template.Fields.First(f => f.Name == field)))
-                    continue;
                 var shown = suggestion.Value;
+                void Decided()
+                {
+                    if (!recording || shown is null || classed && shown == suggestion.Value) return;
+                    var kind = shown == settled ? "accept" : "correct";
+                    events.Add(new SuggestionEvent($"{i:D8}", document.Identity, field, kind, shown, document.Template, suggestion.Mode));
+                }
+                if (settled is not { Length: > 1 } || suggestion.Value == settled || !Suggestions.Typeable(template.Fields.First(f => f.Name == field)))
+                {
+                    Decided();
+                    continue;
+                }
                 for (var length = 1; length <= Math.Min(3, settled.Length - 1); length++)
                 {
                     var typed = settled[..length];
@@ -89,8 +103,9 @@ public sealed class ReplayTests
                         new Offered(document.Identity, field, whileTyping, before, typed, await PromisedAsync(vault, document.Template, field, whileTyping, typed, ct)), Json));
                     if (shown == settled) break;
                 }
+                Decided();
             }
-            await vault.IngestAsync(new VaultSnapshot(played.Templates, [.. played.Documents.Take(i + 1)]), ct);
+            await vault.IngestAsync(new VaultSnapshot(played.Templates, [.. played.Documents.Take(i + 1)], [.. events]), ct);
             await vault.ThresholdsSelected.WaitAsync(ct);
         }
 
