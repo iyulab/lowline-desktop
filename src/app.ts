@@ -6,6 +6,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { DpSidebarActionEvent, DpSidebarActivateEvent, DpSidebarSelectEvent } from '@iyulab/desktop-patterns/sidebar'
 import { desktopMinWidth } from '@iyulab/desktop-patterns/breakpoints'
 import type { DcTabChangeEvent } from '@iyulab/desktop-compact/tab-bar'
+import { isModalOpen } from '@iyulab/desktop-compact'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { createSampleTemplate, createTemplateFile } from './document-files.js'
@@ -29,13 +30,6 @@ import './about-dialog.js'
 
 /** What of a template shows: its table, its source, or its documents. */
 type Tab = 'table' | 'template' | 'documents'
-
-/** Whether a modal dialog is open anywhere in the page — dialogs live in components' shadow roots. */
-function modalOpen(root: Document | ShadowRoot): boolean {
-  if (root.querySelector('dialog[open]')) return true
-  for (const el of root.querySelectorAll('*')) if (el.shadowRoot && modalOpen(el.shadowRoot)) return true
-  return false
-}
 
 /** The sidebar's foot: actions that show the shortcuts and what Lowline is, not places. */
 const SHORTCUTS = 'shortcuts'
@@ -173,7 +167,7 @@ export class LlApp extends LitElement {
     if (key !== 's' && key !== 'n' && key !== 'f' && key !== '/' && key !== 'enter') return
     e.preventDefault()
     if (key === '/' && this.showingShortcuts) return void (this.showingShortcuts = false)
-    if (modalOpen(document) || this.showingShortcuts) return
+    if (isModalOpen() || this.showingShortcuts) return
     if (key === '/') return void (this.showingShortcuts = true)
     if (key === 's') {
       const editor = this.renderRoot.querySelector<HTMLElement & { save(): Promise<void> }>('ll-templates, ll-documents')
