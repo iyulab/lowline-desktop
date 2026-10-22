@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State, Url};
-use tauri_kit_update::{Event, Found, Source, Stage, Status, UpdateOptions, Updates};
+use tauri_kit_update::{Channel, Event, Found, Source, Stage, Status, UpdateOptions, Updates};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 /// Where a development build looks for updates; it looks nowhere without it.
@@ -48,7 +48,8 @@ impl Source for Plugin {
     type Update = Update;
     type Installer = Vec<u8>;
 
-    fn check(&self) -> Result<Option<Found<Update>>, String> {
+    /// The releases have one manifest, so every channel looks at it.
+    fn check(&self, _channel: Channel) -> Result<Option<Found<Update>>, String> {
         let updater = self.updater()?;
         let update = tauri::async_runtime::block_on(updater.check()).map_err(|e| e.to_string())?;
         Ok(update.map(|u| Found {
@@ -224,6 +225,8 @@ mod tests {
         Status {
             enabled: true,
             available: available.map(str::to_owned),
+            kind: None,
+            channel: Channel::Stable,
             ready: ready.map(str::to_owned),
             downloading: false,
             failed: failed.map(str::to_owned),

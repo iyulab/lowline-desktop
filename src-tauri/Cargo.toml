@@ -23,16 +23,16 @@ serde_json = "1"
 # The device id's random bytes.
 getrandom = "0.4"
 # Error reports that carry no content, sent to Application Insights by a release build.
-tauri-kit-credentials = "0.25.0"
-tauri-kit-diagnostics = { version = "0.25.0", features = ["appinsights"] }
-tauri-kit-fs = "0.25.0"
+tauri-kit-credentials = "0.26.0"
+tauri-kit-diagnostics = { version = "0.26.0", features = ["appinsights"] }
+tauri-kit-fs = "0.26.0"
 # The sidecar as a loopback helper: a per-launch token, its port, and the blocking HTTP client to it.
-tauri-kit-sidecar = { version = "0.25.0", features = ["loopback-client"] }
+tauri-kit-sidecar = { version = "0.26.0", features = ["loopback-client"] }
 # What this device keeps per vault, outside it, is named by the vault folder's key.
-tauri-kit-state = "0.25.0"
+tauri-kit-state = "0.26.0"
 # When to look for a newer release, the background download and what is kept between launches.
-tauri-kit-update = "0.25.0"
-tauri-kit-watch = "0.25.0"
+tauri-kit-update = "0.26.0"
+tauri-kit-watch = "0.26.0"
 
 # Deleting moves a file to the system's trash (Recycle Bin, Trash, freedesktop trash), where the
 # person restores it from — the vault keeps no trash of its own.
@@ -43,7 +43,7 @@ tauri-plugin-opener = "2"
 [target.'cfg(windows)'.dependencies]
 # Holds the window's web view to the app's own pages below Tauri's navigation handler: frames,
 # the requests of refused navigations, new windows and other programs' schemes too.
-tauri-kit-webview = "0.25.0"
+tauri-kit-webview = "0.26.0"
 
 [dev-dependencies]
 # The in-memory credential store the tests keep keys in, never the real one.

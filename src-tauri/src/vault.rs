@@ -11,7 +11,8 @@ use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 use tauri_kit_fs::{
-    claim_free_path, conflict_copy_of, has_trash, is_changed, is_outside, Expect, NameKind, Root,
+    claim_free_path, conflict_copy_of, conflict_copy_of_on, has_trash, is_changed, is_outside,
+    Expect, NameKind, Root,
 };
 use tauri_kit_watch::OwnWrites;
 
@@ -93,6 +94,8 @@ pub struct Vault {
     root: Root,
     /// What this app wrote, so the vault watch does not report it back as an outside edit.
     own: OwnWrites,
+    /// The devices whose names mark a sync client's conflict copy (`a-<device>.md`): this one.
+    devices: Vec<String>,
 }
 
 impl Vault {
@@ -105,6 +108,7 @@ impl Vault {
         Ok(Vault {
             root,
             own: OwnWrites::new(),
+            devices: this_device().into_iter().collect(),
         })
     }
 
@@ -142,7 +146,7 @@ impl Vault {
             let Some(name) = item.file_name().to_str().map(str::to_owned) else {
                 continue;
             };
-            let conflict_of = match conflict_copy_of(&name) {
+            let conflict_of = match self.conflict_copy_of(&abs, &name) {
                 Some(original) if original.ends_with(suffix) => Some(format!("{dir}/{original}")),
                 Some(_) => continue,
                 None if name.ends_with(suffix) => None,
@@ -163,6 +167,16 @@ impl Vault {
         }
         entries.sort_by(|a, b| a.path.cmp(&b.path));
         Ok(entries)
+    }
+
+    /// The file `name` in folder `abs` copies, if it is a sync client's conflict copy. A copy named
+    /// after a device (OneDrive's `a-<device>.md`) counts only beside its original: by name alone it
+    /// could be a name a person chose.
+    fn conflict_copy_of(&self, abs: &Path, name: &str) -> Option<String> {
+        conflict_copy_of(name).or_else(|| {
+            let devices: Vec<&str> = self.devices.iter().map(String::as_str).collect();
+            conflict_copy_of_on(name, &devices).filter(|original| abs.join(original).is_file())
+        })
     }
 
     pub fn read(&self, rel: &str) -> Result<String> {
@@ -338,6 +352,16 @@ fn outside_or_io(rel: &str, e: io::Error) -> VaultError {
         VaultError::OutsideVault(rel.to_string())
     } else {
         VaultError::Io(e)
+    }
+}
+
+/// This computer's name, which OneDrive puts on the conflict copies of changes made here that lost.
+/// Windows only: elsewhere the sync clients' names for a device are not this one.
+fn this_device() -> Option<String> {
+    if cfg!(windows) {
+        std::env::var("COMPUTERNAME").ok().filter(|n| !n.is_empty())
+    } else {
+        None
     }
 }
 
@@ -640,6 +664,35 @@ mod tests {
                     "서식/회의.fd.sync-conflict-20260929-143015-ABCDEFG.md".to_string(),
                     original
                 ),
+            ]
+        );
+    }
+
+    #[test]
+    fn lists_a_copy_named_after_this_device_only_beside_its_original() {
+        let (_dir, mut v) = vault();
+        v.devices = vec!["DESK-02".to_string()];
+        v.write("문서/접수-1.md", "a").unwrap();
+        v.write("문서/접수-1-desk-02.md", "b").unwrap();
+        // A person's own name with a dash, and a device's name with no original beside it.
+        v.write("문서/회의-서울.md", "c").unwrap();
+        v.write("문서/없음-desk-02.md", "d").unwrap();
+        let listed: Vec<_> = v
+            .list(DOCUMENTS_DIR, DOCUMENT_SUFFIX)
+            .unwrap()
+            .into_iter()
+            .map(|e| (e.path, e.conflict_of))
+            .collect();
+        assert_eq!(
+            listed,
+            [
+                ("문서/없음-desk-02.md".to_string(), None),
+                (
+                    "문서/접수-1-desk-02.md".to_string(),
+                    Some("문서/접수-1.md".to_string())
+                ),
+                ("문서/접수-1.md".to_string(), None),
+                ("문서/회의-서울.md".to_string(), None),
             ]
         );
     }

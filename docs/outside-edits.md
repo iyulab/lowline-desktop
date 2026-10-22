@@ -2,7 +2,7 @@
 
 The shell watches the places in the vault the app reads — `서식/`, `문서/` and other devices' event files (tauri-kit-watch) — so other programs keeping their own files in the same folder do not disturb it. The app's own writes are not reported back to it.
 
-Edits made there by other programs — another editor, a sync client, another device — show up in the lists, the table and the suggestions.
+Edits made there by other programs — another editor, a sync client, another device — show up in the lists, the table and the suggestions. A file a sync client brings down from another device without telling (OneDrive does so on Windows) is found by listing the vault again every 15 seconds.
 
 - An open document with no unsaved edits is read again.
 - One with unsaved edits is never replaced: the person is told, and saving decides. A notice that leaves the file as it is on screen changes nothing, and an edit made while the file is being read counts as unsaved.
@@ -11,7 +11,7 @@ Edits made there by other programs — another editor, a sync client, another de
 
 ## Sync conflict copies
 
-When a sync client keeps both devices' edits of a file as a copy beside it, the list shows the copy with its original and neither is read twice. Until the person keeps one of the two, the original stays in its table, but suggestions do not learn from it and the weekly counts leave it out.
+When a sync client keeps both devices' edits of a file as a copy beside it, the list shows the copy with its original and neither is read twice. A copy named after a computer — OneDrive's `접수-1-<computer>.md` — is recognised when it is this computer's name and the original is beside it; a copy named after another computer is listed as a document of its own. Until the person keeps one of the two, the original stays in its table, but suggestions do not learn from it and the weekly counts leave it out.
 
 ## Programs that write documents
 

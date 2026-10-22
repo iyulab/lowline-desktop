@@ -184,6 +184,8 @@ const TMP_DIR: &str = ".lowline/tmp";
 
 /// How often the watch checks that it still hears the vault.
 const PROBE_EVERY: Duration = Duration::from_secs(300);
+/// How often the vault is listed again for files that arrived or left without a notification.
+const SWEEP_EVERY: Duration = Duration::from_secs(15);
 
 /// What changed in the vault, as the UI is told: paths relative to the vault, `/`-separated.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -247,6 +249,9 @@ fn watch_vault(app: &AppHandle, vault: &Vault) -> std::io::Result<Watcher> {
         .own_writes(vault.own_writes())
         .ignore(move |rel| ignored(rel, own_events.as_deref()))
         .probe_liveness(TMP_DIR, PROBE_EVERY)
+        // OneDrive brings a file made on another device down as a placeholder, which raises no
+        // notification: only listing the tree again hears it.
+        .sweep_every(SWEEP_EVERY)
         .start(move |notice| {
             let _ = app.emit("vault-changed", VaultChanged::from(notice));
         })
