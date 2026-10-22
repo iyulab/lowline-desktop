@@ -228,8 +228,8 @@ internal sealed class ProjectionCache : IAsyncDisposable
 
     /// <summary>
     /// <paramref name="filters"/> as Formbase asks them: a condition on a field of the table as a field filter, one on a
-    /// checkbox group as a condition on its section — the documents with at least one checked option it keeps. That none
-    /// is checked cannot be asked of a section yet, so it is refused.
+    /// checkbox group as a condition on its section — the documents with at least one checked option it keeps, or for
+    /// <c>empty</c> those with none checked.
     /// </summary>
     private static (List<FieldFilter> Fields, List<ChildFilter> Children) Conditions(
         IReadOnlyDictionary<string, CountColumn> columns, IReadOnlyList<ColumnFilter> filters)
@@ -240,9 +240,9 @@ internal sealed class ProjectionCache : IAsyncDisposable
         {
             if (columns.TryGetValue(filter.Column, out var column) && column.Section is { } section)
             {
-                if (filter.Op == "empty")
-                    throw new ArgumentException($"documents with no option of {filter.Column} checked cannot be asked for", nameof(filters));
-                children.Add(new ChildFilter(section.Name, (filter with { Column = FormdownAdapter.SectionValueField }).ToFieldFilter()));
+                children.Add(filter.Op == "empty"
+                    ? new ChildFilter(section.Name, Quantifier: ChildQuantifier.None)
+                    : new ChildFilter(section.Name, (filter with { Column = FormdownAdapter.SectionValueField }).ToFieldFilter()));
             }
             else
             {
@@ -276,18 +276,24 @@ internal sealed class ProjectionCache : IAsyncDisposable
         if (byOption is [var grouped])
         {
             // Counted by a checkbox group: a document is counted under each option it has checked — its options are its
-            // section's rows. Each option's count is the documents with it checked, kept by the other conditions.
-            if (groupBy.Count > 1)
-                throw new ArgumentException($"{grouped} can be counted by alone, not together with other columns", nameof(groupBy));
+            // section's rows — and once under none when it has none checked. Each option's count is the documents with
+            // it checked, kept by the other conditions and grouped by the other columns.
             var section = columns[grouped].Section!;
+            var others = groupBy.Where(c => c != grouped).ToList();
+            async Task CountUnder(object? option, ChildFilter which)
+            {
+                var result = await _engine.AggregateAsync(
+                    type, new AggregateSpec(others, fieldFilters, evidence) { Measures = measures, Children = [.. children, which] }, cancellationToken);
+                counted.AddRange(result.Groups.Where(g => g.Count > 0).Select(g => Counted(g, groupBy.ToDictionary(
+                    c => c,
+                    c => c == grouped ? option : g.Key.TryGetValue(c, out var v) ? AsWritten(columns[c].Field, v) : null))));
+            }
             var options = await _engine.AggregateAsync(section.Target, new AggregateSpec([FormdownAdapter.SectionValueField], [], 1), cancellationToken);
             foreach (var option in options.Groups.Select(g => g.Key[FormdownAdapter.SectionValueField]).OfType<object>())
             {
-                var withIt = new ChildFilter(section.Name, FieldFilter.Equal(FormdownAdapter.SectionValueField, option));
-                var result = await _engine.AggregateAsync(
-                    type, new AggregateSpec([], fieldFilters, evidence) { Measures = measures, Children = [.. children, withIt] }, cancellationToken);
-                counted.AddRange(result.Groups.Where(g => g.Count > 0).Select(g => Counted(g, new Dictionary<string, object?> { [grouped] = option })));
+                await CountUnder(option, new ChildFilter(section.Name, FieldFilter.Equal(FormdownAdapter.SectionValueField, option)));
             }
+            await CountUnder(null, new ChildFilter(section.Name, Quantifier: ChildQuantifier.None));
         }
         else if (byOption.Count > 1)
         {

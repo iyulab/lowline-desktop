@@ -69,18 +69,26 @@ public sealed class VaultProjectionTests
         Assert.Equal(["문서/a.md"], high.Rows.Select(r => r.Path));
 
         // Counted by the group: a document under each option it has checked, with its documents and a sum over them.
+        // Those with none checked are a group of their own, as a blank value is.
         var byTag = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그"], Sum: "점수"), Ct))!;
-        Assert.Equal([("저장", 2L, 7m), ("UI", 1L, 2m)], byTag.Groups.Select(g => ((string?)g.Key["태그"], g.Count, g.Sum!.Total!.Value)));
+        Assert.Equal([("저장", 2L, (decimal?)7m), ("UI", 1L, 2m), (null, 2L, null)], byTag.Groups.Select(g => ((string?)g.Key["태그"], g.Count, g.Sum!.Total)));
+        Assert.Equal(["문서/c.md", "문서/d.md"], byTag.Groups[2].Evidence);
         Assert.Equal(["문서/a.md", "문서/b.md"], byTag.Groups[0].Evidence);
         var highByTag = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그"], [new ColumnFilter("심각도", "equal", "높음")]), Ct))!;
-        Assert.Equal([("UI", 1L), ("저장", 1L)], highByTag.Groups.Select(g => ((string?)g.Key["태그"], g.Count)).OrderBy(g => g.Item1, StringComparer.Ordinal));
+        Assert.Equal([(null, 2L), ("UI", 1L), ("저장", 1L)], highByTag.Groups.Select(g => ((string?)g.Key["태그"], g.Count)).OrderBy(g => g.Item1, StringComparer.Ordinal));
         var withSaved = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["심각도"], [new ColumnFilter("태그", "equal", "저장")]), Ct))!;
         Assert.Equal([("높음", 1L), ("낮음", 1L)], withSaved.Groups.Select(g => ((string?)g.Key["심각도"], g.Count)).OrderByDescending(g => g.Item1, StringComparer.Ordinal));
 
-        // What a section cannot answer yet is refused rather than answered wrong: no option checked, or the group
-        // together with another column.
-        await Assert.ThrowsAsync<ArgumentException>(() => vault.TableAsync("bug-report@1", [new ColumnFilter("태그", "empty", "")], Ct));
-        await Assert.ThrowsAsync<ArgumentException>(() => vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그", "심각도"]), Ct));
+        // No option checked: an empty list and no list at all alike.
+        var untagged = (await vault.TableAsync("bug-report@1", [new ColumnFilter("태그", "empty", "")], Ct))!;
+        Assert.Equal(["문서/c.md", "문서/d.md"], untagged.Rows.Select(r => r.Path));
+
+        // The group together with another column: each option checked, and none, by each value of the other.
+        var tagBySeverity = (await vault.AggregateAsync(new AggregateQuery("bug-report@1", ["태그", "심각도"]), Ct))!;
+        Assert.Equal(
+            [(null, "높음", 2L), ("UI", "높음", 1L), ("저장", "낮음", 1L), ("저장", "높음", 1L)],
+            tagBySeverity.Groups.Select(g => ((string?)g.Key["태그"], (string?)g.Key["심각도"], g.Count))
+                .OrderBy(g => g.Item1 ?? "", StringComparer.Ordinal).ThenBy(g => g.Item2, StringComparer.Ordinal));
     }
 
     [Fact]
