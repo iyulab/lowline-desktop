@@ -17,7 +17,7 @@ public sealed class HostFailures
     /// most of the work happens in them, and the path through them is what tells one failure from
     /// another. The runtime's and the web framework's frames say nothing about which.
     /// </summary>
-    public static readonly IReadOnlyList<string> OwnNamespaces = ["Lowline.", "Formbase.", "Gil.", "FluxIndex.", "Flux."];
+    public static readonly IReadOnlyList<string> OwnNamespaces = ["Lowline.", "Formbase.", "FluxIndex.", "Flux."];
 
     private readonly Lock _lock = new();
     private readonly List<FaultView> _kept = [];

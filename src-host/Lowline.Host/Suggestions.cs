@@ -1,7 +1,6 @@
 using System.Text.Json;
-using Gil;
-using Gil.Forms;
-using Gil.Memory;
+using System.Text.Json.Nodes;
+using Engine = global::Lowline;
 
 namespace Lowline.Host;
 
@@ -84,13 +83,14 @@ public static class NoReplay
 }
 
 /// <summary>
-/// Suggestions for judgment fields from what people already confirmed in the vault — no model.
-/// Each template with judgment fields is a Gil form: the fields its author turned suggestions on for are
-/// judged, the rest observed. A saved document is a settled document of it, settled when it was last saved.
-/// Documents say what the answer is; events say which suggestions were wrong — a field whose suggestion
-/// was last rejected in a document is not offered there again.
+/// Suggestions for judgment fields from what people already confirmed in the vault — no model — through the Lowline engine.
+/// Each template with judgment fields is one of its forms: the fields its author turned suggestions on for are decided,
+/// the rest observed. A saved document is a record settled when it was last saved, each judgment field settled as its
+/// events say — taken from a suggestion, changed, or entered with nothing in view — so the precision a field promises
+/// rests on the values people entered themselves. Documents say what the answer is; events say which suggestions were
+/// wrong — a field whose suggestion was last rejected in a document is not offered there again.
 /// </summary>
-public sealed class Suggestions
+public sealed class Suggestions : IDisposable
 {
     /// <summary>The share of offered values that must have been right for a threshold to be chosen.</summary>
     public const double TargetPrecision = 0.8;
@@ -109,37 +109,50 @@ public sealed class Suggestions
     /// </summary>
     public const int SimilarMinimumAnswered = 30;
 
+    /// <summary>The most characters typed into a field that suggestions are chosen a strength for.</summary>
+    private const int TypedLongest = 3;
+
     /// <summary>The document a draft is asked about: it has no saved version to leave out of the evidence.</summary>
     private const string Unsaved = "\u0000unsaved";
 
-    /// <summary>
-    /// Each template's memory: every saved document goes into it; asking writes nothing to it. Values settled alongside the
-    /// document's other values answer first, once replay has shown they decide the field
-    /// (<see cref="FieldDefinition.KeyThreshold"/>); similar documents answer where those settle nothing, on a field whose own
-    /// replay of that layer earned it (<see cref="FieldDefinition.MemoryThreshold"/> — see
-    /// <see cref="FieldThreshold.SimilarThreshold"/>). Only a template with such a field keeps its documents for similarity
-    /// (<see cref="_similar"/>): on a large vault that memory costs as much to build as the rest, and most templates never
-    /// earn it.
-    /// </summary>
-    private Dictionary<string, FormResolver> _resolvers = new(StringComparer.Ordinal);
+    /// <summary>The field types whose value a person types out, rather than picks, checks or enters as a number or date.</summary>
+    private static readonly HashSet<string> TypedTypes = new(StringComparer.Ordinal) { "text", "textarea", "email", "tel", "url", "search" };
 
-    /// <summary>The templates whose memory keeps their documents for similarity.</summary>
-    private HashSet<string> _similar = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> DateTypes = new(StringComparer.Ordinal) { "date", "time", "datetime-local", "month", "week" };
+
     private readonly Dictionary<string, TemplateSnapshot> _templates;
-    private readonly Dictionary<string, List<SettledDocument>> _settled;
-    private Dictionary<(string Template, string Field), FieldThreshold> _thresholds;
+    private readonly Dictionary<string, Form> _forms;
     private readonly HashSet<(string Doc, string Field)> _rejected;
-    private Dictionary<string, FormDefinition> _forms = new(StringComparer.Ordinal);
 
-    private Suggestions(
-        Dictionary<string, TemplateSnapshot> templates,
-        Dictionary<string, List<SettledDocument>> settled,
-        Dictionary<(string, string), FieldThreshold> thresholds,
-        IReadOnlyList<SuggestionEvent> events)
+    /// <summary>One template's engine, the records it learned, and how many of them settled each judgment field.</summary>
+    private sealed class Form(Engine.LowlineEngine engine, IReadOnlyList<string> records, Dictionary<string, int> confirmed)
     {
-        (_templates, _settled, _thresholds) = (templates, settled, thresholds);
+        public Engine.LowlineEngine Engine { get; } = engine;
+
+        /// <summary>The records learned, in settlement order — what a replay chooses on.</summary>
+        public IReadOnlyList<string> Records { get; } = records;
+
+        /// <summary>By judgment field, the documents holding a value a person confirmed — not one another program proposed.</summary>
+        public Dictionary<string, int> Confirmed { get; } = confirmed;
+
+        /// <summary>The tuning in use, as the engine handed it over; null until one was chosen or kept.</summary>
+        public string? Tuning { get; set; }
+
+        /// <summary>How each judgment field's replay went, by field; empty until thresholds were chosen or kept.</summary>
+        public Dictionary<string, Engine.FieldReport> Report { get; set; } = new(StringComparer.Ordinal);
+
+        public void Use(string? tuning)
+        {
+            Engine.Restore(tuning);
+            Tuning = tuning;
+            Report = (Engine.Report ?? []).ToDictionary(r => r.Field, StringComparer.Ordinal);
+        }
+    }
+
+    private Suggestions(Dictionary<string, TemplateSnapshot> templates, Dictionary<string, Form> forms, IReadOnlyList<SuggestionEvent> events)
+    {
+        (_templates, _forms) = (templates, forms);
         _rejected = Rejected(events);
-        _forms = Forms();
     }
 
     /// <summary>
@@ -156,212 +169,117 @@ public sealed class Suggestions
             .ToHashSet();
 
     /// <summary>
-    /// Builds memory from the vault's saved documents, leaving out those with a conflict copy — their
-    /// values are not confirmed until the person settles which copy to keep. Where documents disagree,
-    /// Gil keeps the latest confirmation, so the order they come in does not matter. Each judgment field keeps the
-    /// thresholds in <paramref name="kept"/> — chosen for it by an earlier build, or kept from an earlier launch — until
-    /// <see cref="SelectThresholdsAsync"/> chooses again.
+    /// Builds memory from the vault's saved documents, leaving out those with a conflict copy — their values are not
+    /// confirmed until the person settles which copy to keep — in the order they were saved. Each template keeps the
+    /// tuning in <paramref name="kept"/> — chosen by an earlier build, or kept from an earlier launch — until
+    /// <see cref="SelectThresholdsAsync"/> chooses again; the engine says when one no longer stands.
     /// </summary>
-    public static async Task<Suggestions> BuildAsync(
-        VaultSnapshot vault, CancellationToken cancellationToken,
-        IReadOnlyDictionary<(string Template, string Field), FieldThreshold>? kept = null)
+    public static Task<Suggestions> BuildAsync(
+        VaultSnapshot vault, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? kept = null)
     {
         var documents = vault.Documents.Where(d => !d.Conflicted).ToLookup(d => d.Template, StringComparer.Ordinal);
+        var events = vault.Events ?? [];
+        var latest = events
+            .GroupBy(e => (e.Doc, e.Field))
+            .ToDictionary(g => g.Key, g => g.MaxBy(e => e.At, StringComparer.Ordinal)!);
         var templates = vault.Templates
             .Where(t => t.Fields.Any(f => t.Suggest?.Contains(f.Name) == true))
             .ToDictionary(t => t.Ref, StringComparer.Ordinal);
-        var settled = templates.Values.ToDictionary(t => t.Ref, t => documents[t.Ref].Select(d => Settled(t, d)).ToList(), StringComparer.Ordinal);
-        var thresholds = new Dictionary<(string, string), FieldThreshold>();
-        foreach (var template in templates.Values)
+        var forms = new Dictionary<string, Form>(StringComparer.Ordinal);
+        try
         {
-            foreach (var field in template.Suggest!)
+            foreach (var template in templates.Values)
             {
-                // A value another program proposed is not one a person confirmed.
-                var confirmed = settled[template.Ref].Count(d => d.Values.ContainsKey(field) && d.Settlements?.GetValueOrDefault(field) is not SettlementKind.Fill);
-                // A threshold chosen while the field had other choices is used until it is chosen again over these:
-                // the values it may be suggested are not the ones its replay counted. One resting on a field the template
-                // no longer has is no threshold: its strength was chosen on scores those fields gave.
-                thresholds[(template.Ref, field)] = kept?.GetValueOrDefault((template.Ref, field)) is { } threshold
-                    && threshold.RestsWithin([.. template.Fields.Select(f => f.Name)])
-                    ? threshold.ChosenOver(DomainOf(template, field)) && threshold.CoarsePrefix == CoarseOf(template, field)
-                        ? threshold with { Confirmed = confirmed }
-                        : threshold with { Confirmed = confirmed, SelectedAt = null }
-                    : new FieldThreshold(null, confirmed, SelectedAt: null);
+                cancellationToken.ThrowIfCancellationRequested();
+                var engine = Engine.LowlineEngine.Create(Definition(template));
+                // A field the template names twice among its judgment fields is one judgment field.
+                var confirmed = template.Suggest!.Distinct(StringComparer.Ordinal).ToDictionary(f => f, _ => 0, StringComparer.Ordinal);
+                var records = new List<string>();
+                foreach (var document in documents[template.Ref]
+                    .OrderBy(d => d.Modified ?? 0)
+                    .ThenBy(d => d.Identity, StringComparer.Ordinal))
+                {
+                    var values = Values(template, document.Values);
+                    var settled = Settled(template, document, values, latest);
+                    foreach (var field in confirmed.Keys)
+                    {
+                        if (values.ContainsKey(field) && settled.GetValueOrDefault(field) is not Engine.SettlementKind.Fill) confirmed[field]++;
+                    }
+                    records.Add(engine.Record(
+                        document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0)).Json);
+                }
+                engine.Learn(records);
+                var form = new Form(engine, records, confirmed);
+                forms[template.Ref] = form;
+                form.Use(kept?.GetValueOrDefault(template.Ref));
             }
         }
-
-        var suggestions = new Suggestions(templates, settled, thresholds, vault.Events ?? []);
-        foreach (var template in templates.Values)
+        catch
         {
-            var similar = suggestions.EarnsSimilar(template.Ref);
-            suggestions._resolvers[template.Ref] = await suggestions.RememberAsync(template, similar, cancellationToken);
-            if (similar) suggestions._similar.Add(template.Ref);
+            foreach (var form in forms.Values) form.Engine.Dispose();
+            throw;
         }
-        return suggestions;
-    }
-
-    /// <summary>Whether any judgment field of the template is offered similar documents' values.</summary>
-    private bool EarnsSimilar(string template) => _templates[template].Suggest!.Any(f => _thresholds[(template, f)].SimilarOffered);
-
-    /// <summary>
-    /// A template's memory of its saved documents — kept for similarity too when <paramref name="similar"/>. Memory is kept
-    /// for every judgment field; the threshold a field is asked at decides whether it is used.
-    /// </summary>
-    private async Task<FormResolver> RememberAsync(TemplateSnapshot template, bool similar, CancellationToken cancellationToken)
-    {
-        var resolver = new FormResolver(new FieldMemory(), similar ? new LexicalMemory() : null);
-        await resolver.RebuildAsync(Form(template, _ => new FieldThreshold(null, 0, null))!, _settled[template.Ref], cancellationToken);
-        return resolver;
+        return Task.FromResult(new Suggestions(templates, forms, events));
     }
 
     /// <summary>
-    /// Whether a field's threshold should be chosen again: it never was, or the field has gained or lost a
-    /// tenth of its confirmed documents since — the right threshold moves as memory grows.
+    /// A template as the engine's form: each field with the kind of value it takes — a field with options is a choice of
+    /// them, one a person types out is text — its judgment fields decided and the rest observed, and a judgment field's
+    /// class length where the template names one. The precision, answers and gates the thresholds are chosen to are the
+    /// app's, counted on every value a person settled.
     /// </summary>
-    public bool NeedsSelection => _thresholds.Values.Any(Due);
-
-    /// <summary>Whether a judgment field's threshold should be chosen again (see <see cref="NeedsSelection"/>).</summary>
-    public bool Due(string template, string field) => _thresholds.GetValueOrDefault((template, field)) is { } threshold && Due(threshold);
-
-    private static bool Due(FieldThreshold t) => t.SelectedAt is not { } at || Math.Abs(t.Confirmed - at) * 10 >= Math.Max(at, 10);
-
-    /// <summary>
-    /// Chooses the strength at which each judgment field's values settled alongside the document's other values answer, by
-    /// replaying its confirmed documents in the order they were saved — only the fields whose thresholds are due (see
-    /// <see cref="Due(string, string)"/>); the rest keep theirs. It runs apart from building memory and its result is applied
-    /// with <see cref="ApplyAsync"/>.
-    /// </summary>
-    public async Task<IReadOnlyDictionary<(string Template, string Field), FieldThreshold>> SelectThresholdsAsync(CancellationToken cancellationToken)
+    internal static string Definition(TemplateSnapshot template)
     {
-        var chosen = new Dictionary<(string, string), FieldThreshold>();
-        foreach (var ((template, field), current) in _thresholds.Where(t => Due(t.Value)).ToList())
+        var judged = template.Suggest ?? [];
+        var fields = new JsonArray();
+        foreach (var field in template.Fields)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var bare = Form(_templates[template], _ => new FieldThreshold(null, 0, 0))!;
-            // How far a key seen only a few times is believed, first: a field naming the very thing judged keeps the value
-            // its keys were first seen with, a broad one mixes values, and the scores every strength below is chosen on
-            // follow from it. Each field's is its own, so choosing them over every field holds for whichever key it.
-            var concentrations = ThresholdSelection.SelectKeyConcentrations(new FieldMemory(), bare, field, _settled[template]) is { Count: > 0 } chosenConcentrations
-                ? chosenConcentrations
-                : null;
-            var concentrated = Form(_templates[template], f => new FieldThreshold(null, 0, 0, KeyConcentrations: f == field ? concentrations : null))!;
-            // The fields that key the judgment first — where a few decide a field of many values, the rest only add to
-            // every value's score — then the strength, replayed with them. A field a person types into is asked again
-            // with each character, and the fields that decide it before typing may blur it once a prefix has narrowed its
-            // values: its set is counted by the answers before and while typing together, and the strengths for one, two
-            // and three characters typed come with it — replayed on the documents the strength before typing did not answer
-            // rightly, so each keeps its promise where a person actually types. Null for a field whose value is picked.
-            var typeable = Typeable(_templates[template].Fields.First(f => f.Name == field));
-            var keyed = ThresholdSelection.SelectKeyFields(
-                () => new FieldMemory(), concentrated, field, _settled[template], TargetPrecision, MinimumAnswered,
-                typedLongest: typeable ? TypedLongest : 0);
-            var key = keyed.Chosen;
-            // Similar documents answer only the lookups values settled alongside leave, so their strength is replayed on those,
-            // with the fields that key the judgment as just chosen.
-            var keying = new FieldThreshold(null, 0, 0, KeyFields: keyed.KeyFields, KeyConcentrations: concentrations);
-            var layers = await ThresholdSelection.SelectLayersAsync(
-                new FieldMemory(), new LexicalMemory(), Form(_templates[template], f => f == field ? keying : new FieldThreshold(null, 0, 0))!,
-                field, _settled[template], TargetPrecision, MinimumAnswered, cancellationToken);
-            var threshold = new FieldThreshold(
-                key.Chosen, current.Confirmed, current.Confirmed, key.MostPrecise, DomainOf(_templates[template], field),
-                keyed.KeyFields, keyed.Typed?.ByLength.Select(r => r.Chosen).ToList(), CoarseOf(_templates[template], field),
-                KeyConcentrations: concentrations, Similar: layers.Memory.Chosen);
-            // A class is offered where the value is not, so its strength is replayed on the lookups the value's leaves.
-            if (threshold.CoarsePrefix is not null)
+            var (kind, choices) = KindOf(field);
+            var json = new JsonObject
             {
-                var valued = Form(_templates[template], f => f == field ? threshold with { Similar = null } : new FieldThreshold(null, 0, 0))!;
-                // A class is offered only from values settled alongside, so the replay keeps no document memory: only its key
-                // threshold is read.
-                var classed = await ThresholdSelection.SelectCoarseAsync(
-                    new FieldMemory(), memory: null, valued, field, _settled[template], TargetPrecision,
-                    MinimumAnswered, cancellationToken);
-                threshold = threshold with { Coarse = classed.Key.Chosen };
-            }
-            chosen[(template, field)] = threshold;
+                ["name"] = field.Name,
+                ["kind"] = kind,
+                ["role"] = judged.Contains(field.Name) ? "decided" : "observed",
+            };
+            if (choices is { Count: > 0 }) json["choices"] = new JsonArray([.. choices.Select(c => JsonValue.Create(c))]);
+            // A choice field with no options takes whatever is written in it.
+            if (kind == "choice" && choices is not { Count: > 0 }) json["open"] = true;
+            if (field.Multiple) json["multiple"] = true;
+            if (judged.Contains(field.Name) && CoarseOf(template, field.Name) is { } prefix) json["coarse"] = prefix;
+            fields.Add(json);
         }
-        return chosen;
+        return new JsonObject
+        {
+            ["name"] = template.Ref,
+            ["form"] = new JsonObject { ["fields"] = fields },
+            ["tune"] = new JsonObject
+            {
+                ["targetPrecision"] = TargetPrecision,
+                ["minimumAnswered"] = MinimumAnswered,
+                ["similarMinimumAnswered"] = SimilarMinimumAnswered,
+                ["typedLongest"] = TypedLongest,
+                // Every value a person settled — taken from a suggestion or changed too: the app draws no checks, and
+                // counting only the values entered with nothing in view would never meet a suggestion's own misses.
+                ["counting"] = "settled",
+            },
+        }.ToJsonString();
     }
 
-    /// <summary>The most characters typed into a field that suggestions are chosen a strength for.</summary>
-    private const int TypedLongest = 3;
-
-    /// <summary>The field types whose value a person types out, rather than picks, checks or enters as a number or date.</summary>
-    private static readonly HashSet<string> TypedTypes = new(StringComparer.Ordinal) { "text", "textarea", "email", "tel", "url", "search" };
+    private static (string Kind, IReadOnlyList<string>? Choices) KindOf(TemplateField field) => field switch
+    {
+        { Reference: not null } => ("reference", null),
+        { Options: [_, ..] options } => ("choice", options),
+        { Type: "select" or "radio" } => ("choice", null),
+        { Type: "checkbox", Multiple: false } => ("flag", null),
+        { Type: "checkbox" } => ("choice", null),
+        { Type: "number" or "range" } => ("number", null),
+        { Type: var type } when DateTypes.Contains(type) => ("date", null),
+        _ => ("text", null),
+    };
 
     /// <summary>Whether a person types a field's value out — one value, of a typed kind, with no choices to pick from.</summary>
     public static bool Typeable(TemplateField field) =>
         !field.Multiple && field.Options is not [_, ..] && TypedTypes.Contains(field.Type);
-
-    /// <summary>
-    /// Uses thresholds <see cref="SelectThresholdsAsync"/> chose. A template one of whose fields has just earned similar
-    /// documents gets its memory built again to keep them; one whose fields no longer have keeps it until the next build.
-    /// </summary>
-    public async Task ApplyAsync(IReadOnlyDictionary<(string Template, string Field), FieldThreshold> chosen, CancellationToken cancellationToken)
-    {
-        // Replaced, not changed in place: a later build may be reading these as its previous thresholds.
-        var thresholds = new Dictionary<(string, string), FieldThreshold>(_thresholds);
-        foreach (var (key, threshold) in chosen)
-        {
-            if (thresholds.ContainsKey(key)) thresholds[key] = threshold;
-        }
-        var earning = _templates.Keys.Where(t => !_similar.Contains(t) && t is var template
-            && _templates[template].Suggest!.Any(f => thresholds[(template, f)].SimilarOffered)).ToList();
-        var resolvers = new Dictionary<string, FormResolver>(_resolvers, StringComparer.Ordinal);
-        foreach (var template in earning)
-            resolvers[template] = await RememberAsync(_templates[template], similar: true, cancellationToken);
-        (_thresholds, _resolvers, _similar) = (thresholds, resolvers, [.. _similar, .. earning]);
-        _forms = Forms();
-    }
-
-    /// <summary>Each judgment field's thresholds as they stand, for a later build or launch to keep.</summary>
-    public IReadOnlyDictionary<(string Template, string Field), FieldThreshold> Thresholds => _thresholds;
-
-    /// <summary>How a judgment field's key strength was chosen, and how it did on the replay; null until it has been.</summary>
-    public ThresholdChoice? Choice(string template, string field) => _thresholds.GetValueOrDefault((template, field))?.Choice;
-
-    /// <summary>
-    /// For a field whose value is typed out, how each number of characters typed did on its replay — null where no strength
-    /// was right often enough; null for any other field, or until its replay has run.
-    /// </summary>
-    public IReadOnlyList<ThresholdChoice?>? Typed(string template, string field) =>
-        _thresholds.GetValueOrDefault((template, field)) is { SelectedAt: not null, Typed: { } typed } ? typed : null;
-
-    /// <summary>
-    /// For a field whose template names a class, how the class did on the lookups its value left and the strength chosen
-    /// for it; null until one was, or when none was right often enough.
-    /// </summary>
-    public ThresholdChoice? CoarseChoice(string template, string field) =>
-        _thresholds.GetValueOrDefault((template, field)) is { SelectedAt: not null, Coarse: { } coarse } ? coarse : null;
-
-    /// <summary>
-    /// How similar documents did on the lookups values settled alongside left, and the strength chosen for them; null until
-    /// one was, or when none was right often enough. They are offered only once <see cref="FieldThreshold.SimilarOffered"/>.
-    /// </summary>
-    public FieldThreshold? SimilarChoice(string template, string field) =>
-        _thresholds.GetValueOrDefault((template, field)) is { SelectedAt: not null, Similar: not null } threshold ? threshold : null;
-
-    /// <summary>The fields the replay chose to key a judgment field; null when every value filled in counts.</summary>
-    public IReadOnlyList<string>? KeyFields(string template, string field) =>
-        _thresholds.GetValueOrDefault((template, field))?.KeyFields;
-
-    /// <summary>
-    /// For a field whose replay chose no strength, the closest it came: the most precise strength that still gathered
-    /// enough answers. Null when one was chosen, or when the replay found too few candidates to say.
-    /// </summary>
-    public ThresholdChoice? Closest(string template, string field) =>
-        _thresholds.GetValueOrDefault((template, field)) is { Choice: null } threshold ? threshold.Closest : null;
-
-    private Dictionary<string, FormDefinition> Forms() => _templates.Values.ToDictionary(
-        t => t.Ref,
-        t => Form(t, field => _thresholds[(t.Ref, field)])!,
-        StringComparer.Ordinal);
-
-    /// <summary>The choices a field's value is one of — a field of one choice with options — or null when its value is open.</summary>
-    private static IReadOnlyList<string>? DomainOf(TemplateField field) =>
-        field is { Multiple: false, Options: [_, ..] options } ? options : null;
-
-    private static IReadOnlyList<string>? DomainOf(TemplateSnapshot template, string field) =>
-        template.Fields.FirstOrDefault(f => f.Name == field) is { } f ? DomainOf(f) : null;
 
     /// <summary>
     /// How many leading characters of a field's values name their class, as its template says; null when it says none,
@@ -373,90 +291,146 @@ public sealed class Suggestions
             ? prefix
             : null;
 
-    /// <summary>A template as a Gil form, or null when its author turned suggestions on for no field.</summary>
-    internal static FormDefinition? Form(TemplateSnapshot template, Func<string, FieldThreshold> threshold)
+    /// <summary>A document's values on its template's fields, as the engine reads them; an empty value is none.</summary>
+    private static Dictionary<string, Engine.FieldValue> Values(TemplateSnapshot template, IReadOnlyDictionary<string, JsonElement> values)
     {
-        var judged = template.Suggest ?? [];
-        if (!template.Fields.Any(f => judged.Contains(f.Name))) return null;
-        // A judgment rests on the other values the document holds — the observed ones, and judgments the person has
-        // already confirmed in it, which often say the most about the rest. Its key layer may count only the few of them
-        // its replay chose (KeyFields); the similar document layer still sees them all. A suggestion shown and not taken
-        // is no value.
-        // A document does not record the order its values came in, so the replay takes the judged ones as confirmed in
-        // the form's order: for one confirmed out of that order it counts on more than its suggestion had.
-        var fields = template.Fields.Select(f => judged.Contains(f.Name)
-            ? new FieldDefinition(f.Name, FieldRole.Judged)
-            {
-                KeyThreshold = threshold(f.Name).KeyThreshold,
-                MemoryThreshold = threshold(f.Name).SimilarThreshold,
-                KeyFields = threshold(f.Name).KeyFields,
-                KeyConcentrations = threshold(f.Name).KeyConcentrations,
-                TypedKeyThresholds = threshold(f.Name).Typed?.Select(c => c?.Threshold).ToList(),
-                // A field of one choice is suggested only a choice it has now: a value settled under an option
-                // since dropped is remembered, not offered.
-                Candidates = DomainOf(f),
-                Coarse = CoarseOf(template, f.Name) is { } prefix
-                    ? new CoarseLevel(prefix) { KeyThreshold = threshold(f.Name).Coarse?.Threshold }
-                    : null,
-            }
-            : new FieldDefinition(f.Name, FieldRole.Observed));
-        // No model is called, so the language is never used.
-        return new FormDefinition(template.Ref, [.. fields], PromptLanguage.English);
+        var read = new Dictionary<string, Engine.FieldValue>(StringComparer.Ordinal);
+        foreach (var field in template.Fields)
+        {
+            if (values.TryGetValue(field.Name, out var value) && ValueOf(field, value) is { } held) read[field.Name] = held;
+        }
+        return read;
+    }
+
+    private static Engine.FieldValue? ValueOf(TemplateField field, JsonElement value)
+    {
+        IReadOnlyList<string> texts = value.ValueKind switch
+        {
+            JsonValueKind.String => string.IsNullOrWhiteSpace(value.GetString()) ? [] : [value.GetString()!],
+            JsonValueKind.True => ["true"],
+            JsonValueKind.False => ["false"],
+            JsonValueKind.Number => [value.GetRawText()],
+            JsonValueKind.Array => [.. value.EnumerateArray().Select(v => v.ToString()).Where(v => !string.IsNullOrWhiteSpace(v))],
+            _ => [],
+        };
+        if (texts.Count == 0) return null;
+        return field.Multiple ? Engine.FieldValue.Many(texts) : Engine.FieldValue.One(string.Join(", ", texts));
     }
 
     /// <summary>
-    /// A saved document as Gil sees it: its values as text, settled when the file was last written — the
-    /// oldest possible time when that is unknown, as the shell reports an unreadable one. A judgment value another
-    /// program proposed is filled in, not settled by a person (<see cref="SettlementKind.Fill"/>): it stays in the
-    /// document, and memory neither learns it nor asks about it when choosing thresholds.
+    /// How each judgment field of a saved document was settled. A value another program proposed is filled in, not settled
+    /// by a person (<see cref="Engine.SettlementKind.Fill"/>): it stays in the document, and memory neither learns it as a
+    /// person's nor counts it. Otherwise the field's latest event says: a suggestion taken, changed, or turned down and
+    /// another value written — of the engine's or of another program's. A field no event names was entered with nothing in
+    /// view, the engine's default. A field that takes several values is settled as a set.
     /// </summary>
-    internal static SettledDocument Settled(TemplateSnapshot template, DocumentSnapshot document)
+    private static Dictionary<string, Engine.SettlementKind> Settled(
+        TemplateSnapshot template, DocumentSnapshot document, IReadOnlyDictionary<string, Engine.FieldValue> values,
+        IReadOnlyDictionary<(string, string), SuggestionEvent> latest)
     {
-        var settled = new SettledDocument(document.Identity, Texts(document.Values), DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0));
-        var filled = (document.Proposed ?? []).Where(f => template.Suggest!.Contains(f)).ToList();
-        return filled.Count == 0
-            ? settled
-            : settled with { Settlements = filled.ToDictionary(f => f, _ => SettlementKind.Fill, StringComparer.Ordinal) };
+        var settled = new Dictionary<string, Engine.SettlementKind>(StringComparer.Ordinal);
+        foreach (var field in template.Suggest!.Distinct(StringComparer.Ordinal))
+        {
+            if (!values.ContainsKey(field)) continue;
+            if (document.Proposed?.Contains(field) == true)
+            {
+                settled[field] = Engine.SettlementKind.Fill;
+                continue;
+            }
+            if (template.Fields.First(f => f.Name == field).Multiple) continue;
+            if (latest.GetValueOrDefault((document.Identity, field)) is not { } decided) continue;
+            var other = decided.Source == SuggestionSource.Proposed;
+            settled[field] = (decided.Kind, other) switch
+            {
+                ("accept", false) => Engine.SettlementKind.Accept,
+                ("accept", true) => Engine.SettlementKind.AcceptOther,
+                (_, false) => Engine.SettlementKind.Correct,
+                (_, true) => Engine.SettlementKind.CorrectOther,
+            };
+        }
+        return settled;
     }
 
-    private static Dictionary<string, string> Texts(IReadOnlyDictionary<string, JsonElement> values) =>
-        values
-            .Select(v => (v.Key, Text: Answer(v.Value)))
-            .Where(v => v.Text is not null)
-            .ToDictionary(v => v.Key, v => v.Text!, StringComparer.Ordinal);
+    /// <summary>Whether any template's thresholds should be chosen again: never chosen, or no longer standing.</summary>
+    public bool NeedsSelection => _forms.Values.Any(f => f.Engine.Stale is not null);
 
-    public async Task<Suggestion?> SuggestAsync(SuggestRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Whether a judgment field's thresholds should be chosen again: never chosen, or its template's no longer stand — its
+    /// fields or choices changed, or its documents grew or shrank by a tenth since.
+    /// </summary>
+    public bool Due(string template, string field) =>
+        _forms.TryGetValue(template, out var form) && _templates[template].Suggest!.Contains(field) && form.Engine.Stale is not null;
+
+    /// <summary>
+    /// Chooses the thresholds of each template whose thresholds are due, by replaying its documents in the order they were
+    /// saved; the rest keep theirs. It runs apart from building memory — suggestions go on meanwhile — and its result is
+    /// applied with <see cref="ApplyAsync"/>.
+    /// </summary>
+    public Task<IReadOnlyDictionary<string, string>> SelectThresholdsAsync(CancellationToken cancellationToken)
     {
-        if (!_forms.TryGetValue(request.Template, out var form)) return null;
-        if (form.Fields.FirstOrDefault(f => f.Name == request.Field) is not { Role: FieldRole.Judged }) return null;
+        var chosen = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (template, form) in _forms.Where(f => f.Value.Engine.Stale is not null).ToList())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            chosen[template] = form.Engine.Choose(form.Records);
+        }
+        return Task.FromResult<IReadOnlyDictionary<string, string>>(chosen);
+    }
+
+    /// <summary>Uses the thresholds <see cref="SelectThresholdsAsync"/> chose.</summary>
+    public Task ApplyAsync(IReadOnlyDictionary<string, string> chosen, CancellationToken cancellationToken)
+    {
+        foreach (var (template, tuning) in chosen)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_forms.TryGetValue(template, out var form)) form.Use(tuning);
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Each template's thresholds as they stand, for a later build or launch to keep; one never chosen is left out.</summary>
+    public IReadOnlyDictionary<string, string> Thresholds =>
+        _forms.Where(f => f.Value.Tuning is not null).ToDictionary(f => f.Key, f => f.Value.Tuning!, StringComparer.Ordinal);
+
+    /// <summary>How a judgment field's thresholds were chosen, and how its replays went; null until they have been.</summary>
+    public Engine.FieldReport? Report(string template, string field) =>
+        _forms.TryGetValue(template, out var form) ? form.Report.GetValueOrDefault(field) : null;
+
+    /// <summary>The documents holding a value a person confirmed for a judgment field.</summary>
+    public int Confirmed(string template, string field) =>
+        _forms.TryGetValue(template, out var form) ? form.Confirmed.GetValueOrDefault(field) : 0;
+
+    public Task<Suggestion?> SuggestAsync(SuggestRequest request, CancellationToken cancellationToken)
+    {
+        if (!_forms.TryGetValue(request.Template, out var form)) return Task.FromResult<Suggestion?>(null);
+        var template = _templates[request.Template];
+        if (template.Suggest?.Contains(request.Field) != true || template.Fields.All(f => f.Name != request.Field))
+            return Task.FromResult<Suggestion?>(null);
         if (request.Document is { } document && _rejected.Contains((document, request.Field)))
-            return new Suggestion(null, SuggestionMode.Rejected, null, null);
+            return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Rejected, null, null));
 
         // A judgment rests on the values the document holds now — filled in, or taken from a suggestion — other than its
         // own; the document's saved version is never its evidence.
-        var held = Texts(request.Values)
-            .Where(v => v.Key != request.Field && form.Fields.Any(f => f.Name == v.Key))
-            .ToDictionary(v => v.Key, v => v.Value, StringComparer.Ordinal);
-        // Text being typed keeps the field open: only values that begin with it, at the strength chosen for that many
-        // characters. Typing is only into a field whose value is typed out; anywhere else it is no question.
-        var typing = !string.IsNullOrEmpty(request.Typed);
-        if (typing && !Typeable(_templates[request.Template].Fields.First(f => f.Name == request.Field)))
-            return Abstain(request.Template, request.Field);
-        // Only the field asked about: typing into it changes no other field's suggestion.
-        var suggestion = await _resolvers[request.Template].SuggestAsync(
-            form, request.Document ?? Unsaved, request.Field, held, sets: null, typing ? request.Typed : null, cancellationToken);
-
-        // Only a layer that keeps its promise is offered: anything else leaves the field to the person. Similar documents
-        // were replayed before typing only, so once a person types, the field is left to values settled alongside.
-        if (suggestion is { Answered: true, Candidates: [{ Source: FieldSource.SettledFieldMemory } answer, ..] })
-            return new Suggestion(answer.Value, SuggestionMode.Key, answer.Evidence);
-        if (!typing && suggestion is { Answered: true, Candidates: [{ Source: FieldSource.SimilarDocument } similar, ..] })
-            return new Suggestion(similar.Value, SuggestionMode.Memory, similar.Evidence);
-        // Where the value is not, its class may be — on the same layer, at the strength its own replay chose.
-        if (suggestion?.Coarse is { Trusted: true, Source: FieldSource.SettledFieldMemory } coarse)
-            return new Suggestion(coarse.Value, SuggestionMode.Coarse, coarse.Evidence);
-        return Abstain(request.Template, request.Field);
+        var held = Values(template, request.Values);
+        held.Remove(request.Field);
+        var typed = string.IsNullOrEmpty(request.Typed) ? null : request.Typed;
+        var proposal = form.Engine.ProposeField(request.Document ?? Unsaved, held, request.Field, typed);
+        var suggestion = proposal?.Suggestion is { } offered
+            ? new Suggestion(
+                offered.Value,
+                offered.Fit == "prefix" ? SuggestionMode.Coarse : proposal.Layer == Engine.Layer.Similar ? SuggestionMode.Memory : SuggestionMode.Key,
+                SourceOf(proposal))
+            : Abstain(request.Template, request.Field);
+        return Task.FromResult<Suggestion?>(suggestion);
     }
+
+    /// <summary>What a suggestion rests on, as the UI shows it: the value settled alongside, or the similar document.</summary>
+    private static string? SourceOf(Engine.Proposal proposal) => proposal.Basis.FirstOrDefault() switch
+    {
+        { Kind: "value", Field: { } field, Value: { } value } => $"{field}: {value}",
+        { Kind: "record", Id: { } id } => id,
+        _ => null,
+    };
 
     /// <summary>
     /// No value, with why: nothing confirmed yet, the values settled alongside not yet shown right often enough, or
@@ -464,9 +438,8 @@ public sealed class Suggestions
     /// </summary>
     private Suggestion Abstain(string template, string field)
     {
-        var threshold = _thresholds[(template, field)];
-        var reason = threshold.Confirmed == 0 ? Abstention.NoHistory
-            : threshold.KeyThreshold is null ? Abstention.BelowTarget
+        var reason = Confirmed(template, field) == 0 ? Abstention.NoHistory
+            : Report(template, field)?.Key is null ? Abstention.BelowTarget
             : Abstention.Undecided;
         return new Suggestion(null, SuggestionMode.Abstain, null, reason);
     }
@@ -475,74 +448,21 @@ public sealed class Suggestions
     /// Why a judgment field has no replay to show, as one of <see cref="NoReplay"/>'s or
     /// <see cref="Abstention.BelowTarget"/>; null once its threshold has been chosen.
     /// </summary>
-    public string? WhyNoReplay(string template, string field) => _thresholds.GetValueOrDefault((template, field)) switch
+    public string? WhyNoReplay(string template, string field)
     {
-        null or { Choice: not null } => null,
-        { SelectedAt: { } at } when at - 1 >= MinimumAnswered => Abstention.BelowTarget,
-        { Confirmed: var confirmed } when confirmed - 1 < MinimumAnswered => NoReplay.Few,
-        _ => NoReplay.Pending,
-    };
+        if (!_forms.ContainsKey(template) || _templates[template].Suggest?.Contains(field) != true) return null;
+        return Report(template, field) switch
+        {
+            { Key: not null } => null,
+            { Lookups: var lookups } when lookups >= MinimumAnswered => Abstention.BelowTarget,
+            not null => NoReplay.Few,
+            null when Confirmed(template, field) - 1 < MinimumAnswered => NoReplay.Few,
+            null => NoReplay.Pending,
+        };
+    }
 
-    /// <summary>A value as text, or null when it holds nothing.</summary>
-    private static string? Answer(JsonElement value) => value.ValueKind switch
+    public void Dispose()
     {
-        JsonValueKind.String => string.IsNullOrWhiteSpace(value.GetString()) ? null : value.GetString(),
-        JsonValueKind.True => "true",
-        JsonValueKind.False => "false",
-        JsonValueKind.Number => value.GetRawText(),
-        JsonValueKind.Array => value.GetArrayLength() == 0 ? null : string.Join(", ", value.EnumerateArray().Select(v => v.ToString())),
-        _ => null,
-    };
-}
-
-/// <summary>
-/// A judgment field's key strength: <see cref="Choice"/> is the strength at which values settled alongside the
-/// document's other values answer, as replaying its history chose it over the <see cref="SelectedAt"/> confirmed documents it had then
-/// (null: not yet chosen, or none was right often enough); <see cref="Confirmed"/> is how many it has now.
-/// <see cref="Closest"/> is the strength that came closest to the target, chosen or not.
-/// </summary>
-/// <param name="Domain">The choices the field had when its threshold was chosen; null for a field whose value is open.</param>
-/// <param name="KeyFields">
-/// The fields the replay chose to key the judgment, the strength chosen with them; null for every other field.
-/// </param>
-/// <param name="Typed">
-/// How the field's replay did with one, two, three characters typed, and the strength chosen for each (null where none was
-/// right often enough); null for a field whose value is not typed, or not yet chosen.
-/// </param>
-/// <param name="CoarsePrefix">How many leading characters named the field's class when its thresholds were chosen; null for none.</param>
-/// <param name="Coarse">
-/// How the class did on the lookups the value left, and the strength chosen for it; null when none was right often enough,
-/// or the field has no class.
-/// </param>
-/// <param name="KeyConcentrations">
-/// How readily each field's keys were believed after a few settlements when the strengths were chosen — they set the scale
-/// of the scores those strengths are on; null when every field's was the usual one.
-/// </param>
-/// <param name="Similar">
-/// How similar documents did on the lookups values settled alongside left, and the strength chosen for them; null when none
-/// was right often enough.
-/// </param>
-public sealed record FieldThreshold(
-    ThresholdChoice? Choice, int Confirmed, int? SelectedAt, ThresholdChoice? Closest = null, IReadOnlyList<string>? Domain = null,
-    IReadOnlyList<string>? KeyFields = null, IReadOnlyList<ThresholdChoice?>? Typed = null, int? CoarsePrefix = null,
-    ThresholdChoice? Coarse = null, IReadOnlyDictionary<string, double>? KeyConcentrations = null, ThresholdChoice? Similar = null)
-{
-    /// <summary>Whether it was chosen over the choices <paramref name="domain"/> lists (null: an open value).</summary>
-    public bool ChosenOver(IReadOnlyList<string>? domain) =>
-        Domain is null ? domain is null : domain is not null && Domain.SequenceEqual(domain, StringComparer.Ordinal);
-
-    /// <summary>Whether every field that keys it is one of <paramref name="fields"/>.</summary>
-    public bool RestsWithin(IReadOnlyCollection<string> fields) => (KeyFields ?? []).All(fields.Contains);
-
-    /// <summary>The strength the field's values settled alongside answer at; none — nothing is offered — until one has been chosen.</summary>
-    public double? KeyThreshold => Choice?.Threshold;
-
-    /// <summary>
-    /// The strength similar documents answer at — none, so they are not offered, until their replay chose one whose promise
-    /// rests on at least <see cref="Suggestions.SimilarMinimumAnswered"/> answers.
-    /// </summary>
-    public double? SimilarThreshold => Similar is { PromiseAnswered: >= Suggestions.SimilarMinimumAnswered } similar ? similar.Threshold : null;
-
-    /// <summary>Whether similar documents are offered for the field (see <see cref="SimilarThreshold"/>).</summary>
-    public bool SimilarOffered => SimilarThreshold is not null;
+        foreach (var form in _forms.Values) form.Engine.Dispose();
+    }
 }

@@ -293,7 +293,15 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
         var kept = _vault == root && _suggestions is { } current ? current.Thresholds : ThresholdStore.Load(ThresholdsFileOf(root));
         var suggestions = await Suggestions.BuildAsync(vault, cancellationToken, kept);
         var curves = Curves.Compute(vault);
-        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await _gate.WaitAsync(cancellationToken);
+        }
+        catch
+        {
+            suggestions.Dispose();
+            throw;
+        }
         try
         {
             if (_cache is not null && _vault != root)
@@ -314,10 +322,13 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             _byIdentity = vault.Documents.GroupBy(d => d.Identity, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
             _byPath = vault.Documents.ToDictionary(d => d.Path, StringComparer.Ordinal);
             CasesIndexed = SyncCasesAsync(_cases!, vault);
-            _suggestions = suggestions;
-            _curves = curves;
             _selecting?.Cancel();
             _selecting = null;
+            // The suggestions replaced are freed once a replay still running on them is done: it is superseded, but a replay
+            // in the engine runs to its end, and freeing them waits for that — no ingest should.
+            if (_suggestions is { } replaced) _ = ThresholdsSelected.ContinueWith(_ => replaced.Dispose(), TaskScheduler.Default);
+            _suggestions = suggestions;
+            _curves = curves;
             if (suggestions.NeedsSelection)
             {
                 _selecting = new CancellationTokenSource();
@@ -354,7 +365,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
                 _gate.Release();
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception e) when (cancellationToken.IsCancellationRequested && e is OperationCanceledException or ObjectDisposedException)
         {
             // superseded by a later ingest
         }
@@ -517,17 +528,17 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return [.. _curves.Select(Typing).Select(Classed).Select(Similar).Select(c => _suggestions?.Choice(c.Template, c.Field) is { } choice
+            return [.. _curves.Select(Typing).Select(Classed).Select(Similar).Select(c => _suggestions?.Report(c.Template, c.Field) is { Key: { } choice } report
                 ? c with
                 {
                     Replay = new FieldReplay(
-                        choice.Threshold, choice.Precision, choice.Promise, choice.PromiseAnswered, Gil.Forms.ThresholdSelection.RecentDocuments, choice.AnswerRate,
-                        choice.Answered, choice.Lookups, _suggestions.KeyFields(c.Template, c.Field)),
+                        choice.Threshold, choice.Precision, choice.Promise, choice.PromiseAnswered, report.PromiseOver, choice.AnswerRate,
+                        choice.Answered, choice.Lookups, report.KeyFields),
                 }
                 : c with
                 {
                     WhyNoReplay = _suggestions?.WhyNoReplay(c.Template, c.Field) ?? NoReplay.Pending,
-                    Closest = _suggestions?.Closest(c.Template, c.Field) is { } closest
+                    Closest = _suggestions?.Report(c.Template, c.Field)?.Closest is { } closest
                         ? new FieldShortfall(closest.Precision, closest.AnswerRate, closest.Answered, closest.Lookups, Suggestions.TargetPrecision)
                         : null,
                 }).Select(Rechoosing)];
@@ -549,27 +560,27 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             : curve;
 
     /// <summary>A curve with how similar documents did on its field's replay, when a strength was chosen for them.</summary>
-    private FieldCurve Similar(FieldCurve curve) => _suggestions?.SimilarChoice(curve.Template, curve.Field) is { Similar: { } similar } threshold
+    private FieldCurve Similar(FieldCurve curve) => _suggestions?.Report(curve.Template, curve.Field) is { Similar: { } similar } report
         ? curve with
         {
             Similar = new SimilarReplay(
-                similar.Threshold, similar.Precision, similar.Promise, similar.PromiseAnswered, Gil.Forms.ThresholdSelection.RecentDocuments,
-                similar.AnswerRate, similar.Answered, similar.Lookups, threshold.SimilarOffered, Suggestions.SimilarMinimumAnswered),
+                similar.Threshold, similar.Precision, similar.Promise, similar.PromiseAnswered, report.PromiseOver,
+                similar.AnswerRate, similar.Answered, similar.Lookups, report.SimilarOffered, Suggestions.SimilarMinimumAnswered),
         }
         : curve;
 
     /// <summary>A curve with how its field's class did on replay, when its template names one and a strength was chosen.</summary>
-    private FieldCurve Classed(FieldCurve curve) => _suggestions?.CoarseChoice(curve.Template, curve.Field) is { } coarse
+    private FieldCurve Classed(FieldCurve curve) => _suggestions?.Report(curve.Template, curve.Field) is { Coarse: { } coarse } report
         ? curve with
         {
             Coarse = new ClassReplay(
-                coarse.Threshold, coarse.Precision, coarse.Promise, coarse.PromiseAnswered, Gil.Forms.ThresholdSelection.RecentDocuments, coarse.AnswerRate,
+                coarse.Threshold, coarse.Precision, coarse.Promise, coarse.PromiseAnswered, report.PromiseOver, coarse.AnswerRate,
                 coarse.Answered, coarse.Lookups),
         }
         : curve;
 
     /// <summary>A curve with how its field did on replay as typed from its start, when it is a field typed out.</summary>
-    private FieldCurve Typing(FieldCurve curve) => _suggestions?.Typed(curve.Template, curve.Field) is { } typed
+    private FieldCurve Typing(FieldCurve curve) => _suggestions?.Report(curve.Template, curve.Field)?.Typed is { } typed
         ? curve with
         {
             Typing = [.. typed
@@ -596,6 +607,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
     public async ValueTask DisposeAsync()
     {
         _selecting?.Cancel();
+        _suggestions?.Dispose();
         if (_cache is not null) await _cache.DisposeAsync();
         await CloseCasesAsync();
         if (_ownsDirectory && Directory.Exists(CacheDirectory)) Directory.Delete(CacheDirectory, recursive: true);

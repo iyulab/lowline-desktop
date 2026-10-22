@@ -127,20 +127,13 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
-    public void How_similar_documents_did_is_kept_with_the_thresholds()
+    public void Tunings_are_kept_as_the_engine_handed_them()
     {
         var file = Path.GetTempFileName();
         try
         {
-            var similar = new Gil.Forms.ThresholdChoice(0.3, 0.86, 0.4, 56, 140) { Promise = 0.83, PromiseAnswered = 56 };
-            ThresholdStore.Save(file, new Dictionary<(string, string), FieldThreshold>
-            {
-                [("kinds@1", "분류")] = new(null, 140, 140, Similar: similar),
-            });
-            var kept = ThresholdStore.Load(file)[("kinds@1", "분류")];
-            Assert.Equal(0.3, kept.Similar!.Threshold);
-            Assert.Equal(56, kept.Similar.PromiseAnswered);
-            Assert.Equal(0.3, kept.SimilarThreshold);
+            ThresholdStore.Save(file, new Dictionary<string, string> { ["kinds@1"] = """{"tuning":{},"report":[]}""" });
+            Assert.Equal("""{"tuning":{},"report":[]}""", ThresholdStore.Load(file)["kinds@1"]);
         }
         finally
         {
@@ -275,6 +268,15 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
+    public async Task A_judgment_field_named_twice_is_one_judgment_field()
+    {
+        var twice = Intake with { Suggest = ["담당", "담당"] };
+        await using var vault = await Selected(new VaultSnapshot([twice], Decided()));
+        var suggestion = await vault.SuggestAsync(new SuggestRequest("intake@1", "담당", Values("""{"요청": "기차 사과 1!", "부서": "영업"}""")), Ct);
+        Assert.Equal("장비", suggestion!.Value);
+    }
+
+    [Fact]
     public async Task Offers_nothing_for_a_field_the_author_did_not_turn_suggestions_on_for()
     {
         await using var vault = await Vault(Document("문서/1.md", """{"요청": "배터리", "부서": "영업", "담당": "장비"}"""));
@@ -287,14 +289,14 @@ public sealed class SuggestionsTests
     {
         var few = await Suggestions.BuildAsync(new VaultSnapshot([Intake],
             [.. Enumerable.Range(1, 5).Select(i => Document($"문서/{i}.md", $$"""{"요청": "노트북 배터리 문제 {{i}}", "담당": "장비"}"""))]), Ct);
-        Assert.Null(few.Choice("intake@1", "담당")); // too short: nothing is offered yet
+        Assert.Null(few.Report("intake@1", "담당")?.Key); // too short: nothing is offered yet
 
         var many = await Suggestions.BuildAsync(Many(15), Ct);
         Assert.True(many.NeedsSelection);
-        Assert.Null(many.Choice("intake@1", "담당")); // chosen apart from building memory
+        Assert.Null(many.Report("intake@1", "담당")?.Key); // chosen apart from building memory
         await many.ApplyAsync(await many.SelectThresholdsAsync(Ct), Ct);
         Assert.False(many.NeedsSelection);
-        var choice = many.Choice("intake@1", "담당");
+        var choice = many.Report("intake@1", "담당")?.Key;
         Assert.NotNull(choice);
         Assert.True(choice.Precision >= Suggestions.TargetPrecision);
         Assert.True(choice.Answered >= Suggestions.MinimumAnswered);
@@ -302,98 +304,20 @@ public sealed class SuggestionsTests
         // Rebuilt from the same vault, the field keeps its threshold rather than replaying again.
         var rebuilt = await Suggestions.BuildAsync(Many(15), Ct, kept: many.Thresholds);
         Assert.False(rebuilt.NeedsSelection);
-        Assert.Equal(choice, rebuilt.Choice("intake@1", "담당"));
+        Assert.Equal(choice, rebuilt.Report("intake@1", "담당")?.Key);
         Assert.True((await Suggestions.BuildAsync(Many(17), Ct, kept: many.Thresholds)).NeedsSelection); // grew by a tenth
     }
 
     [Fact]
-    public async Task A_kept_threshold_resting_on_a_field_the_template_no_longer_has_is_none()
+    public async Task A_kept_tuning_is_chosen_again_once_the_template_has_other_fields()
     {
         var many = await Suggestions.BuildAsync(Many(15), Ct);
         await many.ApplyAsync(await many.SelectThresholdsAsync(Ct), Ct);
-        var chosen = many.Thresholds[("intake@1", "담당")];
-        Assert.NotNull(chosen.Choice);
+        Assert.False((await Suggestions.BuildAsync(Many(15), Ct, kept: many.Thresholds)).NeedsSelection);
 
-        // Chosen resting on 부서: kept while the template has it.
-        var resting = new Dictionary<(string, string), FieldThreshold> { [("intake@1", "담당")] = chosen with { KeyFields = ["부서"] } };
-        var kept = await Suggestions.BuildAsync(Many(15), Ct, kept: resting);
-        Assert.False(kept.NeedsSelection);
-        Assert.Equal(["부서"], kept.Thresholds[("intake@1", "담당")].KeyFields);
-
-        // Resting on a field since taken out of the template: its strength was chosen on scores that field gave.
-        var gone = new Dictionary<(string, string), FieldThreshold> { [("intake@1", "담당")] = chosen with { KeyFields = ["접수처"] } };
-        var rebuilt = await Suggestions.BuildAsync(Many(15), Ct, kept: gone);
-        Assert.True(rebuilt.NeedsSelection);
-        Assert.Null(rebuilt.Choice("intake@1", "담당"));
-        Assert.Null(rebuilt.Thresholds[("intake@1", "담당")].KeyFields);
-    }
-
-    [Fact]
-    public void A_threshold_is_kept_with_what_it_promises()
-    {
-        var file = Path.GetTempFileName();
-        try
-        {
-            var choice = new Gil.Forms.ThresholdChoice(0.5, 0.9, 0.5, 20, 40) { Promise = 0.84, PromiseAnswered = 12 };
-            ThresholdStore.Save(file, new Dictionary<(string, string), FieldThreshold>
-            {
-                [("intake@1", "담당")] = new(choice, 40, 40, choice),
-            });
-            var kept = ThresholdStore.Load(file)[("intake@1", "담당")].Choice!;
-            Assert.Equal(0.84, kept.Promise);
-            Assert.Equal(12, kept.PromiseAnswered);
-        }
-        finally
-        {
-            File.Delete(file);
-        }
-    }
-
-    [Fact]
-    public void The_fields_a_threshold_rests_on_are_kept_with_it()
-    {
-        var file = Path.GetTempFileName();
-        try
-        {
-            var choice = new Gil.Forms.ThresholdChoice(0.5, 0.9, 0.5, 20, 40);
-            ThresholdStore.Save(file, new Dictionary<(string, string), FieldThreshold>
-            {
-                [("intake@1", "담당")] = new(choice, 40, 40, choice, null, ["부서"], [choice, null]),
-                [("intake@1", "승인")] = new(choice, 40, 40, choice),
-            });
-            var loaded = ThresholdStore.Load(file);
-            Assert.Equal(["부서"], loaded[("intake@1", "담당")].KeyFields);
-            Assert.Null(loaded[("intake@1", "승인")].KeyFields);
-            // And the strengths for typing into it.
-            Assert.Equal([choice, null], loaded[("intake@1", "담당")].Typed);
-            Assert.Null(loaded[("intake@1", "승인")].Typed);
-        }
-        finally
-        {
-            File.Delete(file);
-        }
-    }
-
-    [Fact]
-    public void How_readily_keys_were_believed_is_kept_with_the_strengths_chosen_on_it()
-    {
-        var file = Path.GetTempFileName();
-        try
-        {
-            var choice = new Gil.Forms.ThresholdChoice(0.5, 0.9, 0.5, 20, 40);
-            ThresholdStore.Save(file, new Dictionary<(string, string), FieldThreshold>
-            {
-                [("inspection@1", "위험도")] = new(choice, 40, 40, KeyConcentrations: new Dictionary<string, double> { ["업소"] = 0.004 }),
-                [("inspection@1", "결과")] = new(choice, 40, 40),
-            });
-            var loaded = ThresholdStore.Load(file);
-            Assert.Equal(0.004, loaded[("inspection@1", "위험도")].KeyConcentrations!["업소"]);
-            Assert.Null(loaded[("inspection@1", "결과")].KeyConcentrations);
-        }
-        finally
-        {
-            File.Delete(file);
-        }
+        // 부서 taken out of the template: what was chosen rested on scores it gave.
+        var without = Many(15) with { Templates = [Intake with { Fields = [.. Intake.Fields.Where(f => f.Name != "부서")] }] };
+        Assert.True((await Suggestions.BuildAsync(without, Ct, kept: many.Thresholds)).NeedsSelection);
     }
 
     [Fact]
@@ -422,10 +346,6 @@ public sealed class SuggestionsTests
         var suggestions = await Suggestions.BuildAsync(new VaultSnapshot([inspection], documents), Ct);
         await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
 
-        var concentrations = suggestions.Thresholds[("inspection@1", "위험도")].KeyConcentrations!;
-        Assert.True(concentrations["업소"] < 1, $"업소 {concentrations["업소"]}");
-        var form = Suggestions.Form(inspection, field => suggestions.Thresholds[("inspection@1", field)])!;
-        Assert.Same(concentrations, form.Fields.Single(f => f.Name == "위험도").KeyConcentrations);
         // 업소-43, seen once, is 중; 재점검 mostly goes with 하.
         var request = new SuggestRequest("inspection@1", "위험도", Values("""{"업소": "업소-43", "유형": "재점검"}"""));
         Assert.Equal(new Suggestion("중", "key", "업소: 업소-43"), await suggestions.SuggestAsync(request, Ct));
@@ -509,13 +429,13 @@ public sealed class SuggestionsTests
         Assert.Equal(NoReplay.Pending, suggestions.WhyNoReplay("intake@1", "담당"));
 
         await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
-        Assert.Null(suggestions.Choice("intake@1", "담당"));
+        Assert.Null(suggestions.Report("intake@1", "담당")?.Key);
         Assert.Equal(Abstention.BelowTarget, suggestions.WhyNoReplay("intake@1", "담당"));
         var suggestion = await suggestions.SuggestAsync(
             new SuggestRequest("intake@1", "담당", Values("""{"요청": "노트북 배터리 문제 16", "부서": "영업"}""")), Ct);
         Assert.Equal(new Suggestion(null, "abstain", null, Abstention.BelowTarget), suggestion);
         // How close it came: the latest value settled alongside 영업 was the wrong one every time.
-        var closest = suggestions.Closest("intake@1", "담당");
+        var closest = suggestions.Report("intake@1", "담당")?.Closest;
         Assert.NotNull(closest);
         Assert.True(closest.Precision < Suggestions.TargetPrecision, $"{closest}");
     }
@@ -563,7 +483,7 @@ public sealed class SuggestionsTests
         // 부서 leaves two people: a value it was settled with is right half the time, so none is offered.
         Assert.Equal(new Suggestion(null, "abstain", null, Abstention.BelowTarget), await suggestions.SuggestAsync(asked, Ct));
         // The first character typed tells them apart.
-        Assert.NotNull(Assert.Single(suggestions.Thresholds).Value.Typed?[0]);
+        Assert.NotNull(suggestions.Report("assigned@1", "담당자")!.Typed?[0]);
         Assert.Equal(new Suggestion("박영희", "key", "부서: 영업"), await suggestions.SuggestAsync(asked with { Typed = "박" }, Ct));
         // Nothing settled with 부서 begins with what is typed: nothing is offered.
         Assert.Null((await suggestions.SuggestAsync(asked with { Typed = "최" }, Ct))!.Value);
@@ -590,7 +510,7 @@ public sealed class SuggestionsTests
         var suggestions = await Suggestions.BuildAsync(Many(15), Ct);
         await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
         // 담당 is a select: there is no typing into it, and text said to be typed there asks nothing.
-        Assert.Null(suggestions.Thresholds[("intake@1", "담당")].Typed);
+        Assert.Null(suggestions.Report("intake@1", "담당")!.Typed);
         var typed = new SuggestRequest("intake@1", "담당", Values("""{"요청": "노트북 배터리 문제", "부서": "영업"}"""), Typed: "장");
         Assert.Null((await suggestions.SuggestAsync(typed, Ct))!.Value);
     }
@@ -642,7 +562,7 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
-    public async Task Only_the_fields_whose_history_moved_by_a_tenth_are_chosen_again()
+    public async Task Only_the_templates_whose_history_moved_by_a_tenth_are_chosen_again()
     {
         // Two templates: one gains a request, far less than a tenth; the other is new to the vault.
         var suggestions = await Suggestions.BuildAsync(new VaultSnapshot([Intake], Decided()), Ct);
@@ -651,7 +571,7 @@ public sealed class SuggestionsTests
 
         var again = await Suggestions.BuildAsync(grown, Ct, suggestions.Thresholds);
 
-        Assert.Equal([("kinds@1", "분류")], (await again.SelectThresholdsAsync(Ct)).Keys);
+        Assert.Equal(["kinds@1"], (await again.SelectThresholdsAsync(Ct)).Keys);
     }
 
     [Fact]
@@ -679,9 +599,9 @@ public sealed class SuggestionsTests
             await later.IngestAsync(Many(15), "C:/vault", Ct);
             // Nothing grew since: the field answers at the strength its history earned, with no replay to wait for.
             Assert.True(later.ThresholdsSelected.IsCompleted);
-            var kept = ThresholdStore.Load(later.ThresholdsFileOf("C:/vault"))[("intake@1", "담당")];
-            Assert.Equal(15, kept.SelectedAt);
-            Assert.NotNull(kept.Choice);
+            var kept = JsonNode.Parse(ThresholdStore.Load(later.ThresholdsFileOf("C:/vault"))["intake@1"])!;
+            Assert.Equal(15, kept["tuning"]!["settled"]!.GetValue<int>());
+            Assert.NotNull(kept["report"]![0]!["key"]);
 
             // Another vault opened next, with a template of the same name, has its own history: its fields
             // are replayed, not handed the first vault's thresholds.
@@ -715,7 +635,7 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
-    public async Task Thresholds_another_Gil_chose_are_chosen_again()
+    public async Task Thresholds_another_version_chose_are_chosen_again()
     {
         var caches = Directory.CreateTempSubdirectory("lowline-thresholds-").FullName;
         try
@@ -727,30 +647,19 @@ public sealed class SuggestionsTests
                 await first.ThresholdsSelected.WaitAsync(Ct);
                 file = first.ThresholdsFileOf("C:/vault");
             }
-            string? ScorerIn() => JsonNode.Parse(File.ReadAllText(file))!["scorer"]?.GetValue<string>();
-            Assert.NotEmpty(ThresholdStore.Load(file));
-            Assert.Equal(ThresholdStore.Scorer, ScorerIn());
+            string VersionIn() => JsonNode.Parse(ThresholdStore.Load(file)["intake@1"])!["tuning"]!["version"]!.GetValue<string>();
+            var current = VersionIn();
 
-            // The same file as an earlier Gil wrote it — its thresholds on that Gil's scale — and as one
-            // written before the file said which Gil chose them.
-            void Rewrite(Action<JsonObject> change)
-            {
-                var kept = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
-                change(kept);
-                File.WriteAllText(file, kept.ToJsonString());
-            }
-            Rewrite(kept => kept["scorer"] = "0.8.0");
-            Assert.Empty(ThresholdStore.Load(file));
-            Rewrite(kept => kept.Remove("scorer"));
-            Assert.Empty(ThresholdStore.Load(file));
+            // The same file as an earlier version wrote it: its thresholds on that version's scale.
+            var tuning = JsonNode.Parse(ThresholdStore.Load(file)["intake@1"])!;
+            tuning["tuning"]!["version"] = "0.0.1";
+            ThresholdStore.Save(file, new Dictionary<string, string> { ["intake@1"] = tuning.ToJsonString() });
 
             await using var later = new VaultProjection(caches);
             await later.IngestAsync(Many(15), "C:/vault", Ct);
-            // Nothing grew, yet the field is replayed — what was kept is not on this Gil's scale — and its
-            // threshold kept again, now as this Gil's.
+            // Nothing grew, yet the field is replayed, and its thresholds kept again, now as this version's.
             await later.ThresholdsSelected.WaitAsync(Ct);
-            Assert.Equal(ThresholdStore.Scorer, ScorerIn());
-            Assert.NotEmpty(ThresholdStore.Load(file));
+            Assert.Equal(current, VersionIn());
         }
         finally
         {
@@ -935,17 +844,13 @@ public sealed class SuggestionsTests
         var two = new VaultSnapshot([Fault(new Dictionary<string, int> { ["코드"] = 2 })], Faults());
         var chosen = await Suggestions.BuildAsync(two, Ct);
         await chosen.ApplyAsync(await chosen.SelectThresholdsAsync(Ct), Ct);
-        var threshold = chosen.Thresholds[("fault@1", "코드")];
-        Assert.Equal(2, threshold.CoarsePrefix);
-        Assert.NotNull(threshold.Coarse);
+        Assert.NotNull(chosen.Report("fault@1", "코드")!.Coarse);
 
         var file = Path.GetTempFileName();
         try
         {
             ThresholdStore.Save(file, chosen.Thresholds);
             var kept = ThresholdStore.Load(file);
-            Assert.Equal(threshold.CoarsePrefix, kept[("fault@1", "코드")].CoarsePrefix);
-            Assert.Equal(threshold.Coarse, kept[("fault@1", "코드")].Coarse);
             Assert.False((await Suggestions.BuildAsync(two, Ct, kept)).NeedsSelection);
 
             // One character now names the class: a strength chosen for two is not one for it.
