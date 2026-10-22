@@ -29,7 +29,7 @@
     <PackageReference Include="IronProw.Core" Version="0.16.2" />
     <PackageReference Include="IronProw.IronHive" Version="0.16.2" />
     <PackageReference Include="IronProw.LMSupply" Version="0.16.2" />
-    <PackageReference Include="LMSupply.Generator" Version="0.134.0" />
+    <PackageReference Include="LMSupply.Generator" Version="0.135.0" />
     <PackageReference Include="FluxIndex.SDK" Version="0.103.1" />
     <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.103.1" />
     <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.24.0" />
