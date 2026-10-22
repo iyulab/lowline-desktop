@@ -85,10 +85,6 @@
       "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9"
     }
   ],
-  "Anthropic@12.53.0": {
-    "source": "https://raw.githubusercontent.com/anthropics/anthropic-sdk-csharp/d84902e4ac1a50503f39e06b34ab398ea2e4be16/LICENSE",
-    "sha256": "8bf96984ff8bcfae7e48cae76a529e8a25317ba9e02abf7fd3cc64fdf95657a6"
-  },
   "Google.GenAI@1.24.0": {
     "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/63f8806a6e6979444fa19c8ac0888104145d02fb/LICENSE",
     "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
