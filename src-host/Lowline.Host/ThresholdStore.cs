@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using DesktopHost.Files;
 using Gil.Forms;
 
 namespace Lowline.Host;
@@ -40,8 +41,7 @@ public static class ThresholdStore
     {
         try
         {
-            using var file = File.OpenRead(path);
-            var stored = JsonSerializer.Deserialize<Stored>(file, JsonSerializerOptions.Web);
+            var stored = JsonSerializer.Deserialize<Stored>(AtomicFile.ReadAllTextShared(path), JsonSerializerOptions.Web);
             if (stored?.Format != Format || stored.Scorer != Scorer) return None;
             return stored.Fields.ToDictionary(
                 e => (e.Template, e.Field),
@@ -61,9 +61,8 @@ public static class ThresholdStore
             .Where(t => t.Value.SelectedAt is not null)
             .Select(t => new Entry(t.Key.Template, t.Key.Field, t.Value.Choice, t.Value.SelectedAt!.Value, t.Value.Closest, t.Value.Domain, t.Value.KeyFields, t.Value.Typed,
                 t.Value.CoarsePrefix, t.Value.Coarse, t.Value.KeyConcentrations, t.Value.Similar))]);
-        // Written beside and moved over, so a launch never reads half a file.
-        var written = path + ".new";
-        File.WriteAllText(written, JsonSerializer.Serialize(stored, JsonSerializerOptions.Web));
-        File.Move(written, path, overwrite: true);
+        // Replaced whole — flushed, and retried while a scanner or sync client holds the file — so a launch never reads
+        // half a file.
+        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(stored, JsonSerializerOptions.Web));
     }
 }

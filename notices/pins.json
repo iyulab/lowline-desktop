@@ -85,6 +85,10 @@
       "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9"
     }
   ],
+  "DesktopHost.Files@0.3.0": {
+    "source": "https://raw.githubusercontent.com/iyulab/desktop-host/0a1d8869bfdc725be35bd84ba81380ac8c31bf75/LICENSE",
+    "sha256": "16d5280c46463f25ada2a292bf61eff7e53bb6d140501d4bb5a8af51fbc07e03"
+  },
   "Google.GenAI@1.24.0": {
     "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/63f8806a6e6979444fa19c8ac0888104145d02fb/LICENSE",
     "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"

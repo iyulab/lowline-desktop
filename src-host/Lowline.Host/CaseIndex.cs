@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using DesktopHost.Files;
 using FluxIndex.Core.Application.Interfaces;
 using FluxIndex.Core.Application.Services.KeywordSearch;
 using FluxIndex.SDK;
@@ -197,7 +198,7 @@ internal sealed class CaseIndex : IAsyncDisposable
         try
         {
             return File.Exists(file) && File.Exists(ManifestOf(file))
-                ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(ManifestOf(file))) is { } read
+                ? JsonSerializer.Deserialize<Dictionary<string, string>>(AtomicFile.ReadAllTextShared(ManifestOf(file))) is { } read
                     ? new Dictionary<string, string>(read, StringComparer.Ordinal)
                     : null
                 : null;
@@ -210,9 +211,7 @@ internal sealed class CaseIndex : IAsyncDisposable
 
     private async Task WriteManifestAsync(CancellationToken cancellationToken)
     {
-        var temporary = ManifestFile + ".tmp";
-        await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(_indexed), cancellationToken);
-        File.Move(temporary, ManifestFile, overwrite: true);
+        await AtomicFile.WriteAllTextAsync(ManifestFile, JsonSerializer.Serialize(_indexed), cancellationToken);
     }
 
     /// <summary>Removes an index file, its manifest, and what SQLite keeps beside it.</summary>
