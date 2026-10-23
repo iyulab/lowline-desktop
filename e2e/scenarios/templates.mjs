@@ -47,6 +47,13 @@ export default {
     assert.deepEqual(status, { state: 'ready' })
   },
 
+  // Early, before a scenario makes the page say something on purpose. A call to the app that cannot reach Tauri's own
+  // protocol — refused by the content security policy, or by the navigation lock — falls back and goes on working, with
+  // a warning for each call and nothing else to show for it.
+  async 'starts without a warning or an error in the page: its calls to the app stay on their own protocol'(app) {
+    assert.deepEqual(app.consoleProblems(), [])
+  },
+
   async 'edits a template and saves it with Ctrl+S'(app, vault) {
     await app.templateOf(BUG)
     await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('id: bug-report')`, 'the template source')
