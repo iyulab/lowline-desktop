@@ -10,10 +10,20 @@ namespace Lowline.Host;
 
 /// <summary>
 /// A field of a template, as the UI's Formdown parser reports it: a choice field with its options (none for any
-/// other field), and for a field whose value names a document of another template (`-> customer`), that template's id.
+/// other field), for a field whose value names a document of another template (`-> customer`), that template's id, and
+/// what the field says of suggesting its value beyond being judged (<see cref="Suggest"/>).
 /// </summary>
 public sealed record TemplateField(
-    string Name, string Type, bool Multiple = false, IReadOnlyList<string>? Options = null, string? Reference = null);
+    string Name, string Type, bool Multiple = false, IReadOnlyList<string>? Options = null, string? Reference = null,
+    FieldSuggestion? Suggest = null);
+
+/// <summary>
+/// What a field's Formdown <c>suggest:*</c> attributes say beyond whether it is judged: <c>confirm</c> — suggested, but
+/// only a person puts the value in; <see cref="Evidence"/> false — no clue for the other fields; the field its choices
+/// depend on (<see cref="Parent"/>); values never to miss (<see cref="MustCatch"/>).
+/// </summary>
+public sealed record FieldSuggestion(
+    string? Policy = null, bool? Evidence = null, string? Parent = null, IReadOnlyList<string>? MustCatch = null);
 
 /// <summary>
 /// A column a template's documents can be counted by: one of its own fields, or — through <see cref="Via"/>, a field of it

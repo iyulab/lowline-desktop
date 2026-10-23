@@ -8,7 +8,10 @@
           "label": "요청",
           "type": "textarea",
           "multiple": false,
-          "options": []
+          "options": [],
+          "suggest": {
+            "evidence": false
+          }
         },
         {
           "name": "부서",
@@ -32,7 +35,13 @@
           "options": [
             "장비",
             "총무"
-          ]
+          ],
+          "suggest": {
+            "policy": "confirm",
+            "mustCatch": [
+              "장비"
+            ]
+          }
         },
         {
           "name": "태그",
@@ -42,7 +51,10 @@
           "options": [
             "급함",
             "반복"
-          ]
+          ],
+          "suggest": {
+            "parent": "부서"
+          }
         },
         {
           "name": "고객",
@@ -64,6 +76,9 @@
           "type": "textarea",
           "label": "요청",
           "position": 1,
+          "suggest": {
+            "evidence": false
+          },
           "htmlAttributes": {
             "form": "formdown-form-default"
           },
@@ -100,6 +115,12 @@
               "value": "총무"
             }
           ],
+          "suggest": {
+            "policy": "confirm",
+            "mustCatch": [
+              "장비"
+            ]
+          },
           "htmlAttributes": {
             "form": "formdown-form-default"
           },
@@ -117,6 +138,9 @@
               "value": "반복"
             }
           ],
+          "suggest": {
+            "parent": "부서"
+          },
           "htmlAttributes": {
             "form": "formdown-form-default"
           },

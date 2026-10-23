@@ -231,9 +231,11 @@ public sealed class Suggestions : IDisposable
 
     /// <summary>
     /// A template as the engine's form: each field with the kind of value it takes — a field with options is a choice of
-    /// them, one a person types out is text — its judgment fields decided and the rest observed, and a judgment field's
-    /// class length where the template names one. The precision, answers and gates the thresholds are chosen to are the
-    /// app's, counted on every value a person settled.
+    /// them, one a person types out is text — its judgment fields decided and the rest observed, a judgment field's
+    /// class length where the template names one, and what a field's <c>suggest:*</c> attributes say beyond that: a
+    /// judgment field suggested only for a person to put in (<c>confirm</c>) and its values never to miss, a field kept out
+    /// of the clues (<c>evidence</c>), the field another's choices depend on. The precision, answers and gates the
+    /// thresholds are chosen to are the app's.
     /// </summary>
     internal static string Definition(TemplateSnapshot template)
     {
@@ -253,6 +255,16 @@ public sealed class Suggestions : IDisposable
             if (kind == "choice" && choices is not { Count: > 0 }) json["open"] = true;
             if (field.Multiple) json["multiple"] = true;
             if (judged.Contains(field.Name) && CoarseOf(template, field.Name) is { } prefix) json["coarse"] = prefix;
+            if (field.Suggest is { } said)
+            {
+                if (judged.Contains(field.Name) && said.Policy == "confirm") json["policy"] = "confirm";
+                if (judged.Contains(field.Name) && said.MustCatch is { Count: > 0 } mustCatch)
+                {
+                    json["mustCatch"] = new JsonArray([.. mustCatch.Select(v => JsonValue.Create(v))]);
+                }
+                if (said.Evidence is { } evidence) json["evidence"] = evidence;
+                if (said.Parent is { } parent && template.Fields.Any(f => f.Name == parent)) json["parent"] = parent;
+            }
             fields.Add(json);
         }
         return new JsonObject

@@ -24,6 +24,32 @@ export interface TemplateField {
    * is one of those documents' ids. Absent for a field that refers to none.
    */
   reference?: string
+  /**
+   * What the field says of suggesting its value beyond being judged (Formdown's `suggest:*`), for the sidecar's engine:
+   * `confirm` — suggested but only a person puts the value in; `evidence: false` — no clue for the other fields; the
+   * field its choices depend on; values never to miss. Absent when it says none of these.
+   */
+  suggest?: FieldSuggestion
+}
+
+/** The parts of a field's `suggest:*` attributes the sidecar's engine acts on beyond whether it is judged. */
+export interface FieldSuggestion {
+  policy?: 'confirm'
+  evidence?: boolean
+  parent?: string
+  mustCatch?: string[]
+}
+
+/** What of a field's `suggest:*` attributes the sidecar acts on beyond `role`, `coarse` and `policy=off`, or undefined. */
+function suggestionOf(said: FieldSuggest | undefined): FieldSuggestion | undefined {
+  if (!said) return undefined
+  const kept: FieldSuggestion = {
+    ...(said.policy === 'confirm' && { policy: 'confirm' as const }),
+    ...(said.evidence !== undefined && { evidence: said.evidence }),
+    ...(said.parent !== undefined && { parent: said.parent }),
+    ...(said.mustCatch?.length && { mustCatch: [...said.mustCatch] }),
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined
 }
 
 export interface TemplateSnapshot {
@@ -96,6 +122,7 @@ export function templateSnapshot(source: string): TemplateSnapshot {
     ...(labelled.length > 0 ? { optionLabels: Object.fromEntries(labelled.map((o) => [o.value, o.label!])) } : {}),
     // One document of another template (`->`); many to many (`<->`) is not read yet.
     ...(f.relation?.type === 'fk' ? { reference: f.relation.target } : {}),
+    ...(suggestionOf(f.suggest) ? { suggest: suggestionOf(f.suggest) } : {}),
     }
   })
   const said = saidOf(unique)

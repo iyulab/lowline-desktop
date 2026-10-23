@@ -71,7 +71,11 @@ public sealed class SnapshotContractTests
         foreach (var template in sent["templates"]!.AsArray())
         {
             Check(template, typeof(TemplateSnapshot), "template");
-            foreach (var field in template!["fields"]!.AsArray()) Check(field, typeof(TemplateField), "field");
+            foreach (var field in template!["fields"]!.AsArray())
+            {
+                Check(field, typeof(TemplateField), "field");
+                Check(field!["suggest"], typeof(FieldSuggestion), "field.suggest");
+            }
         }
         foreach (var document in sent["documents"]!.AsArray()) Check(document, typeof(DocumentSnapshot), "document");
         foreach (var e in sent["events"]!.AsArray()) Check(e, typeof(SuggestionEvent), "event");
@@ -109,6 +113,18 @@ public sealed class SnapshotContractTests
         Assert.Equal(["담당"], template.Suggest);
         Assert.Equal(["장비", "총무"], template.Fields.Single(f => f.Name == "담당").Options);
         Assert.True(template.Fields.Single(f => f.Name == "태그").Multiple);
+        Assert.Equal(new FieldSuggestion(Evidence: false), template.Fields.Single(f => f.Name == "요청").Suggest);
+        var 담당 = template.Fields.Single(f => f.Name == "담당").Suggest!;
+        Assert.Equal("confirm", 담당.Policy);
+        Assert.Equal(["장비"], 담당.MustCatch!);
+        Assert.Equal("부서", template.Fields.Single(f => f.Name == "태그").Suggest!.Parent);
+        // The engine's form says each of them: a judgment field confirmed and never to miss 장비, 요청 no clue, 태그 under 부서.
+        var form = JsonNode.Parse(Suggestions.Definition(template))!["form"]!["fields"]!.AsArray().ToDictionary(f => f!["name"]!.GetValue<string>());
+        Assert.Equal("confirm", form["담당"]!["policy"]!.GetValue<string>());
+        Assert.Equal("장비", Assert.Single(form["담당"]!["mustCatch"]!.AsArray())!.GetValue<string>());
+        Assert.False(form["요청"]!["evidence"]!.GetValue<bool>());
+        Assert.Equal("부서", form["태그"]!["parent"]!.GetValue<string>());
+        using var engine = global::Lowline.LowlineEngine.Create(Suggestions.Definition(template));
         var document = Assert.Single(vault.Documents);
         Assert.Equal(("doc-1", "intake@2", 1_790_000_000_000L, true), (document.Identity, document.Template, document.Modified, document.Conflicted));
         Assert.Equal("sales", document.Values["부서"].GetString());

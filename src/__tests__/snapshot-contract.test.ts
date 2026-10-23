@@ -25,13 +25,13 @@ lowline:
 ---
 # 접수
 
-@요청: [textarea]
+@요청: [textarea suggest:evidence=false]
 
 @부서: [select options="sales=영업,dev=개발"]
 
-@담당: [radio options="장비,총무"]
+@담당: [radio options="장비,총무" suggest:policy=confirm suggest:must-catch="장비"]
 
-@태그: [checkbox options="급함,반복"]
+@태그: [checkbox options="급함,반복" suggest:parent=부서]
 
 @고객 -> customer: [select]
 `

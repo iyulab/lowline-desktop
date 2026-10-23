@@ -20,7 +20,7 @@ version: 1
 @담당: [radio options="장비,계정,급여,시설" suggest:role=judged]
 ```
 
-The file stays a plain Formdown template, and any tool that reads Formdown reads which fields are judged. `suggest:policy=off` keeps a field from ever being suggested.
+The file stays a plain Formdown template, and any tool that reads Formdown reads which fields are judged. The field's other `suggest:*` attributes are followed too: `suggest:policy=off` keeps it from ever being suggested, `suggest:policy=confirm` suggests it without putting the value in, `suggest:must-catch` names values never to miss, `suggest:evidence=false` keeps a field — an identity such as a name — out of the clues for the others, and `suggest:parent` names the field its choices depend on.
 
 A judgment field whose values name a broader class in their first characters — the chapter of a fault code, the class of a part number — can say how many characters, with `suggest:coarse`. Where its value cannot be suggested, its class may be (see [Suggestions](suggestions.md)):
 
