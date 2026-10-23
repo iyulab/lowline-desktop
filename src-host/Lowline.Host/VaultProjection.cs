@@ -302,8 +302,11 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
     {
         // The thresholds this vault's fields last had: from the suggestions in use when it is the vault already open,
         // else as an earlier launch kept them — never another vault's, whose fields may share a template's name.
-        var kept = _vault == root && _suggestions is { } current ? current.Thresholds : ThresholdStore.Load(ThresholdsFileOf(root));
-        var suggestions = await Suggestions.BuildAsync(vault, cancellationToken, kept);
+        var current = _vault == root ? _suggestions : null;
+        var kept = current is not null ? current.Thresholds : ThresholdStore.Load(ThresholdsFileOf(root));
+        // The suggestions in use go on with their engines, learning only what changed — unless a replay is choosing on
+        // them still: learning waits for a replay to end, and no ingest should.
+        var suggestions = await Suggestions.BuildAsync(vault, cancellationToken, kept, ThresholdsSelected.IsCompleted ? current : null);
         var curves = Curves.Compute(vault);
         try
         {

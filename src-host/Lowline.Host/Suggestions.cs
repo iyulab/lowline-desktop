@@ -147,10 +147,60 @@ public sealed class Suggestions : IDisposable
     private readonly Dictionary<string, Form> _forms;
     private readonly HashSet<(string Doc, string Field)> _rejected;
 
-    /// <summary>One template's engine, the records it learned, and how many of them settled each judgment field.</summary>
-    private sealed class Form(Engine.LowlineEngine engine, IReadOnlyList<string> records, Dictionary<string, int> confirmed)
+    /// <summary>
+    /// One template's engine, held by each build of suggestions that uses it — a later build of the same template learns
+    /// only the documents that changed, and the last build to let go frees it. <see cref="Learned"/> says what each
+    /// document it learned was made from, so a later build can tell which changed.
+    /// </summary>
+    private sealed class Lease(Engine.LowlineEngine engine, string definition)
     {
+        private int _holders = 1;
+        private int _building;
+
         public Engine.LowlineEngine Engine { get; } = engine;
+
+        /// <summary>The engine's form, as <see cref="Suggestions.Definition"/> wrote it.</summary>
+        public string Definition { get; } = definition;
+
+        /// <summary>By document id, what its record was made from, the record, and the judgment fields it confirmed.</summary>
+        public Dictionary<string, Learnt> Learned { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Holds the engine for another build, which alone learns into it until <see cref="Built"/>; false when it
+        /// is freed or another build is learning into it.</summary>
+        public bool TryHoldToBuild()
+        {
+            if (Interlocked.CompareExchange(ref _building, 1, 0) != 0) return false;
+            while (true)
+            {
+                var holders = Volatile.Read(ref _holders);
+                if (holders == 0)
+                {
+                    Volatile.Write(ref _building, 0);
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref _holders, holders + 1, holders) == holders) return true;
+            }
+        }
+
+        /// <summary>The build that held the engine to learn into it is done with learning.</summary>
+        public void Built() => Volatile.Write(ref _building, 0);
+
+        public void Release()
+        {
+            if (Interlocked.Decrement(ref _holders) == 0) Engine.Dispose();
+        }
+    }
+
+    /// <summary>A document as its template's engine learned it: what the record was made from, the record, and the
+    /// judgment fields whose value it confirmed.</summary>
+    private sealed record Learnt(string Made, string Record, IReadOnlyList<string> Confirmed);
+
+    /// <summary>One template's engine, the records it learned, and how many of them settled each judgment field.</summary>
+    private sealed class Form(Lease lease, IReadOnlyList<string> records, Dictionary<string, int> confirmed)
+    {
+        public Lease Lease { get; } = lease;
+
+        public Engine.LowlineEngine Engine => Lease.Engine;
 
         /// <summary>The records learned, in settlement order — what a replay chooses on.</summary>
         public IReadOnlyList<string> Records { get; } = records;
@@ -195,10 +245,13 @@ public sealed class Suggestions : IDisposable
     /// Builds memory from the vault's saved documents, leaving out those with a conflict copy — their values are not
     /// confirmed until the person settles which copy to keep — in the order they were saved. Each template keeps the
     /// tuning in <paramref name="kept"/> — chosen by an earlier build, or kept from an earlier launch — until
-    /// <see cref="SelectThresholdsAsync"/> chooses again; the engine says when one no longer stands.
+    /// <see cref="SelectThresholdsAsync"/> chooses again; the engine says when one no longer stands. A template that
+    /// <paramref name="previous"/> built on the same form, none of whose documents has gone since, goes on with that
+    /// build's engine and learns only the documents that changed; any other is learned from the start.
     /// </summary>
     public static Task<Suggestions> BuildAsync(
-        VaultSnapshot vault, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? kept = null)
+        VaultSnapshot vault, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? kept = null,
+        Suggestions? previous = null)
     {
         var documents = vault.Documents.Where(d => !d.Conflicted).ToLookup(d => d.Template, StringComparer.Ordinal);
         var events = vault.Events ?? [];
@@ -214,35 +267,100 @@ public sealed class Suggestions : IDisposable
             foreach (var template in templates.Values)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var engine = Engine.LowlineEngine.Create(Definition(template));
+                var definition = Definition(template);
                 // A field the template names twice among its judgment fields is one judgment field.
-                var confirmed = template.Suggest!.Distinct(StringComparer.Ordinal).ToDictionary(f => f, _ => 0, StringComparer.Ordinal);
-                var records = new List<string>();
-                foreach (var document in documents[template.Ref]
+                var judged = template.Suggest!.Distinct(StringComparer.Ordinal).ToList();
+                var saved = documents[template.Ref]
                     .OrderBy(d => d.Modified ?? 0)
-                    .ThenBy(d => d.Identity, StringComparer.Ordinal))
+                    .ThenBy(d => d.Identity, StringComparer.Ordinal)
+                    .ToList();
+                var lease = Continued(previous, template.Ref, definition, saved);
+                var learning = lease is null;
+                lease ??= new Lease(Engine.LowlineEngine.Create(definition), definition);
+                try
                 {
-                    var values = Values(template, document.Values);
-                    var (settled, checks) = Settled(template, document, values, latest);
-                    foreach (var field in confirmed.Keys)
+                    var confirmed = judged.ToDictionary(f => f, _ => 0, StringComparer.Ordinal);
+                    var records = new List<string>(saved.Count);
+                    var changed = new List<string>();
+                    var learned = new Dictionary<string, Learnt>(StringComparer.Ordinal);
+                    foreach (var document in saved)
                     {
-                        if (values.ContainsKey(field) && settled.GetValueOrDefault(field) is not Engine.SettlementKind.Fill) confirmed[field]++;
+                        var made = Made(template, document, latest);
+                        if (learning || lease.Learned.GetValueOrDefault(document.Identity) is not { } learnt || learnt.Made != made)
+                        {
+                            var values = Values(template, document.Values);
+                            var (settled, checks) = Settled(template, document, values, latest);
+                            var record = lease.Engine.Record(
+                                document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0), checks).Json;
+                            learnt = new Learnt(made, record,
+                                [.. judged.Where(f => values.ContainsKey(f) && settled.GetValueOrDefault(f) is not Engine.SettlementKind.Fill)]);
+                            changed.Add(record);
+                        }
+                        learned[document.Identity] = learnt;
+                        records.Add(learnt.Record);
+                        foreach (var field in learnt.Confirmed) confirmed[field]++;
                     }
-                    records.Add(engine.Record(
-                        document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0), checks).Json);
+                    lease.Engine.Learn(changed);
+                    lease.Learned.Clear();
+                    foreach (var (id, learnt) in learned) lease.Learned[id] = learnt;
+                    var form = new Form(lease, records, confirmed);
+                    forms[template.Ref] = form;
+                    form.Use(kept?.GetValueOrDefault(template.Ref));
                 }
-                engine.Learn(records);
-                var form = new Form(engine, records, confirmed);
-                forms[template.Ref] = form;
-                form.Use(kept?.GetValueOrDefault(template.Ref));
+                catch
+                {
+                    // An engine this build went on with stays the earlier build's; it is told what it learned no more.
+                    if (!learning) lease.Learned.Clear();
+                    if (!forms.ContainsKey(template.Ref)) lease.Release();
+                    throw;
+                }
+                finally
+                {
+                    lease.Built();
+                }
             }
         }
         catch
         {
-            foreach (var form in forms.Values) form.Engine.Dispose();
+            foreach (var form in forms.Values) form.Lease.Release();
             throw;
         }
         return Task.FromResult(new Suggestions(templates, forms, events));
+    }
+
+    /// <summary>
+    /// The engine <paramref name="previous"/> built for template <paramref name="template"/>, held for this build — when
+    /// it is on the same form, no other build is learning into it, and each document it learned is among
+    /// <paramref name="saved"/>, none twice: the engine cannot unlearn a document, so one gone means learning from the start.
+    /// </summary>
+    private static Lease? Continued(Suggestions? previous, string template, string definition, IReadOnlyList<DocumentSnapshot> saved)
+    {
+        if (previous?._forms.GetValueOrDefault(template)?.Lease is not { } lease || lease.Definition != definition) return null;
+        if (!lease.TryHoldToBuild()) return null;
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        if (saved.All(d => ids.Add(d.Identity)) && lease.Learned.Count > 0 && lease.Learned.Keys.All(ids.Contains)) return lease;
+        lease.Built();
+        lease.Release();
+        return null;
+    }
+
+    /// <summary>
+    /// What a document's record is made from: when it was saved, its values, which of its judgment fields another program
+    /// proposed, and its judgment fields' latest events — the same for a document unchanged since the last build.
+    /// </summary>
+    private static string Made(
+        TemplateSnapshot template, DocumentSnapshot document, IReadOnlyDictionary<(string, string), SuggestionEvent> latest)
+    {
+        var made = new System.Text.StringBuilder();
+        made.Append(document.Modified).Append('\u0001');
+        foreach (var (field, value) in document.Values) made.Append(field).Append('\u0002').Append(value.GetRawText()).Append('\u0001');
+        foreach (var field in document.Proposed ?? []) made.Append(field).Append('\u0003');
+        foreach (var field in template.Suggest!)
+        {
+            if (latest.GetValueOrDefault((document.Identity, field)) is { } e)
+                made.Append('\u0004').Append(field).Append('\u0002').Append(e.At).Append(e.Kind).Append(e.Source).Append(e.Probability);
+        }
+        return made.ToString();
     }
 
     /// <summary>
@@ -511,6 +629,6 @@ public sealed class Suggestions : IDisposable
 
     public void Dispose()
     {
-        foreach (var form in _forms.Values) form.Engine.Dispose();
+        foreach (var form in _forms.Values) form.Lease.Release();
     }
 }

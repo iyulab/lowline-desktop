@@ -411,6 +411,40 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
+    public async Task A_later_build_goes_on_with_the_engine_and_learns_only_what_changed()
+    {
+        var documents = Decided();
+        var first = await Suggestions.BuildAsync(new VaultSnapshot([Intake], documents), Ct);
+        await first.ApplyAsync(await first.SelectThresholdsAsync(Ct), Ct);
+        var request = new SuggestRequest("intake@1", "담당", Values("""{"요청": "전혀 다른 요청", "부서": "개발"}"""));
+        Assert.Equal("인사", (await first.SuggestAsync(request, Ct))!.Value);
+
+        // Every 개발 request now goes to 총무, saved later than the rest.
+        DocumentSnapshot[] moved =
+        [
+            .. documents.Select(d => d.Values["부서"].GetString() == "개발"
+                ? d with { Values = Values($$"""{"요청": {{d.Values["요청"].GetRawText()}}, "부서": "개발", "담당": "총무"}"""), Modified = d.Modified + 100 }
+                : d),
+        ];
+        var later = await Suggestions.BuildAsync(new VaultSnapshot([Intake], moved), Ct, first.Thresholds, first);
+        // The earlier build is let go as an ingest lets it go: its engine stays with the later one.
+        first.Dispose();
+        var fresh = await Suggestions.BuildAsync(new VaultSnapshot([Intake], moved), Ct, later.Thresholds);
+        Assert.Equal(await fresh.SuggestAsync(request, Ct), await later.SuggestAsync(request, Ct));
+        Assert.Equal("총무", (await later.SuggestAsync(request, Ct))!.Value);
+        Assert.Equal(fresh.Confirmed("intake@1", "담당"), later.Confirmed("intake@1", "담당"));
+
+        // A document gone since cannot be unlearned: the build after learns from the start, and answers as a fresh one.
+        var fewer = new VaultSnapshot([Intake], [.. moved.Where(d => d.Values["부서"].GetString() != "개발")]);
+        var after = await Suggestions.BuildAsync(fewer, Ct, later.Thresholds, later);
+        later.Dispose();
+        var freshFewer = await Suggestions.BuildAsync(fewer, Ct, after.Thresholds);
+        Assert.Equal(await freshFewer.SuggestAsync(request, Ct), await after.SuggestAsync(request, Ct));
+        Assert.Equal(20, after.Confirmed("intake@1", "담당"));
+        foreach (var built in new[] { fresh, after, freshFewer }) built.Dispose();
+    }
+
+    [Fact]
     public async Task A_value_entered_while_its_suggestion_was_held_back_is_a_check()
     {
         var documents = Decided();

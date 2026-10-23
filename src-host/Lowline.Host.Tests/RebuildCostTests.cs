@@ -104,12 +104,13 @@ public sealed class RebuildCostTests
                 await vault.CurvesAsync(Ct);
                 curves.Stop();
 
-                // The share of an edit that is the suggestions' own rebuild, apart from the projection.
+                // The share of an edit that is the suggestions' own rebuild, apart from the projection — going on from the
+                // build before, as an ingest does.
                 var fresh = Stopwatch.StartNew();
-                var built = await Suggestions.BuildAsync(snapshot, Ct);
+                using var built = await Suggestions.BuildAsync(snapshot, Ct);
                 fresh.Stop();
                 var suggestions = Stopwatch.StartNew();
-                await Suggestions.BuildAsync(edited, Ct, built.Thresholds);
+                using var rebuilt = await Suggestions.BuildAsync(edited, Ct, built.Thresholds, built);
                 suggestions.Stop();
 
                 // Projection alone: a changed field list rebuilds the table with nothing appended.
