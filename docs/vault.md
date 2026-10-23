@@ -10,20 +10,27 @@ The sidebar lists the vault's templates. Each shows its documents (first), its t
 
 ## Templates
 
-A template is a Formdown form. Its front matter gives it an `id` and a `version`, and names the fields suggestions are turned on for — its judgment fields:
+A template is a Formdown form. Its front matter gives it an `id` and a `version`. A field that suggestions are turned on for — a judgment field — says so itself, with Formdown's `suggest:role=judged`:
 
-```yaml
+```text
 ---
 id: intake
 version: 1
-lowline:
-  suggest: [담당]
 ---
+@담당: [radio options="장비,계정,급여,시설" suggest:role=judged]
 ```
 
-The file stays a plain Formdown template: `lowline` is a key other Formdown tools ignore.
+The file stays a plain Formdown template, and any tool that reads Formdown reads which fields are judged. `suggest:policy=off` keeps a field from ever being suggested.
 
-A judgment field whose values name a broader class in their first characters — the chapter of a fault code, the class of a part number — can say how many characters, under `coarse`. Where its value cannot be suggested, its class may be (see [Suggestions](suggestions.md)):
+A judgment field whose values name a broader class in their first characters — the chapter of a fault code, the class of a part number — can say how many characters, with `suggest:coarse`. Where its value cannot be suggested, its class may be (see [Suggestions](suggestions.md)):
+
+```text
+@고장코드: [text suggest:role=judged suggest:coarse=2]
+```
+
+Only a judgment field that takes one value counts, with a whole number of characters from one; anything else is ignored. It is written in the source; the template's page has no control for it.
+
+Templates written before fields said this name their judgment fields in the front matter, under `lowline` — a key other Formdown tools ignore — and their class lengths under `coarse`:
 
 ```yaml
 lowline:
@@ -31,11 +38,11 @@ lowline:
   coarse: { 고장코드: 2 }
 ```
 
-Only a judgment field that takes one value counts, with a whole number of characters from one; anything else under `coarse` is ignored. It is written in the source; the template's page has no control for it.
+These are read as they are. Where a field says its role, its class length or that it is never suggested, the field's word counts; the front matter's list speaks for the rest.
 
 On a template's page:
 
-- Judgment fields are turned on and off with a checkbox per field, written into `lowline.suggest`.
+- Judgment fields are turned on and off with a checkbox per field, written on the field as `suggest:role=judged`; a field turned on or off leaves the front matter's `lowline.suggest`, so it is said in one place.
 - A choice field's options are edited in the field list and written back into that field in the source, nowhere else.
 - **Rename** in the field list changes what a field shows — its `label` — and leaves its name as it is. A field's name is what documents record its value under and what suggestions learn by, so the values and what was learned stay with it. Renaming the field in the source instead makes it a new field; the page then says which documents hold values in a field the source no longer has.
 - Typing in the source completes a field just started — `@` after three underscores, for the field's name, and `[]` after `@name: `, for its type — and one undo takes the completion away.

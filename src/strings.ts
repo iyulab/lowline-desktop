@@ -100,7 +100,7 @@ export const strings = {
   preview: '미리보기',
   optionsOf: (label: string) => `${label} 선택지`,
   fieldsTitle: '칸',
-  fieldsHelp: '체크한 칸은 판단 칸 — 확정한 문서에서 배워 값을 제안받습니다(서식 앞부분 lowline.suggest에 적힘). 선택지는 쉼표로 나눠 적으면 원문의 그 칸에 그대로 적힙니다 — "값=보이는 이름"으로 적으면 문서에는 값이 저장되고 화면에는 이름이 보여, 이름을 바꿔도 저장된 값과 배운 것이 이어집니다. "이름 바꾸기"는 칸이 보이는 이름(label)만 바꿉니다 — 문서의 값과 배운 것은 칸 이름에 붙어 있어 그대로 이어집니다.',
+  fieldsHelp: '체크한 칸은 판단 칸 — 확정한 문서에서 배워 값을 제안받습니다(원문의 그 칸에 suggest:role=judged로 적힘). 선택지는 쉼표로 나눠 적으면 원문의 그 칸에 그대로 적힙니다 — "값=보이는 이름"으로 적으면 문서에는 값이 저장되고 화면에는 이름이 보여, 이름을 바꿔도 저장된 값과 배운 것이 이어집니다. "이름 바꾸기"는 칸이 보이는 이름(label)만 바꿉니다 — 문서의 값과 배운 것은 칸 이름에 붙어 있어 그대로 이어집니다.',
   fieldsNone: '이 서식에는 칸이 없습니다.',
   templateProblemsTitle: '서식 원문의 문제',
   // Puts a problem's fix into the source, as typing does: one undo takes it away.
@@ -513,10 +513,6 @@ export const strings = {
 } as const
 
 /**
- * A starter template: its front matter names it, the body is plain Formdown. Field names are
- * Korean so the labels and the document's front matter keys read in the UI's language.
- */
-/**
  * The sample a new vault starts with: an intake form with one judgment field turned on, so saving a
  * few requests shows what suggestions are. It holds no documents — suggestions learn only from what
  * a person confirms. Provisional: which domains the app's samples come from is still open.
@@ -525,8 +521,6 @@ export function sampleTemplate(id: string): string {
   return `---
 id: ${id}
 version: 1
-lowline:
-  suggest: [담당]
 ---
 # ${strings.sampleTemplateName}
 
@@ -534,12 +528,16 @@ lowline:
 
 @부서: [select options="영업,개발,인사,총무"]
 
-@담당: [radio options="장비,계정,급여,시설"]
+@담당: [radio options="장비,계정,급여,시설" suggest:role=judged]
 
 @메모: [textarea rows=3]
 `
 }
 
+/**
+ * A starter template: its front matter names it, the body is plain Formdown. Field names are
+ * Korean so the labels and the document's front matter keys read in the UI's language.
+ */
 export function starterTemplate(id: string): string {
   return `---
 id: ${id}

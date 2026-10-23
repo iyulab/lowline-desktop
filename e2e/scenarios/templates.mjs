@@ -81,10 +81,12 @@ export default {
     await app.templateOf(BUG)
     await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('id: bug-report')`, 'the template source')
     await app.click('dc-checkbox', '심각도')
-    await app.cdp.waitFor(`/lowline:\\s*\\n\\s*suggest:/.test(__e2e.one('textarea')?.value)`, 'the choice written into the source')
+    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('suggest:role="judged"')`, 'the choice written on the field')
     await app.click('dc-button', '저장')
     await app.status('저장했습니다')
-    assert.deepEqual(parseFormdown(await readFile(path, 'utf8')).frontMatter?.data?.lowline, { suggest: ['심각도'] })
+    const on = parseFormdown(await readFile(path, 'utf8'))
+    assert.equal(on.forms.find((f) => f.name === '심각도')?.suggest?.role, 'judged')
+    assert.equal(on.frontMatter?.data?.lowline, undefined, 'said on the field, not in the front matter')
 
     await app.newDocument(BUG)
     await app.cdp.waitFor(
@@ -93,13 +95,13 @@ export default {
       { timeoutMs: 30_000 },
     )
 
-    // Off again: the key goes, and the rest of the file is as it was.
+    // Off again: the attribute goes, and the rest of the file is as it was.
     await app.templateOf(BUG)
-    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('suggest:')`, 'the template source')
+    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('suggest:role')`, 'the template source')
     await app.click('dc-checkbox', '심각도')
     await app.click('dc-button', '저장')
     await app.status('저장했습니다')
-    assert.equal(parseFormdown(await readFile(path, 'utf8')).frontMatter?.data?.lowline, undefined)
+    assert.equal(parseFormdown(await readFile(path, 'utf8')).forms.find((f) => f.name === '심각도')?.suggest, undefined)
     await app.noAlert()
   },
 

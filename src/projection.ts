@@ -1,7 +1,7 @@
 // What the sidecar gets to see of the vault: templates as field lists, documents as values.
 // The UI parses (Formdown lives here); the sidecar projects. Neither re-reads the other's work.
 
-import { getSchema, parseFormdown, type FormDownSchema } from '@formdown/core'
+import { getSchema, parseFormdown, type FieldSuggest, type FormDownSchema } from '@formdown/core'
 import { documentFrontMatter, holdsValue, templateInfo } from './documents.js'
 import { documentId } from './identity.js'
 import { templateId } from './template-revision.js'
@@ -98,8 +98,9 @@ export function templateSnapshot(source: string): TemplateSnapshot {
     ...(f.relation?.type === 'fk' ? { reference: f.relation.target } : {}),
     }
   })
-  const suggest = suggestFields(parsed.frontMatter?.data, fields)
-  const coarse = coarseFields(parsed.frontMatter?.data, fields, suggest)
+  const said = saidOf(unique)
+  const suggest = suggestFields(parsed.frontMatter?.data, fields, said)
+  const coarse = coarseFields(parsed.frontMatter?.data, fields, suggest, said)
   const schema = getSchema({ ...parsed, forms: unique })
   return { ref, fields, suggest, ...(coarse ? { coarse } : {}), schema }
 }
@@ -152,31 +153,71 @@ export function referenceTargets(templates: readonly TemplateSnapshot[]): Set<st
   return new Set(templates.flatMap((t) => t.fields.flatMap((f) => (f.reference && present.has(f.reference) ? [f.reference] : []))))
 }
 
-/**
- * The fields a template turns suggestions on for. Off unless the author names them: under the
- * front matter's `lowline` key, so a tool that only knows Formdown reads the template unchanged.
- * Names that are not fields of the template are ignored.
- */
-function suggestFields(data: Record<string, unknown> | undefined, fields: TemplateField[]): string[] {
-  const lowline = data?.lowline
-  const named = typeof lowline === 'object' && lowline !== null ? (lowline as { suggest?: unknown }).suggest : undefined
-  if (!Array.isArray(named)) return []
-  const known = new Set(fields.map((f) => f.name))
-  return named.filter((n): n is string => typeof n === 'string' && known.has(n))
+/** The fields a template source turns suggestions on for (see `templateSnapshot`) — empty while it does not parse. */
+export function judgedFields(source: string): string[] {
+  try {
+    const parsed = parseFormdown(source)
+    return suggestFields(parsed.frontMatter?.data, parsed.forms.map((f) => ({ name: f.name })), saidOf(parsed.forms))
+  } catch {
+    return []
+  }
+}
+
+/** What each field says of suggesting its value, by name, as Formdown read its `suggest:*` attributes. */
+function saidOf(forms: readonly { name: string; suggest?: FieldSuggest }[]): Map<string, FieldSuggest> {
+  return new Map(forms.flatMap((f) => (f.suggest ? [[f.name, f.suggest] as const] : [])))
 }
 
 /**
- * How many leading characters name the class of a judgment field's values, by field, as the template's front matter
- * says under `lowline.coarse` — or undefined when it names none. Only a judgment field taking one value, and a whole
- * number of characters from one, count; anything else under the key is ignored.
+ * The fields a template turns suggestions on for. Off unless the author says so: on the field itself, with Formdown's
+ * `suggest:role=judged` (and not `suggest:policy=off`) — what any tool that reads Formdown reads too — or, as templates
+ * written before said it, by name under the front matter's `lowline.suggest`. Where a field says its role or that it is
+ * never suggested, that is what counts; the front matter's list speaks for the rest. Names that are not fields of the
+ * template are ignored. The front matter's names come first, in its order, then the fields only their own attributes
+ * turn on, in template order.
  */
-function coarseFields(data: Record<string, unknown> | undefined, fields: TemplateField[], suggest: string[]): Record<string, number> | undefined {
+function suggestFields(
+  data: Record<string, unknown> | undefined,
+  fields: readonly { name: string }[],
+  said: ReadonlyMap<string, FieldSuggest>,
+): string[] {
+  const lowline = data?.lowline
+  const named = typeof lowline === 'object' && lowline !== null ? (lowline as { suggest?: unknown }).suggest : undefined
+  const listed = Array.isArray(named) ? named.filter((n): n is string => typeof n === 'string') : []
+  const own = (name: string): boolean | undefined => {
+    const suggest = said.get(name)
+    if (suggest?.policy === 'off') return false
+    return suggest?.role === undefined ? undefined : suggest.role === 'judged'
+  }
+  const known = new Set(fields.map((f) => f.name))
+  const fromList = listed.filter((n) => known.has(n) && own(n) !== false)
+  const fromFields = fields.map((f) => f.name).filter((n) => own(n) === true && !fromList.includes(n))
+  return [...new Set([...fromList, ...fromFields])]
+}
+
+/**
+ * How many leading characters name the class of a judgment field's values, by field — as the field says with Formdown's
+ * `suggest:coarse`, or else as the template's front matter says under `lowline.coarse` — or undefined when none is
+ * named. Only a judgment field taking one value, and a whole number of characters from one, count; anything else is
+ * ignored.
+ */
+function coarseFields(
+  data: Record<string, unknown> | undefined,
+  fields: TemplateField[],
+  suggest: string[],
+  said: ReadonlyMap<string, FieldSuggest>,
+): Record<string, number> | undefined {
   const lowline = data?.lowline
   const named = typeof lowline === 'object' && lowline !== null ? (lowline as { coarse?: unknown }).coarse : undefined
-  if (typeof named !== 'object' || named === null || Array.isArray(named)) return undefined
-  const single = new Set(fields.filter((f) => !f.multiple && suggest.includes(f.name)).map((f) => f.name))
-  const coarse = Object.entries(named).filter(([field, n]) => single.has(field) && Number.isInteger(n) && (n as number) >= 1)
-  return coarse.length > 0 ? (Object.fromEntries(coarse) as Record<string, number>) : undefined
+  const listed = typeof named === 'object' && named !== null && !Array.isArray(named) ? (named as Record<string, unknown>) : {}
+  const counts = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1
+  const coarse = fields
+    .filter((f) => !f.multiple && suggest.includes(f.name))
+    .flatMap((f) => {
+      const n = said.get(f.name)?.coarse ?? listed[f.name]
+      return counts(n) ? [[f.name, n] as const] : []
+    })
+  return coarse.length > 0 ? Object.fromEntries(coarse) : undefined
 }
 
 /** A document's template and values, or undefined when it names no template. */

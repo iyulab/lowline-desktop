@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { formdownTheme } from './formdown-theme.js'
-import { authoringCompletion, parseFormdown, readFrontMatter, setFieldAttribute } from '@formdown/core'
+import { authoringCompletion, parseFormdown, setFieldAttribute } from '@formdown/core'
 import {
   fileName,
   fileNameFor,
@@ -16,7 +16,7 @@ import {
   type SourceFix,
 } from './documents.js'
 import { readVault, onVaultChanged } from './vault-snapshot.js'
-import type { DocumentSnapshot } from './projection.js'
+import { judgedFields, type DocumentSnapshot } from './projection.js'
 import type { TemplateItem } from './template-scope.js'
 import './rename-control.js'
 import './delete-control.js'
@@ -337,8 +337,7 @@ export class LlTemplates extends LitElement {
    */
   private fields(): { name: string; label: string; judgment: boolean; options?: string }[] {
     try {
-      const lowline = readFrontMatter(this.source)?.frontMatter.data.lowline as { suggest?: unknown } | undefined
-      const on = new Set(Array.isArray(lowline?.suggest) ? lowline.suggest : [])
+      const on = new Set(judgedFields(this.source))
       // A name used twice is one field to the documents: listed once (the problem is said above the source).
       const forms = parseFormdown(this.source).forms.filter((f, i, all) => all.findIndex((g) => g.name === f.name) === i)
       return forms.map((f) => ({

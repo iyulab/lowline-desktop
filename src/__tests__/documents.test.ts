@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseFormdown, readFrontMatter } from '@formdown/core'
+import { judgedFields } from '../projection.js'
 import {
   TemplateError,
   documentFileName,
@@ -265,19 +266,27 @@ describe('setOptions', () => {
 describe('setSuggest', () => {
   const template = ['---', 'id: intake', 'version: 1', '---', '# 접수', '', '요청: ___@요청', '', '@부서: [select options="영업,개발"]', '', '@담당: [select options="장비,총무"]', ''].join('\n')
 
-  it('turns suggestions on for a field, in the template order', () => {
-    const one = setSuggest(template, '담당', true)
-    expect(readFrontMatter(one)?.frontMatter.data.lowline).toEqual({ suggest: ['담당'] })
-    const two = setSuggest(one, '부서', true)
-    expect(readFrontMatter(two)?.frontMatter.data.lowline).toEqual({ suggest: ['부서', '담당'] })
-    expect(templateBody(two)).toBe(templateBody(template))
+  it('turns suggestions on and off on the field itself, as Formdown reads it', () => {
+    const on = setSuggest(template, '담당', true)
+    expect(on).toContain('@담당: [select options="장비,총무" suggest:role="judged"]')
+    expect(readFrontMatter(on)?.frontMatter.data).toEqual({ id: 'intake', version: 1 })
+    expect(judgedFields(on)).toEqual(['담당'])
+    expect(setSuggest(on, '담당', false)).toBe(template)
+    // A field said never to be suggested is turned on for good.
+    const off = template.replace('[select options="장비,총무"]', '[select options="장비,총무" suggest:policy=off]')
+    expect(judgedFields(setSuggest(off, '담당', true))).toEqual(['담당'])
   })
 
-  it('removes the key once no field is left, and keeps other keys under lowline', () => {
-    const on = setSuggest(template, '담당', true)
-    expect(readFrontMatter(setSuggest(on, '담당', false))?.frontMatter.data).toEqual({ id: 'intake', version: 1 })
-    const withOther = on.replace('lowline:', 'lowline:\n  note: keep')
-    expect(readFrontMatter(setSuggest(withOther, '담당', false))?.frontMatter.data.lowline).toEqual({ note: 'keep' })
+  it('takes a field out of the front matter list templates written before kept, keeping the rest', () => {
+    const before = template.replace('version: 1', 'version: 1\nlowline:\n  suggest: [부서, 담당]\n  note: keep')
+    const on = setSuggest(before, '담당', true)
+    expect(readFrontMatter(on)?.frontMatter.data.lowline).toEqual({ suggest: ['부서'], note: 'keep' })
+    expect(judgedFields(on)).toEqual(['부서', '담당'])
+    const off = setSuggest(before, '부서', false)
+    expect(readFrontMatter(off)?.frontMatter.data.lowline).toEqual({ suggest: ['담당'], note: 'keep' })
+    expect(judgedFields(off)).toEqual(['담당'])
+    const none = setSuggest(setSuggest(off, '담당', false), '담당', false)
+    expect(readFrontMatter(none)?.frontMatter.data.lowline).toEqual({ note: 'keep' })
   })
 
   it('names a file after what a person typed, or refuses a name no file can have', () => {

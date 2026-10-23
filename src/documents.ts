@@ -243,21 +243,22 @@ export function fileNameFor(name: string, suffix: string): string | null {
 }
 
 /**
- * Turns suggestions on or off for one field of a template, under its front matter's `lowline.suggest`
- * — the only place the choice is kept. The list follows the template's field order; other keys
+ * Turns suggestions on or off for one field of a template, on the field itself: Formdown's `suggest:role=judged`
+ * (any tool that reads Formdown reads it), and no `suggest:policy=off`. The field leaves the front matter's
+ * `lowline.suggest`, where templates written before kept the choice, so it is said in one place; other names and keys
  * under `lowline`, and everything else in the file, are left as they are.
  */
 export function setSuggest(templateSource: string, field: string, on: boolean): string {
-  const data = readFrontMatter(templateSource)?.frontMatter.data ?? {}
+  let source = setFieldAttribute(templateSource, field, 'suggest:role', on ? 'judged' : undefined)
+  const policy = parseFormdown(source).forms.find((f) => f.name === field)?.suggest?.policy
+  if (on && policy === 'off') source = setFieldAttribute(source, field, 'suggest:policy', undefined)
+  const data = readFrontMatter(source)?.frontMatter.data ?? {}
   const lowline = typeof data.lowline === 'object' && data.lowline !== null && !Array.isArray(data.lowline) ? (data.lowline as Record<string, unknown>) : {}
-  const named = new Set(Array.isArray(lowline.suggest) ? lowline.suggest.filter((n): n is string => typeof n === 'string') : [])
-  if (on) named.add(field)
-  else named.delete(field)
-  const order = parseFormdown(templateSource).forms.map((f) => f.name)
-  const suggest = [...named].sort((a, b) => rank(order, a) - rank(order, b))
+  if (!Array.isArray(lowline.suggest) || !lowline.suggest.includes(field)) return source
+  const suggest = lowline.suggest.filter((n) => n !== field)
   const { suggest: _, ...rest } = lowline
   const next = suggest.length > 0 ? { ...rest, suggest } : rest
-  return updateFrontMatter(templateSource, { lowline: Object.keys(next).length > 0 ? next : undefined })
+  return updateFrontMatter(source, { lowline: Object.keys(next).length > 0 ? next : undefined })
 }
 
 /** A choice field's options as the options box shows them and reads them back: `value=Label`, comma-separated. */
@@ -282,12 +283,6 @@ export function setOptions(templateSource: string, field: string, typed: string)
   if (!target.allowOther || parseFormdown(next).forms.find((f) => f.name === field)?.allowOther) return next
   const other = target.otherLabel ? `*(${target.otherLabel})` : '*'
   return setFieldAttribute(templateSource, field, 'options', `${written},${other}`)
-}
-
-/** A name's place in the template; names it no longer has go last, in the order they were. */
-function rank(order: readonly string[], name: string): number {
-  const i = order.indexOf(name)
-  return i === -1 ? order.length : i
 }
 
 /**

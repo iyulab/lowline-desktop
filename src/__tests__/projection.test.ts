@@ -75,6 +75,28 @@ describe('templateSnapshot', () => {
     expect(templateSnapshot(template.replace('suggest: [심각도, 없는칸]', 'suggest: 심각도')).suggest).toEqual([])
   })
 
+  it("turns suggestions on for a field its own Formdown attributes judge, and the field's word beats the front matter's", () => {
+    const plain = template.replace(/lowline:\n  suggest: .*\n/, '')
+    const attributed = (from: string, to: string, source = plain) => templateSnapshot(source.replace(from, to))
+    // Said on the field alone, as a tool that knows only Formdown writes it.
+    expect(attributed('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:role=judged]').suggest).toEqual(['심각도'])
+    expect(attributed('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:role=observed]').suggest).toEqual([])
+    // Listed in the front matter, but the field says it is observed, or never suggested: off.
+    expect(attributed('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:role=observed]', template).suggest).toEqual([])
+    expect(attributed('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:policy=off]', template).suggest).toEqual([])
+    // An attribute that says nothing of the role leaves it to the front matter.
+    expect(attributed('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:evidence=false]', template).suggest).toEqual(['심각도'])
+    // The front matter's names first, then the fields that only their attributes turn on.
+    expect(attributed('@재현_절차: [textarea]', '@재현_절차: [textarea suggest:role=judged]', template).suggest).toEqual(['심각도', '재현_절차'])
+  })
+
+  it("carries a judgment field's class length as the field says it, before the front matter", () => {
+    const own = template.replace('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:coarse=2]')
+    expect(templateSnapshot(own).coarse).toEqual({ 심각도: 2 })
+    expect(templateSnapshot(own.replace('suggest: [심각도, 없는칸]', 'suggest: [심각도]\n  coarse: { 심각도: 1 }')).coarse).toEqual({ 심각도: 2 })
+    expect(templateSnapshot(template.replace('suggest: [심각도, 없는칸]', 'suggest: [심각도]\n  coarse: { 심각도: 1 }')).coarse).toEqual({ 심각도: 1 })
+  })
+
   it('carries how many leading characters name the class of a judgment field taking one value, and nothing else', () => {
     const coarse = (line: string) => templateSnapshot(template.replace('suggest: [심각도, 없는칸]', `suggest: [심각도, 태그]\n  coarse: ${line}`)).coarse
     expect(coarse('{ 심각도: 1 }')).toEqual({ 심각도: 1 })
