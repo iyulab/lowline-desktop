@@ -98,6 +98,10 @@ export class LlDocuments extends LitElement {
     section {
       padding-inline-start: var(--dc-space-4);
     }
+    /* Another document is being read: what is shown takes no input until it lands. */
+    section[aria-busy='true'] {
+      cursor: progress;
+    }
     /* The way back to the list is needed only where the list is not beside the document. */
     /* So is what became of a document that closed — deleted, say — said where the list is. */
     @media ${desktopMedia} {
@@ -246,6 +250,11 @@ export class LlDocuments extends LitElement {
   @state() private opened = 0
   /** The latest open or new document asked for: one that lands after a later one was asked for is dropped. */
   private asked = 0
+  /**
+   * A document asked for is still being read. The one shown until it lands takes no input meanwhile: what was typed
+   * there would go with it unasked.
+   */
+  @state() private reading = false
   /** The form's current values, as it reports them. */
   private values: FieldValues = {}
   /** The draft's judgment fields: their suggestions, and what the person did with them. */
@@ -473,6 +482,7 @@ export class LlDocuments extends LitElement {
   private async startNew(templatePath: string, values: FieldValues = {}) {
     const asked = ++this.asked
     this.reset()
+    this.reading = true
     try {
       const templateSource = await vault.read(templatePath)
       if (asked !== this.asked) return
@@ -483,9 +493,12 @@ export class LlDocuments extends LitElement {
       this.opened++
       void this.judgment.prepare(ref)
       // A new document is started to be written: the cursor goes to its first field.
+      this.reading = false
       await this.focusForm()
     } catch (e) {
       if (asked === this.asked) this.error = describeError(e)
+    } finally {
+      if (asked === this.asked) this.reading = false
     }
   }
 
@@ -494,6 +507,7 @@ export class LlDocuments extends LitElement {
     // that lands late does not draw its form over the one the person has gone on to fill in.
     const asked = ++this.asked
     this.reset()
+    this.reading = true
     try {
       const source = await vault.read(path)
       if (asked !== this.asked) return
@@ -515,6 +529,8 @@ export class LlDocuments extends LitElement {
       void this.judgment.prepare(this.draft.templateRef)
     } catch (e) {
       if (asked === this.asked) this.error = describeError(e)
+    } finally {
+      if (asked === this.asked) this.reading = false
     }
   }
 
@@ -781,12 +797,14 @@ export class LlDocuments extends LitElement {
   private backToList() {
     this.reset()
     this.asked++ // a document still being read does not open over this
+    this.reading = false
     this.draft = undefined
   }
 
   private startImport() {
     this.reset()
     this.asked++ // a document still being read does not open over this
+    this.reading = false
     this.draft = undefined
     this.importing = true
   }
@@ -1029,7 +1047,7 @@ export class LlDocuments extends LitElement {
               </button>`,
             )}
       </nav>
-      <section>
+      <section ?inert=${this.reading} aria-busy=${this.reading ? 'true' : 'false'}>
         ${this.importing
           ? html`<ll-import
               .vaultInfo=${this.vaultInfo}
