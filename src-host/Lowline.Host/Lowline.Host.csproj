@@ -33,7 +33,7 @@
     <PackageReference Include="LMSupply.Generator" Version="0.136.0" />
     <PackageReference Include="FluxIndex.SDK" Version="0.103.1" />
     <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.103.1" />
-    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.27.0" />
+    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.28.0" />
     <PackageReference Include="DesktopHost.Files" Version="0.3.0" />
     <PackageReference Include="Undoc" Version="0.27.0" />
     <PackageReference Include="Unhwp" Version="0.23.0" />
