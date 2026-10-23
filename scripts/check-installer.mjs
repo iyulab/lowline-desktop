@@ -20,6 +20,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getSchema, parseFormdown } from '@formdown/core'
 import {
   downloadInstaller,
   fileVersion,
@@ -86,10 +87,20 @@ async function startAndClose(target) {
   if (!(await until(() => runningFrom(SIDECAR, target) === 0, 10_000))) throw new Error(`${SIDECAR} outlived the installed app`)
 }
 
-/** A vault as the shell hands it to the sidecar: a template with a judgment field, and documents settling it. */
+/**
+ * A vault as the shell hands it to the sidecar: a template with a judgment field, and documents settling it. The
+ * template carries formdown's schema of its fields, as the window sends it (`templateSnapshot`) — the sidecar declares
+ * the template's columns from it. A release before that ignores it.
+ */
 function snapshot() {
   const teams = ['가', '나', '다']
   const owners = { 가: '장비', 나: '총무', 다: '인사' }
+  const body = [
+    '@요청: [textarea]',
+    `@부서: [select options="${teams.join(',')}"]`,
+    `@담당: [select options="${Object.values(owners).join(',')}"]`,
+    '@날짜: [date]',
+  ].join('\n\n')
   return {
     templates: [
       {
@@ -101,6 +112,7 @@ function snapshot() {
           { name: '날짜', type: 'date' },
         ],
         suggest: ['담당'],
+        schema: getSchema(parseFormdown(body)),
       },
     ],
     documents: Array.from({ length: 60 }, (_, i) => ({
