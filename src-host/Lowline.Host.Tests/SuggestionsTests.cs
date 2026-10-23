@@ -434,7 +434,7 @@ public sealed class SuggestionsTests
         Assert.Equal("총무", (await later.SuggestAsync(request, Ct))!.Value);
         Assert.Equal(fresh.Confirmed("intake@1", "담당"), later.Confirmed("intake@1", "담당"));
 
-        // A document gone since cannot be unlearned: the build after learns from the start, and answers as a fresh one.
+        // Documents gone since are forgotten: the build after answers as a fresh one.
         var fewer = new VaultSnapshot([Intake], [.. moved.Where(d => d.Values["부서"].GetString() != "개발")]);
         var after = await Suggestions.BuildAsync(fewer, Ct, later.Thresholds, later);
         later.Dispose();

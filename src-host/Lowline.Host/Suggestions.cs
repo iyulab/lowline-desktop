@@ -246,8 +246,8 @@ public sealed class Suggestions : IDisposable
     /// confirmed until the person settles which copy to keep — in the order they were saved. Each template keeps the
     /// tuning in <paramref name="kept"/> — chosen by an earlier build, or kept from an earlier launch — until
     /// <see cref="SelectThresholdsAsync"/> chooses again; the engine says when one no longer stands. A template that
-    /// <paramref name="previous"/> built on the same form, none of whose documents has gone since, goes on with that
-    /// build's engine and learns only the documents that changed; any other is learned from the start.
+    /// <paramref name="previous"/> built on the same form goes on with that build's engine: it forgets the documents gone
+    /// since and learns only those that changed. Any other is learned from the start.
     /// </summary>
     public static Task<Suggestions> BuildAsync(
         VaultSnapshot vault, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? kept = null,
@@ -300,6 +300,8 @@ public sealed class Suggestions : IDisposable
                         records.Add(learnt.Record);
                         foreach (var field in learnt.Confirmed) confirmed[field]++;
                     }
+                    // Documents gone since — deleted, or now with a conflict copy — are forgotten.
+                    if (!learning) lease.Engine.Forget([.. lease.Learned.Keys.Where(id => !learned.ContainsKey(id))]);
                     lease.Engine.Learn(changed);
                     lease.Learned.Clear();
                     foreach (var (id, learnt) in learned) lease.Learned[id] = learnt;
@@ -330,15 +332,15 @@ public sealed class Suggestions : IDisposable
 
     /// <summary>
     /// The engine <paramref name="previous"/> built for template <paramref name="template"/>, held for this build — when
-    /// it is on the same form, no other build is learning into it, and each document it learned is among
-    /// <paramref name="saved"/>, none twice: the engine cannot unlearn a document, so one gone means learning from the start.
+    /// it is on the same form, no other build is learning into it, it learned what it was built on, and no document
+    /// is among <paramref name="saved"/> twice.
     /// </summary>
     private static Lease? Continued(Suggestions? previous, string template, string definition, IReadOnlyList<DocumentSnapshot> saved)
     {
         if (previous?._forms.GetValueOrDefault(template)?.Lease is not { } lease || lease.Definition != definition) return null;
         if (!lease.TryHoldToBuild()) return null;
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        if (saved.All(d => ids.Add(d.Identity)) && lease.Learned.Count > 0 && lease.Learned.Keys.All(ids.Contains)) return lease;
+        if (saved.All(d => ids.Add(d.Identity)) && lease.Learned.Count > 0) return lease;
         lease.Built();
         lease.Release();
         return null;
