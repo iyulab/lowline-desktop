@@ -244,6 +244,8 @@ export class LlDocuments extends LitElement {
   @state() private similar?: CaseHit[] | 'loading' | 'failed'
   /** Counts drafts opened; changes only when another draft is opened. */
   @state() private opened = 0
+  /** The latest open or new document asked for: one that lands after a later one was asked for is dropped. */
+  private asked = 0
   /** The form's current values, as it reports them. */
   private values: FieldValues = {}
   /** The draft's judgment fields: their suggestions, and what the person did with them. */
@@ -469,9 +471,11 @@ export class LlDocuments extends LitElement {
   }
 
   private async startNew(templatePath: string, values: FieldValues = {}) {
+    const asked = ++this.asked
     this.reset()
     try {
       const templateSource = await vault.read(templatePath)
+      if (asked !== this.asked) return
       const { ref } = templateInfo(templateSource)
       this.setValues(values)
       this.initialValues = this.values
@@ -481,14 +485,18 @@ export class LlDocuments extends LitElement {
       // A new document is started to be written: the cursor goes to its first field.
       await this.focusForm()
     } catch (e) {
-      this.error = describeError(e)
+      if (asked === this.asked) this.error = describeError(e)
     }
   }
 
   private async open(path: string) {
+    // On a slow vault (a network share) reads take a while: what was asked for last is what opens, and a read
+    // that lands late does not draw its form over the one the person has gone on to fill in.
+    const asked = ++this.asked
     this.reset()
     try {
       const source = await vault.read(path)
+      if (asked !== this.asked) return
       const { template, id, values, proposed } = documentFrontMatter(source)
       // Written with an earlier revision, it is a document of its template as the template is now.
       const templateRef = template === undefined ? template : revisedRef(template, this.currentRefs)
@@ -500,12 +508,13 @@ export class LlDocuments extends LitElement {
         !hasFields(source) && scope && template !== undefined && templateId(template) === templateId(scope.ref)
           ? withTemplateBody(source, await vault.read(scope.path))
           : undefined
+      if (asked !== this.asked) return
       this.draft = { kind: 'existing', path, id: documentId(path, id), source, templateRef, ...(filled ? { filled } : {}) }
       this.writtenWith = template !== templateRef && template !== undefined ? template : undefined
       this.opened++
       void this.judgment.prepare(this.draft.templateRef)
     } catch (e) {
-      this.error = describeError(e)
+      if (asked === this.asked) this.error = describeError(e)
     }
   }
 
@@ -751,6 +760,12 @@ export class LlDocuments extends LitElement {
     return createDocumentFile(this.vaultInfo.documentsDir, source, title)
   }
 
+  /** Opens the document clicked in the list; the one open already stays as it is, edits and all. */
+  private pick(path: string) {
+    if (this.draft?.kind === 'existing' && this.draft.path === path) return
+    this.leaveFor(() => this.open(path))
+  }
+
   /** Goes elsewhere once unsaved edits to the open document are let go. */
   private async leaveFor(next: () => unknown) {
     if (await confirmDiscard()) await next()
@@ -765,11 +780,13 @@ export class LlDocuments extends LitElement {
   /** Closes the open document — in a narrow window, where the list and the document take turns, for the list. */
   private backToList() {
     this.reset()
+    this.asked++ // a document still being read does not open over this
     this.draft = undefined
   }
 
   private startImport() {
     this.reset()
+    this.asked++ // a document still being read does not open over this
     this.draft = undefined
     this.importing = true
   }
@@ -1003,7 +1020,7 @@ export class LlDocuments extends LitElement {
                 class="document"
                 aria-current=${draft?.kind === 'existing' && draft.path === d.path}
                 tabindex=${tabStop === d.path ? 0 : -1}
-                @click=${() => this.leaveFor(() => this.open(d.path))}
+                @click=${() => this.pick(d.path)}
                 @keydown=${(e: KeyboardEvent) => this.moveInList(e, i)}
               >
                 ${shownName(d)}

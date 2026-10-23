@@ -130,8 +130,12 @@ export default {
     await app.cdp.waitFor(`${listedCount} === ${unsettled}`, 'only the unsettled documents listed', { timeoutMs: 15_000 })
 
     // One is settled and saved with Ctrl+Enter, and the next unsettled one opens.
+    // The form of the document clicked, not the one open before it: on a slow vault (SMB) the earlier form is still
+    // drawn for a moment, and a value chosen there is not the clicked document's.
+    const formOf = (i, 부서) =>
+      app.cdp.waitFor(`__e2e.one('select[name="담당"]') && __e2e.one('select[name="부서"]')?.value === '${부서}'`, `the form of 확인할 기록-${i}`, { timeoutMs: 15_000 })
     await app.click('nav button.document', '확인할 기록-1')
-    await app.cdp.waitFor(`__e2e.one('select[name="담당"]')`, 'the form of 확인할 기록-1')
+    await formOf(1, '영업')
     await app.choose('select[name="담당"]', '장비')
     await app.cdp.press('Enter', { code: 'Enter', modifiers: 2, keyCode: 13 })
     await app.cdp.waitFor(`${openName} !== undefined && !${openName}.startsWith('확인할 기록-1')`, 'the next unsettled document open', { timeoutMs: 15_000 })
@@ -143,7 +147,7 @@ export default {
     await app.noAlert()
 
     await app.click('nav button.document', '확인할 기록-3')
-    await app.cdp.waitFor(`__e2e.one('select[name="담당"]')`, 'the fields of a record written with its front matter alone')
+    await formOf(3, '인사') // a record written with its front matter alone is drawn with its template's fields
     await app.choose('select[name="담당"]', '인사')
     await app.cdp.press('s', { code: 'KeyS', modifiers: 2, keyCode: 83 })
     await app.status('저장했습니다')
