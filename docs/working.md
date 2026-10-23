@@ -19,7 +19,7 @@ While a dialog or the list of keys is open the other keys do nothing: the questi
 
 ## Narrow windows
 
-A template's documents are laid out in three columns: the sidebar, the list of documents (as wide as the sidebar), and the document picked in it. The list and the document scroll on their own. A new document puts the cursor in its first field, and saving leaves it in the field being written.
+A template's documents are laid out in three columns: the sidebar, the list of documents (as wide as the sidebar), and the document picked in it. The list and the document scroll on their own. A new document puts the cursor in its first field, and saving leaves it in the field being written. Picking the document already open leaves it as it is, edits and all. A document picked is read before it shows — on a network share that can take a moment — and meanwhile the one shown takes no input; the one picked last is the one that opens.
 
 From 1024 pixels wide the toolbar button folds the sidebar to a narrow rail and back. Below that the sidebar is a drawer over the content. It starts closed; the toolbar button opens it, and picking a place (the one already shown included), clicking outside it or Escape closes it. There the list and the document take turns: picking a document shows it in place of the list, and a button above it returns to the list.
 
