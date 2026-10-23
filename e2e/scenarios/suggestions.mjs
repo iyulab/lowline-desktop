@@ -295,8 +295,9 @@ export default {
       await app.fill('[data-field-name="요청"]', '프린터 용지가 걸려요')
       await app.choose('select[name="부서"]', '영업')
       // Drawn to check it: no value shown — not even a hint of it — and why is said, quietly.
+      // What was said after 요청 alone (nothing settled yet) may still show until the answer for 부서 comes back.
       const note = await app.cdp.waitFor(
-        `__e2e.all('[data-formdown-note="담당"]').map((el) => el.textContent.replace(/\\s+/g, ' ').trim())[0]`,
+        `__e2e.all('[data-formdown-note="담당"]').map((el) => el.textContent.replace(/\\s+/g, ' ').trim()).find((t) => t.startsWith('확인용'))`,
         'the note that 담당 is a check',
         { timeoutMs: 15_000 },
       )
@@ -317,6 +318,8 @@ export default {
       assert.equal((await events(vault)).length, eventsBefore + 1, 'one check, no decision about a suggestion')
     } finally {
       await app.holdBack(false)
+      // Left before it goes: removed while open, a document is said to be gone outside.
+      await app.learning()
       for (const name of (await documentsIn(vault)).filter((n) => !before.has(n))) await rm(join(vault, '문서', name))
     }
   },

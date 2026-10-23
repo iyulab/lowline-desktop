@@ -162,12 +162,14 @@ export class LlLearning extends LitElement {
   private async load(change?: VaultChanged) {
     try {
       const synced = await syncVault(change)
-      this.templates = synced.templates
-      this.names = synced.names
       // What this device showed is an aid to the counts: without it they are decisions alone.
       // Shown under an earlier revision, a suggestion counts for its template as it is now, as its events do.
       const current = currentRefs(synced.templates)
       const shown = parsePresentations(await vault.readPresentations().catch(() => '')).map((p) => ({ ...p, template: revisedRef(p.template, current) }))
+      // The counts number the forms of these templates: both change together, or a render between would read one
+      // against the other's numbering.
+      this.templates = synced.templates
+      this.names = synced.names
       this.counts = weeklyCounts(synced.templates, synced.documents, synced.events, shown)
       this.copied = 'no'
       this.curves = await host.curves()
