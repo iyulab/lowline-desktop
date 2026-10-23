@@ -5,6 +5,7 @@ import { authoringCompletion, parseFormdown, setFieldAttribute } from '@formdown
 import {
   fileName,
   fileNameFor,
+  moveSuggestToFields,
   optionsText,
   referenceProblems,
   setOptions,
@@ -352,6 +353,14 @@ export class LlTemplates extends LitElement {
   }
 
   /** Turns suggestions on or off for a field: an edit of the source like any other, kept by saving. */
+  /** Moves the judgment fields a template written before named in its front matter onto the fields: an edit, kept by saving. */
+  private moveToFields(moved: string) {
+    this.source = moved
+    this.dirty = true
+    this.message = ''
+    this.error = ''
+  }
+
   private toggleJudgment(field: string, on: boolean) {
     try {
       this.source = setSuggest(this.source, field, on)
@@ -577,6 +586,21 @@ export class LlTemplates extends LitElement {
     </ul>`
   }
 
+  /** For a template that names its judgment fields in its front matter, as templates written before did: the way onto the fields. */
+  private renderMoveToFields() {
+    let moved: string | undefined
+    try {
+      moved = moveSuggestToFields(this.source)
+    } catch {
+      return nothing
+    }
+    if (moved === undefined) return nothing
+    return html`<p class="message move-to-fields">
+      ${strings.suggestInFrontMatter}
+      <dc-button size="sm" @click=${() => this.moveToFields(moved)}>${strings.moveSuggestToFields}</dc-button>
+    </p>`
+  }
+
   /** The template's fields: each can be made a judgment field, and a choice field's options edited. */
   private renderFields() {
     const fields = this.fields()
@@ -587,6 +611,7 @@ export class LlTemplates extends LitElement {
     return html`<div class="fields" role="group" aria-label=${strings.fieldsTitle}>
       <h3>${strings.fieldsTitle}</h3>
       <p class="message">${strings.fieldsHelp}</p>
+      ${this.renderMoveToFields()}
       ${fields.length === 0
         ? html`<p class="message">${strings.fieldsNone}</p>`
         : fields.map(

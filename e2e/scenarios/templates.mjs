@@ -105,6 +105,34 @@ export default {
     await app.noAlert()
   },
 
+  async 'moves the judgment fields a template names in its front matter onto the fields, meaning the same'(app, vault) {
+    const BEFORE = { name: '이전 방식', ref: 'before@1', path: '서식/이전 방식.fd.md' }
+    const path = join(vault, BEFORE.path)
+    const body = '# 이전 방식\n\n@코드: [text]\n\n@메모: [text]\n'
+    await writeFile(path, `---\nid: before\nversion: 1\nlowline:\n  suggest: [코드]\n  coarse: { 코드: 2 }\n---\n${body}`)
+    await app.sidebar(BEFORE.name, { timeoutMs: 30_000 })
+    await app.templateOf(BEFORE)
+    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('id: before')`, 'the template source')
+    await app.cdp.waitFor(`!!__e2e.one('.move-to-fields')`, 'the way onto the fields')
+    assert.equal(await app.cdp.evaluate(`__e2e.one('dc-checkbox[name="코드"]')?.checked`), true)
+
+    await app.click('dc-button', '칸으로 옮기기')
+    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('suggest:role="judged"')`, 'the choice written on the field')
+    assert.equal(await app.cdp.evaluate(`__e2e.one('dc-checkbox[name="코드"]')?.checked`), true, 'still a judgment field')
+    await app.click('dc-button', '저장')
+    await app.status('저장했습니다')
+    const saved = parseFormdown(await readFile(path, 'utf8'))
+    assert.equal(saved.frontMatter?.data?.lowline, undefined)
+    assert.deepEqual(saved.forms.find((f) => f.name === '코드')?.suggest, { role: 'judged', coarse: 2 })
+    assert.equal(await app.cdp.evaluate(`!!__e2e.one('.move-to-fields')`), false, 'nothing left to move')
+    await app.noAlert()
+
+    // Leave the vault as the scenarios after this one expect it.
+    await app.learning()
+    await rm(path)
+    await app.cdp.waitFor(`!__e2e.one('button.item:not(.group-toggle)', '이전 방식')`, 'the template gone from the sidebar', { timeoutMs: 30_000 })
+  },
+
   async 'edits the options of a choice field from the template page, in its place in the source'(app, vault) {
     const path = join(vault, TEMPLATE)
     await app.templateOf(BUG)

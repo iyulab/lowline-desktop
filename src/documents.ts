@@ -261,6 +261,45 @@ export function setSuggest(templateSource: string, field: string, on: boolean): 
   return updateFrontMatter(source, { lowline: Object.keys(next).length > 0 ? next : undefined })
 }
 
+/**
+ * Moves what a template written before fields said it keeps in its front matter — its judgment fields under
+ * `lowline.suggest`, their class lengths under `lowline.coarse` — onto the fields themselves, as Formdown's
+ * `suggest:role=judged` and `suggest:coarse`, so the template means the same with the choice said in one place. A field
+ * that already says its own role or class length keeps it (its word was the one that counted). A name that is not a
+ * field stays in the front matter, where the template's page says so. Undefined when there is nothing to move.
+ */
+export function moveSuggestToFields(templateSource: string): string | undefined {
+  const data = readFrontMatter(templateSource)?.frontMatter.data ?? {}
+  const lowline = typeof data.lowline === 'object' && data.lowline !== null && !Array.isArray(data.lowline) ? (data.lowline as Record<string, unknown>) : {}
+  const forms = parseFormdown(templateSource).forms
+  const field = (name: string) => forms.find((f) => f.name === name)
+  const listed = Array.isArray(lowline.suggest) ? lowline.suggest : []
+  const coarse = typeof lowline.coarse === 'object' && lowline.coarse !== null && !Array.isArray(lowline.coarse) ? (lowline.coarse as Record<string, unknown>) : {}
+  const moved = listed.filter((n): n is string => typeof n === 'string' && field(n) !== undefined)
+  const movedCoarse = Object.keys(coarse).filter((n) => field(n) !== undefined)
+  if (moved.length === 0 && movedCoarse.length === 0) return undefined
+
+  let source = templateSource
+  for (const name of moved) {
+    if (field(name)?.suggest?.role === undefined) source = setFieldAttribute(source, name, 'suggest:role', 'judged')
+  }
+  for (const name of movedCoarse) {
+    const n = coarse[name]
+    if (field(name)?.suggest?.coarse === undefined && Number.isInteger(n) && (n as number) >= 1) {
+      source = setFieldAttribute(source, name, 'suggest:coarse', String(n))
+    }
+  }
+  const { suggest: _s, coarse: _c, ...rest } = lowline
+  const strays = listed.filter((n) => !moved.includes(n as string))
+  const strayCoarse = Object.fromEntries(Object.entries(coarse).filter(([n]) => !movedCoarse.includes(n)))
+  const next = {
+    ...rest,
+    ...(strays.length > 0 && { suggest: strays }),
+    ...(Object.keys(strayCoarse).length > 0 && { coarse: strayCoarse }),
+  }
+  return updateFrontMatter(source, { lowline: Object.keys(next).length > 0 ? next : undefined })
+}
+
 /** A choice field's options as the options box shows them and reads them back: `value=Label`, comma-separated. */
 export function optionsText(options: readonly { value: string; label?: string }[]): string {
   return formatOptions(options).replace(/(?<!\\),/g, ', ')

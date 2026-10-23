@@ -15,6 +15,7 @@ import {
   optionsText,
   setOptions,
   setSuggest,
+  moveSuggestToFields,
   reviseDocument,
   referenceProblems,
   sharedId,
@@ -275,6 +276,26 @@ describe('setSuggest', () => {
     // A field said never to be suggested is turned on for good.
     const off = template.replace('[select options="장비,총무"]', '[select options="장비,총무" suggest:policy=off]')
     expect(judgedFields(setSuggest(off, '담당', true))).toEqual(['담당'])
+  })
+
+  it('moves what a template written before kept in its front matter onto its fields, meaning the same', () => {
+    const before = template
+      .replace('version: 1', 'version: 1\nlowline:\n  suggest: [부서, 담당, 없는칸]\n  coarse: { 담당: 1 }\n  note: keep')
+      .replace('[select options="영업,개발"]', '[select options="영업,개발" suggest:role=observed]')
+    const after = moveSuggestToFields(before)!
+    // 부서 said its own role, which was the one that counted; 담당 is judged on the field, with its class length.
+    expect(judgedFields(after)).toEqual(judgedFields(before))
+    expect(judgedFields(after)).toEqual(['담당'])
+    const fields = parseFormdown(after).forms
+    expect(fields.find((f) => f.name === '담당')?.suggest).toEqual({ role: 'judged', coarse: 1 })
+    expect(fields.find((f) => f.name === '부서')?.suggest).toEqual({ role: 'observed' })
+    // A name that is not a field stays where the page says so; other keys stay.
+    expect(readFrontMatter(after)?.frontMatter.data.lowline).toEqual({ suggest: ['없는칸'], note: 'keep' })
+    expect(moveSuggestToFields(after)).toBeUndefined()
+    expect(moveSuggestToFields(template)).toBeUndefined()
+    // Nothing left under lowline: the key goes.
+    const only = template.replace('version: 1', 'version: 1\nlowline:\n  suggest: [담당]')
+    expect(readFrontMatter(moveSuggestToFields(only)!)?.frontMatter.data).toEqual({ id: 'intake', version: 1 })
   })
 
   it('takes a field out of the front matter list templates written before kept, keeping the rest', () => {

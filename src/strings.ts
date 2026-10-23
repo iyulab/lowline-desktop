@@ -100,6 +100,9 @@ export const strings = {
   preview: '미리보기',
   optionsOf: (label: string) => `${label} 선택지`,
   fieldsTitle: '칸',
+  suggestInFrontMatter:
+    '이 서식은 판단 칸을 서식 앞부분(lowline.suggest)에 적었습니다. 칸으로 옮기면 각 칸에 suggest:role=judged로 적혀 formdown을 읽는 다른 도구도 같은 칸을 판단 칸으로 읽습니다 — 뜻과 배운 것은 그대로입니다.',
+  moveSuggestToFields: '칸으로 옮기기',
   fieldsHelp: '체크한 칸은 판단 칸 — 확정한 문서에서 배워 값을 제안받습니다(원문의 그 칸에 suggest:role=judged로 적힘). 선택지는 쉼표로 나눠 적으면 원문의 그 칸에 그대로 적힙니다 — "값=보이는 이름"으로 적으면 문서에는 값이 저장되고 화면에는 이름이 보여, 이름을 바꿔도 저장된 값과 배운 것이 이어집니다. "이름 바꾸기"는 칸이 보이는 이름(label)만 바꿉니다 — 문서의 값과 배운 것은 칸 이름에 붙어 있어 그대로 이어집니다.',
   fieldsNone: '이 서식에는 칸이 없습니다.',
   templateProblemsTitle: '서식 원문의 문제',
