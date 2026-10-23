@@ -26,7 +26,7 @@
     <PackageReference Include="Formbase.Sqlite" Version="0.34.0" />
     <PackageReference Include="Formbase.DependencyInjection" Version="0.34.0" />
     <PackageReference Include="Formbase.Formdown" Version="0.34.0" />
-    <PackageReference Include="Lowline" Version="0.2.0" />
+    <PackageReference Include="Lowline" Version="0.3.0" />
     <PackageReference Include="IronProw.Core" Version="0.17.0" />
     <PackageReference Include="IronProw.IronHive" Version="0.17.0" />
     <PackageReference Include="IronProw.LMSupply" Version="0.17.0" />

@@ -109,6 +109,13 @@ public sealed class Suggestions : IDisposable
     /// </summary>
     public const int SimilarMinimumAnswered = 30;
 
+    /// <summary>
+    /// How many checks of a judgment field must be among its documents before its precision is counted on them and on the
+    /// values entered with nothing in view alone. Until then every value a person settled counts — taken from a
+    /// suggestion or changed too — so a field is not left with nothing to count while its checks gather.
+    /// </summary>
+    public const int ChecksToCountOn = 20;
+
     /// <summary>The most characters typed into a field that suggestions are chosen a strength for.</summary>
     private const int TypedLongest = 3;
 
@@ -258,9 +265,13 @@ public sealed class Suggestions : IDisposable
                 ["minimumAnswered"] = MinimumAnswered,
                 ["similarMinimumAnswered"] = SimilarMinimumAnswered,
                 ["typedLongest"] = TypedLongest,
-                // Every value a person settled — taken from a suggestion or changed too: the app draws no checks, and
-                // counting only the values entered with nothing in view would never meet a suggestion's own misses.
-                ["counting"] = "settled",
+                // Every value a person settled until the field's checks gather, then what it did not suggest: counting
+                // only the values entered with nothing in view, before there are checks, would never meet a suggestion's
+                // own misses.
+                ["counting"] = new JsonObject
+                {
+                    ["settled-until-checked"] = new JsonObject { ["checks"] = ChecksToCountOn },
+                },
             },
         }.ToJsonString();
     }
