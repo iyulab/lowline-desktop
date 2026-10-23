@@ -79,6 +79,8 @@ export class App extends Window {
   async ready() {
     await this.cdp.waitFor(READY, 'the app')
     await this.cdp.evaluate(helpers())
+    // No suggestion is held back to check it unless a scenario says so (`holdBack`): one in twenty would come and go.
+    await this.holdBack(false)
     const scheme = process.env.E2E_COLOR_SCHEME
     if (scheme) await this.cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] })
   }
@@ -93,6 +95,11 @@ export class App extends Window {
     if (dropCaches) await rm(join(process.env.LOCALAPPDATA ?? tmpdir(), IDENTIFIER, 'projections'), { recursive: true, force: true })
     await this.restart()
     await this.openVault(vault)
+  }
+
+  /** Whether every judgment field asked about from now on is drawn to check it — its suggestion held back. */
+  async holdBack(all) {
+    await this.cdp.evaluate(`globalThis.lowlineRoll = () => ${all ? 0 : 0.999999}`)
   }
 
   async openVault(path) {

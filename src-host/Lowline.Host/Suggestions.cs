@@ -8,9 +8,13 @@ namespace Lowline.Host;
 /// What the UI asks: a value for one judgment field, given the document's other values.
 /// <see cref="Document"/> is the document's <see cref="DocumentSnapshot.Identity"/> once it has been saved. <see cref="Typed"/> is
 /// the text a person has typed into the field so far: the field stays open, and only a value that begins with it is offered.
+/// <see cref="Roll"/> is a number the UI drew uniformly from [0, 1) for this field of the draft, before seeing any answer —
+/// the same one each time it asks: below <see cref="Suggestions.Recheck"/>'s rate, a value the field would be shown is held
+/// back to check it (<see cref="SuggestionMode.Check"/>).
 /// </summary>
 public sealed record SuggestRequest(
-    string Template, string Field, IReadOnlyDictionary<string, JsonElement> Values, string? Document = null, string? Typed = null);
+    string Template, string Field, IReadOnlyDictionary<string, JsonElement> Values, string? Document = null, string? Typed = null,
+    double? Roll = null);
 
 /// <summary>
 /// A suggestion for one field. <see cref="Value"/> is null when there is none to make (<c>abstain</c>) —
@@ -19,9 +23,12 @@ public sealed record SuggestRequest(
 /// or the similar document whose confirmed value it is (<c>memory</c>). A value rests first on values settled alongside ones
 /// the document holds — its observed values, and judgments already confirmed in it; a similar document answers only where
 /// those settle nothing, and only on a field whose replay showed that layer right often enough over enough answers
-/// (<see cref="Suggestions.SimilarMinimumAnswered"/>) — each layer keeps the precision its own replay promises.
+/// (<see cref="Suggestions.SimilarMinimumAnswered"/>) — each layer keeps the precision its own replay promises. A field drawn
+/// to be checked (<see cref="SuggestionMode.Check"/>) is shown no value: <see cref="Held"/> is the one held back, to record
+/// with what the person enters, and <see cref="Probability"/> the chance it was drawn with.
 /// </summary>
-public sealed record Suggestion(string? Value, string Mode, string? Source, string? Reason = null);
+public sealed record Suggestion(
+    string? Value, string Mode, string? Source, string? Reason = null, double? Probability = null, string? Held = null);
 
 /// <summary>What a <see cref="Suggestion"/> is: a value to offer, none, or none because the person turned it down.</summary>
 public static class SuggestionMode
@@ -46,6 +53,12 @@ public static class SuggestionMode
     /// the document has, kept to the same promise as a value — for a field whose template names its class length.
     /// </summary>
     public const string Coarse = "coarse";
+
+    /// <summary>
+    /// No value: the field was drawn to check it — the value it would be shown is held back, and what the person enters
+    /// counts for its precision as a value entered with nothing in view.
+    /// </summary>
+    public const string Check = "check";
 }
 
 /// <summary>Where a suggestion a person decided came from, as events record it.</summary>
@@ -115,6 +128,9 @@ public sealed class Suggestions : IDisposable
     /// suggestion or changed too — so a field is not left with nothing to count while its checks gather.
     /// </summary>
     public const int ChecksToCountOn = 20;
+
+    /// <summary>How often a judgment field whose value would be shown is drawn instead to check it: one in twenty.</summary>
+    public static readonly Engine.Recheck Recheck = new();
 
     /// <summary>The most characters typed into a field that suggestions are chosen a strength for.</summary>
     private const int TypedLongest = 3;
@@ -207,13 +223,13 @@ public sealed class Suggestions : IDisposable
                     .ThenBy(d => d.Identity, StringComparer.Ordinal))
                 {
                     var values = Values(template, document.Values);
-                    var settled = Settled(template, document, values, latest);
+                    var (settled, checks) = Settled(template, document, values, latest);
                     foreach (var field in confirmed.Keys)
                     {
                         if (values.ContainsKey(field) && settled.GetValueOrDefault(field) is not Engine.SettlementKind.Fill) confirmed[field]++;
                     }
                     records.Add(engine.Record(
-                        document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0)).Json);
+                        document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0), checks).Json);
                 }
                 engine.Learn(records);
                 var form = new Form(engine, records, confirmed);
@@ -345,13 +361,15 @@ public sealed class Suggestions : IDisposable
     /// by a person (<see cref="Engine.SettlementKind.Fill"/>): it stays in the document, and memory neither learns it as a
     /// person's nor counts it. Otherwise the field's latest event says: a suggestion taken, changed, or turned down and
     /// another value written — of the engine's or of another program's. A field no event names was entered with nothing in
-    /// view, the engine's default. A field that takes several values is settled as a set.
+    /// view, the engine's default. A field that takes several values is settled as a set. A field whose latest event is a
+    /// check was entered while its value was held back: it is among the checks, with the probability it was drawn with.
     /// </summary>
-    private static Dictionary<string, Engine.SettlementKind> Settled(
+    private static (Dictionary<string, Engine.SettlementKind> Settled, Dictionary<string, double> Checks) Settled(
         TemplateSnapshot template, DocumentSnapshot document, IReadOnlyDictionary<string, Engine.FieldValue> values,
         IReadOnlyDictionary<(string, string), SuggestionEvent> latest)
     {
         var settled = new Dictionary<string, Engine.SettlementKind>(StringComparer.Ordinal);
+        var checks = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var field in template.Suggest!.Distinct(StringComparer.Ordinal))
         {
             if (!values.ContainsKey(field)) continue;
@@ -362,6 +380,11 @@ public sealed class Suggestions : IDisposable
             }
             if (template.Fields.First(f => f.Name == field).Multiple) continue;
             if (latest.GetValueOrDefault((document.Identity, field)) is not { } decided) continue;
+            if (decided.Kind == SuggestionMode.Check)
+            {
+                if (decided.Probability is > 0 and <= 1) checks[field] = decided.Probability.Value;
+                continue;
+            }
             var other = decided.Source == SuggestionSource.Proposed;
             settled[field] = (decided.Kind, other) switch
             {
@@ -371,7 +394,7 @@ public sealed class Suggestions : IDisposable
                 (_, true) => Engine.SettlementKind.CorrectOther,
             };
         }
-        return settled;
+        return (settled, checks);
     }
 
     /// <summary>Whether any template's thresholds should be chosen again: never chosen, or no longer standing.</summary>
@@ -438,6 +461,8 @@ public sealed class Suggestions : IDisposable
         held.Remove(request.Field);
         var typed = string.IsNullOrEmpty(request.Typed) ? null : request.Typed;
         var proposal = form.Engine.ProposeField(request.Document ?? Unsaved, held, request.Field, typed);
+        if (proposal is not null && request.Roll is { } roll && Recheck.Draw(proposal, roll) is { } probability)
+            return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Check, null, null, probability, proposal.Suggestion!.Value));
         var suggestion = proposal?.Suggestion is { } offered
             ? new Suggestion(
                 offered.Value,

@@ -395,6 +395,47 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
+    public async Task A_field_drawn_to_check_it_is_shown_no_value_and_the_one_held_back_is_said()
+    {
+        var suggestions = await Suggestions.BuildAsync(new VaultSnapshot([Intake], Decided()), Ct);
+        await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
+        var request = new SuggestRequest("intake@1", "담당", Values("""{"요청": "전혀 다른 요청", "부서": "개발"}"""));
+
+        Assert.Equal(
+            new Suggestion(null, SuggestionMode.Check, null, null, Suggestions.Recheck.Rate, "인사"),
+            await suggestions.SuggestAsync(request with { Roll = 0.01 }, Ct));
+        Assert.Equal(new Suggestion("인사", "key", "부서: 개발"), await suggestions.SuggestAsync(request with { Roll = 0.5 }, Ct));
+        // Nothing to show is nothing to hold back: the roll waits for a field that has a value to show.
+        var undecided = new SuggestRequest("intake@1", "담당", Values("""{"요청": "전혀 다른 요청", "부서": "기획"}"""), Roll: 0.01);
+        Assert.Equal(SuggestionMode.Abstain, (await suggestions.SuggestAsync(undecided, Ct))!.Mode);
+    }
+
+    [Fact]
+    public async Task A_value_entered_while_its_suggestion_was_held_back_is_a_check()
+    {
+        var documents = Decided();
+        var checkedDocument = documents[^1].Path;
+        var events = new[]
+        {
+            new SuggestionEvent("2026-10-23T10:00:00.000Z", checkedDocument, "담당", SuggestionMode.Check, "총무", "intake@1", "key", 0.05),
+            new SuggestionEvent("2026-10-23T10:00:00.000Z", documents[^2].Path, "담당", "accept", "인사", "intake@1", "key"),
+        };
+        var suggestions = await Suggestions.BuildAsync(new VaultSnapshot([Intake], documents, events), Ct);
+        await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
+
+        var report = suggestions.Report("intake@1", "담당")!;
+        Assert.Equal(1, report.Checks);
+        Assert.Equal(global::Lowline.Counting.Settled, report.Counting);
+        // A check is a value a person entered: it is confirmed like any other.
+        Assert.Equal(30, suggestions.Confirmed("intake@1", "담당"));
+
+        // It was no decision about a suggestion shown: the curve leaves it out.
+        var curve = Curves.Compute(new VaultSnapshot([Intake], documents, events)).Single();
+        Assert.Equal((1, 0, 0), (curve.Accepted, curve.Corrected, curve.Rejected));
+        Assert.Equal([new SourceCount("key", 1, 1)], curve.BySource);
+    }
+
+    [Fact]
     public async Task Answers_from_a_judgment_the_person_already_confirmed_in_the_document()
     {
         // 승인 goes with 담당, and nothing observed says which 담당 a request has: only a confirmed 담당 decides 승인.

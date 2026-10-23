@@ -70,6 +70,18 @@ describe('weeklyCounts', () => {
     ])
   })
 
+  it('counts values entered while a suggestion was held back apart from decisions, and how many were the value held back', () => {
+    const checks = [
+      { ...event('2026-10-06T11:00:00.000Z', '문서/3.md', '담당', 'check', null, 'intake@1'), source: 'check', probability: 0.05 },
+      { ...event('2026-10-06T12:00:00.000Z', '문서/3.md', '담당', 'check', null, 'intake@1'), value: '인사', probability: 0.05 },
+    ]
+    const withChecks = weeklyCounts([notes, intake, bug], documents, [...events, ...checks])
+    const week = withChecks.counts[2]
+    expect([week.accepted, week.corrected, week.rejected, week.bySource]).toEqual([1, 0, 0, { key: { decided: 1, accepted: 1 } }])
+    expect(week.checked).toEqual({ entered: 2, held: 1 })
+    expect(counts.counts[2]).not.toHaveProperty('checked')
+  })
+
   it('buckets decisions by the similarity the suggestion was made at', () => {
     expect(counts.counts[0].bySimilarity).toEqual({ '0.8': { decided: 1, accepted: 1 }, '0.6': { decided: 1, accepted: 0 } })
     expect(counts.counts[2].bySimilarity).toEqual({})

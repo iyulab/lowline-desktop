@@ -128,8 +128,12 @@ public sealed class SnapshotContractTests
         var document = Assert.Single(vault.Documents);
         Assert.Equal(("doc-1", "intake@2", 1_790_000_000_000L, true), (document.Identity, document.Template, document.Modified, document.Conflicted));
         Assert.Equal("sales", document.Values["부서"].GetString());
-        var e = Assert.Single(vault.Events!);
+        Assert.Equal(2, vault.Events!.Count);
+        var e = vault.Events[0];
         Assert.Equal(("doc-1", "담당", "accept", "장비", "intake@2", "key"), (e.Doc, e.Field, e.Kind, e.Suggested, e.Template, e.Source));
+        // A value entered while its suggestion was held back: the value held back, and the chance it was drawn with.
+        var check = vault.Events[1];
+        Assert.Equal(("고객", SuggestionMode.Check, "customer-2", 0.05), (check.Field, check.Kind, check.Suggested, check.Probability));
     }
 
     [Fact]
@@ -144,6 +148,8 @@ public sealed class SnapshotContractTests
         Assert.Equal("sales", suggest.Values["부서"].GetString());
         // What has been typed into the field so far: the field stays open, narrowed to values that begin with it.
         Assert.Equal("장", suggest.Typed);
+        // The roll drawn for the field before any answer was seen: below the rate, the value is held back to check it.
+        Assert.Equal(0.5, suggest.Roll);
         Assert.Equal(("모니터", "intake@2"), (Body<CaseQuery>("host_search").Query, Body<CaseQuery>("host_search").Template));
         Assert.Equal("문서/2026-10-03-모니터.md", Body<SimilarQuery>("host_similar").Path);
         var projection = Body<ProjectionQuery>("host_projection");

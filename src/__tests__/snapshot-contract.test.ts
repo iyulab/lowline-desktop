@@ -3,7 +3,7 @@
 // the sidecar silently drops (as a choice field's options once were) fails one side or the other.
 import { describe, expect, it, vi } from 'vitest'
 import { newDocument } from '../documents.js'
-import { suggestionEvents } from '../events.js'
+import { checkEvents, suggestionEvents } from '../events.js'
 import { documentSnapshot, templateSnapshot, type VaultSnapshot } from '../projection.js'
 import { host } from '../vault-client.js'
 
@@ -49,14 +49,26 @@ describe('the vault the sidecar is handed', () => {
       new Date('2026-10-03T00:00:10Z'),
       template.ref,
     )
-    const vault: VaultSnapshot = { templates: [template], documents: [{ ...document, conflicted: true, outside: true, proposed: ['담당'] }], events }
+    // A value entered while its suggestion was held back to check it.
+    const checks = checkEvents(
+      new Map([['고객', { held: 'customer-2', probability: 0.05, shown: new Date('2026-10-03T00:00:01Z'), filled: ['요청'] }]]),
+      { 고객: 'customer-1' },
+      document.id,
+      new Date('2026-10-03T00:00:10Z'),
+      template.ref,
+    )
+    const vault: VaultSnapshot = {
+      templates: [template],
+      documents: [{ ...document, conflicted: true, outside: true, proposed: ['담당'] }],
+      events: [...events, ...checks],
+    }
     await expect(JSON.stringify(vault, null, 2) + '\n').toMatchFileSnapshot('../../src-host/Lowline.Host.Tests/ui-snapshot.json')
   })
 })
 
 describe('the questions the sidecar is asked', () => {
   it('are the bodies the sidecar reads', async () => {
-    await host.suggest('intake@2', '담당', { 요청: '모니터가 깜빡여요', 부서: 'sales', 태그: ['급함'] }, 'doc-1', '장')
+    await host.suggest('intake@2', '담당', { 요청: '모니터가 깜빡여요', 부서: 'sales', 태그: ['급함'] }, 'doc-1', '장', 0.5)
     await host.search('모니터', 'intake@2')
     await host.similar('문서/2026-10-03-모니터.md')
     await host.projection('intake@2', [{ column: '부서', op: 'contains', value: 'sales' }])

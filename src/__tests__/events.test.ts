@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { charactersTyped, fillOrder, parseEvents, parsePresentations, presentation, suggestionEvents, type Offer } from '../events.js'
+import {
+  charactersTyped,
+  checkEvents,
+  fillOrder,
+  parseEvents,
+  parsePresentations,
+  presentation,
+  suggestionEvents,
+  type Check,
+  type Offer,
+} from '../events.js'
 import type { Suggestion } from '../projection.js'
 
 const suggestion = (value: string): Suggestion => ({ value, mode: 'key', source: '부서: 영업' })
@@ -54,6 +64,41 @@ describe('suggestionEvents', () => {
     const [taken] = suggestionEvents(chapter, new Set(), { 코드: '3203' }, 'd', at)
     expect([taken.kind, taken.source, taken.suggested, taken.value]).toEqual(['accept', 'coarse', '32', '3203'])
     expect(suggestionEvents(chapter, new Set(), { 코드: '5210' }, 'd', at)[0].kind).toBe('correct')
+  })
+})
+
+describe('checkEvents', () => {
+  const checks = new Map<string, Check>([
+    ['담당', { held: '장비', probability: 0.05, shown, filled: ['요청'] }],
+    ['긴급', { held: '예', probability: 0.05, shown, filled: [] }],
+  ])
+
+  it('records what was entered in a field whose suggestion was held back, with the value held back and its chance', () => {
+    const events = checkEvents(checks, { 담당: '인사' }, '문서/a.md', at, 'intake@1')
+    expect(events).toEqual([
+      {
+        at: '2026-09-28T12:00:00.000Z',
+        doc: '문서/a.md',
+        template: 'intake@1',
+        field: '담당',
+        kind: 'check',
+        suggested: '장비',
+        value: '인사',
+        source: 'check',
+        recall: null,
+        similarity: null,
+        filled: ['요청'],
+        shownAt: '2026-09-28T11:59:00.000Z',
+        probability: 0.05,
+      },
+    ])
+    // A field left empty settled nothing.
+    expect(checkEvents(checks, {}, '문서/a.md', at)).toEqual([])
+  })
+
+  it('is read back from the event file', () => {
+    const events = checkEvents(checks, { 담당: '장비' }, '문서/a.md', at)
+    expect(parseEvents(events.map((e) => JSON.stringify(e)).join('\n'))).toEqual(events)
   })
 })
 

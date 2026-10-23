@@ -70,6 +70,7 @@ const curve: Shape<FieldCurve> = {
     inside: { precision: 'required', answerRate: 'required', answered: 'required', lookups: 'required', target: 'required' },
   },
   rechoosing: 'required',
+  counting: { presence: 'optional', inside: { counting: 'required', checks: 'required', countOnFrom: 'required', rate: 'required' } },
   similar: {
     presence: 'optional',
     inside: {
@@ -98,7 +99,14 @@ const curve: Shape<FieldCurve> = {
   },
 }
 
-const suggestion: Shape<Suggestion> = { value: 'required', mode: 'required', source: 'required', reason: 'optional' }
+const suggestion: Shape<Suggestion> = {
+  value: 'required',
+  mode: 'required',
+  source: 'required',
+  reason: 'optional',
+  probability: 'optional',
+  held: 'optional',
+}
 
 const hit: Shape<CaseHit> = { path: 'required', template: 'required', text: 'required', conflicted: 'required', score: 'required' }
 
@@ -157,9 +165,10 @@ const answers = {
 /** The words the UI branches on — every one its types allow, as the compiler holds them to. */
 const words = {
   // `proposed` is the app's own — a value read from the document — and never the sidecar's.
-  mode: { key: true, coarse: true, memory: true, abstain: true, rejected: true } satisfies Record<Exclude<Suggestion['mode'], 'proposed'>, true>,
+  mode: { key: true, coarse: true, memory: true, abstain: true, rejected: true, check: true } satisfies Record<Exclude<Suggestion['mode'], 'proposed'>, true>,
   reason: { 'no-history': true, 'below-target': true, undecided: true } satisfies Record<Abstention, true>,
   whyNoReplay: { few: true, pending: true, 'below-target': true } satisfies Record<NonNullable<FieldCurve['whyNoReplay']>, true>,
+  counting: { settled: true, unprompted: true } satisfies Record<NonNullable<FieldCurve['counting']>['counting'], true>,
   probeFailure: {
     invalid: true,
     unauthorized: true,

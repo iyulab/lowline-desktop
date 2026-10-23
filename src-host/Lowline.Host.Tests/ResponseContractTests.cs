@@ -209,6 +209,8 @@ public sealed class ResponseContractTests
                 await Post("/suggest", new { template = "intake@1", field = "담당", values = observed }),
                 await Post("/suggest", new { template = "intake@1", field = "긴급", values = observed }),
                 await Post("/suggest", new { template = "intake@1", field = "담당", values = observed, document = "문서/1.md" }),
+                // Drawn to check it: the value it would be shown is held back.
+                await Post("/suggest", new { template = "intake@1", field = "담당", values = observed, roll = 0 }),
                 await Post("/suggest", new { template = "chapters@1", field = "코드", values = new Dictionary<string, object> { ["장비"] = "펌프" } }),
                 await Post("/suggest", new { template = "kinds@1", field = "분류", values = new Dictionary<string, object> { ["내용"] = "모니터 화면 깜빡임 또" } })),
             ["search"] = await Post("/search", new CaseQuery("모니터", Max: 1)),
@@ -249,6 +251,7 @@ public sealed class ResponseContractTests
                 ["mode"] = Words(typeof(SuggestionMode)),
                 ["reason"] = Words(typeof(Abstention)),
                 ["whyNoReplay"] = Words(typeof(NoReplay), Abstention.BelowTarget),
+                ["counting"] = Words(typeof(CountedOn)),
                 ["probeFailure"] = Words(typeof(ModelFailure)),
                 ["localPhase"] = Words(typeof(LocalPhase)),
                 ["localGetting"] = Words(typeof(LocalGetting)),

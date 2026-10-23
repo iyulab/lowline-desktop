@@ -19,12 +19,33 @@ public sealed record CurvePoint(int N, string At, double Rate);
 /// <see cref="Similar"/> says how similar documents did on the lookups values settled alongside left, once a strength was
 /// chosen for them — and whether they are offered. <see cref="Rechoosing"/>: the field's history has grown or shrunk by a
 /// tenth since its strengths were chosen and they are being chosen again — what is shown is from before, until they are.
+/// A value entered while the field's suggestion was held back to check it is not a decision about a suggestion: it is in
+/// none of the counts above, and <see cref="Counting"/> says how checks bear on the field's precision.
 /// </summary>
 public sealed record FieldCurve(
     string Template, string Field, int Accepted, int Corrected, int Rejected, IReadOnlyList<CurvePoint> Points,
     FieldReplay? Replay = null, string? WhyNoReplay = null, FieldShortfall? Closest = null,
     IReadOnlyList<SourceCount>? BySource = null, IReadOnlyList<TypedReplay>? Typing = null, ClassReplay? Coarse = null,
-    SimilarReplay? Similar = null, bool Rechoosing = false);
+    SimilarReplay? Similar = null, bool Rechoosing = false, FieldCounting? Counting = null);
+
+/// <summary>
+/// What a judgment field's precision was counted on when its strengths were last chosen: <see cref="Checks"/> of its
+/// saved documents settled it while its suggestion was held back to check it, and until <see cref="CountOnFrom"/> have
+/// (<see cref="Suggestions.ChecksToCountOn"/>) every value a person settled counts (<c>settled</c>) — after, only values
+/// entered with nothing in view and checks (<c>unprompted</c>), so a suggestion taken is not counted as right because it
+/// was taken. <see cref="Rate"/>: how often a value the field would be shown is held back.
+/// </summary>
+public sealed record FieldCounting(string Counting, int Checks, int CountOnFrom, double Rate);
+
+/// <summary>What a judgment field's precision is counted on (<see cref="FieldCounting.Counting"/>).</summary>
+public static class CountedOn
+{
+    /// <summary>Every value a person settled, taken from a suggestion or not — until enough checks gather.</summary>
+    public const string Settled = "settled";
+
+    /// <summary>Values entered with nothing in view, and checks.</summary>
+    public const string Unprompted = "unprompted";
+}
 
 /// <summary>
 /// How a field's saved documents did when typed from their start, with <see cref="Characters"/> typed, on the replay that
@@ -111,7 +132,9 @@ public static class Curves
     {
         // The curve is how the suggestions made here fared; values another program proposed are counted only by source.
         var all = events.OrderBy(e => e.At, StringComparer.Ordinal).ToList();
-        var ordered = all.Where(e => e.Source is not (SuggestionSource.Proposed or SuggestionMode.Coarse)).ToList();
+        var ordered = all
+            .Where(e => e.Kind != SuggestionMode.Check && e.Source is not (SuggestionSource.Proposed or SuggestionMode.Coarse))
+            .ToList();
         var points = new List<CurvePoint>(ordered.Count);
         for (var i = 0; i < ordered.Count; i++)
         {
@@ -127,7 +150,7 @@ public static class Curves
             ordered.Count(e => e.Kind == "reject"),
             points,
             BySource: all
-                .Where(e => e.Source is not null)
+                .Where(e => e.Kind != SuggestionMode.Check && e.Source is not null)
                 .GroupBy(e => e.Source!, StringComparer.Ordinal)
                 .OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => new SourceCount(g.Key, g.Count(), g.Count(e => e.Kind == "accept")))

@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { q } from '../app.mjs'
@@ -282,5 +283,41 @@ export default {
     const legend = await app.cdp.evaluate(`__e2e.all('details.counts li').map((li) => li.textContent.trim())`)
     assert.ok(legend[0].startsWith('서식 1 = 접수'), legend[0])
     await app.noAlert()
+  },
+
+  async 'holds a suggestion back now and then to check it, and records what was entered instead'(app, vault) {
+    const before = new Set(await documentsIn(vault))
+    const eventsBefore = (await events(vault)).length
+    await app.holdBack(true)
+    try {
+      await app.newDocument(INTAKE)
+      await app.cdp.waitFor(`__e2e.one('[data-field-name="요청"]')?.textContent === ''`, 'an empty form')
+      await app.fill('[data-field-name="요청"]', '프린터 용지가 걸려요')
+      await app.choose('select[name="부서"]', '영업')
+      // Drawn to check it: no value shown — not even a hint of it — and why is said, quietly.
+      const note = await app.cdp.waitFor(
+        `__e2e.all('[data-formdown-note="담당"]').map((el) => el.textContent.replace(/\\s+/g, ' ').trim())[0]`,
+        'the note that 담당 is a check',
+        { timeoutMs: 15_000 },
+      )
+      assert.match(note, /^확인용 — 이번에는 제안 없이 직접 입력해 주세요/)
+      assert.equal(await app.cdp.evaluate(`__e2e.all('.formdown-suggestion').length`), 0, 'nothing to take')
+      assert.equal(await app.value('select[name="담당"]'), '', 'nothing filled in')
+      await app.choose('select[name="담당"]', '총무')
+      await app.click('dc-button', '저장')
+      await app.status('저장했습니다')
+      await app.noAlert()
+
+      const [checked] = (await events(vault)).slice(eventsBefore)
+      assert.deepEqual(
+        { field: checked.field, kind: checked.kind, suggested: checked.suggested, value: checked.value, probability: checked.probability },
+        { field: '담당', kind: 'check', suggested: '장비', value: '총무', probability: 0.05 },
+        'the value entered, with the one held back and the chance it was drawn with',
+      )
+      assert.equal((await events(vault)).length, eventsBefore + 1, 'one check, no decision about a suggestion')
+    } finally {
+      await app.holdBack(false)
+      for (const name of (await documentsIn(vault)).filter((n) => !before.has(n))) await rm(join(vault, '문서', name))
+    }
   },
 }

@@ -23,6 +23,12 @@ export interface WeekCounts {
   accepted: number
   corrected: number
   rejected: number
+  /**
+   * Values entered while the field's suggestion was held back to check it, and how many of them were the value held
+   * back — no decision about a suggestion, so in none of the counts above. Added within format 1; absent in a week
+   * with none.
+   */
+  checked?: { entered: number; held: number }
   /** Decisions by the similarity the suggestion was made at, in steps of 0.1 (`"0.6"` = 0.6 to under 0.7). */
   bySimilarity: Record<string, { decided: number; accepted: number }>
   /**
@@ -182,6 +188,13 @@ export function weeklyCounts(
     // An event names its template; older ones are placed through their document, if it is still there.
     const cell = cellOf(event.template ?? templateOf.get(event.doc), event.field, event.at)
     if (!cell) continue
+    if (event.kind === 'check') {
+      const checked = (cell.checked ??= { entered: 0, held: 0 })
+      checked.entered++
+      if (event.value !== null && (Array.isArray(event.value) ? event.value.join(', ') : String(event.value)) === event.suggested)
+        checked.held++
+      continue
+    }
     if (event.kind === 'accept') cell.accepted++
     else if (event.kind === 'correct') cell.corrected++
     else cell.rejected++

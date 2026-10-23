@@ -248,7 +248,13 @@
       "typing": null,
       "coarse": null,
       "similar": null,
-      "rechoosing": false
+      "rechoosing": false,
+      "counting": {
+        "counting": "settled",
+        "checks": 0,
+        "countOnFrom": 0,
+        "rate": 0
+      }
     },
     {
       "template": "intake@1",
@@ -270,7 +276,13 @@
       "typing": null,
       "coarse": null,
       "similar": null,
-      "rechoosing": false
+      "rechoosing": false,
+      "counting": {
+        "counting": "settled",
+        "checks": 0,
+        "countOnFrom": 0,
+        "rate": 0
+      }
     },
     {
       "template": "faults@1",
@@ -299,7 +311,13 @@
       "typing": null,
       "coarse": null,
       "similar": null,
-      "rechoosing": false
+      "rechoosing": false,
+      "counting": {
+        "counting": "settled",
+        "checks": 0,
+        "countOnFrom": 0,
+        "rate": 0
+      }
     },
     {
       "template": "handover@1",
@@ -330,7 +348,13 @@
       ],
       "coarse": null,
       "similar": null,
-      "rechoosing": false
+      "rechoosing": false,
+      "counting": {
+        "counting": "settled",
+        "checks": 0,
+        "countOnFrom": 0,
+        "rate": 0
+      }
     },
     {
       "template": "chapters@1",
@@ -361,7 +385,13 @@
         "lookups": 0
       },
       "similar": null,
-      "rechoosing": false
+      "rechoosing": false,
+      "counting": {
+        "counting": "settled",
+        "checks": 0,
+        "countOnFrom": 0,
+        "rate": 0
+      }
     },
     {
       "template": "kinds@1",
@@ -388,7 +418,13 @@
         "offered": true,
         "offeredFrom": 0
       },
-      "rechoosing": false
+      "rechoosing": false,
+      "counting": {
+        "counting": "settled",
+        "checks": 0,
+        "countOnFrom": 0,
+        "rate": 0
+      }
     }
   ],
   "suggestions": [
@@ -396,31 +432,49 @@
       "value": "장비",
       "mode": "key",
       "source": "부서: 영업",
-      "reason": null
+      "reason": null,
+      "probability": null,
+      "held": null
     },
     {
       "value": null,
       "mode": "abstain",
       "source": null,
-      "reason": "below-target"
+      "reason": "below-target",
+      "probability": null,
+      "held": null
     },
     {
       "value": null,
       "mode": "rejected",
       "source": null,
-      "reason": null
+      "reason": null,
+      "probability": null,
+      "held": null
+    },
+    {
+      "value": null,
+      "mode": "check",
+      "source": null,
+      "reason": null,
+      "probability": 0,
+      "held": "장비"
     },
     {
       "value": "32",
       "mode": "coarse",
       "source": "장비: 펌프",
-      "reason": null
+      "reason": null,
+      "probability": null,
+      "held": null
     },
     {
       "value": "화면",
       "mode": "memory",
       "source": "분류/001.md",
-      "reason": null
+      "reason": null,
+      "probability": null,
+      "held": null
     }
   ],
   "search": [
@@ -694,7 +748,8 @@
       "memory",
       "abstain",
       "rejected",
-      "coarse"
+      "coarse",
+      "check"
     ],
     "reason": [
       "no-history",
@@ -705,6 +760,10 @@
       "few",
       "pending",
       "below-target"
+    ],
+    "counting": [
+      "settled",
+      "unprompted"
     ],
     "probeFailure": [
       "invalid",

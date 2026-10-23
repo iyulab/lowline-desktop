@@ -81,14 +81,16 @@ public sealed record DocumentSnapshot(
 }
 
 /// <summary>
-/// What a person did with a suggestion (<c>accept</c>, <c>correct</c> or <c>reject</c>), read from the
-/// vault's event files. <see cref="Doc"/> is the document's <see cref="DocumentSnapshot.Identity"/>, <see cref="Template"/> its
+/// What a person did with a suggestion (<c>accept</c>, <c>correct</c> or <c>reject</c>) — or the value they entered in a
+/// field whose suggestion was held back to check it (<c>check</c>, with the <see cref="Probability"/> it was drawn with and
+/// the held-back value as <see cref="Suggested"/>) — read from the vault's event files. <see cref="Doc"/> is the document's <see cref="DocumentSnapshot.Identity"/>, <see cref="Template"/> its
 /// template (absent in events recorded before it was written down), <see cref="Source"/> where the suggestion came
 /// from — <c>key</c> (a value settled alongside one the document has), <c>memory</c> (a similar record), <c>coarse</c> or
 /// <c>proposed</c> — as the event file records it.
 /// </summary>
 public sealed record SuggestionEvent(
-    string At, string Doc, string Field, string Kind, string Suggested, string? Template = null, string? Source = null);
+    string At, string Doc, string Field, string Kind, string Suggested, string? Template = null, string? Source = null,
+    double? Probability = null);
 
 /// <summary>
 /// Everything the sidecar knows about a vault: what the shell read and the UI parsed — templates,
@@ -551,7 +553,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
                     Closest = _suggestions?.Report(c.Template, c.Field)?.Closest is { } closest
                         ? new FieldShortfall(closest.Precision, closest.AnswerRate, closest.Answered, closest.Lookups, Suggestions.TargetPrecision)
                         : null,
-                }).Select(Rechoosing)];
+                }).Select(Counted).Select(Rechoosing)];
         }
         finally
         {
@@ -597,6 +599,16 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
                 .Select((choice, i) => choice is null ? null
                     : new TypedReplay(i + 1, choice.Threshold, choice.Precision, choice.AnswerRate, choice.Answered, choice.Lookups))
                 .OfType<TypedReplay>()],
+        }
+        : curve;
+
+    /// <summary>What the field's precision was counted on when its strengths were last chosen; unchanged until they were.</summary>
+    private FieldCurve Counted(FieldCurve curve) => _suggestions?.Report(curve.Template, curve.Field) is { } report
+        ? curve with
+        {
+            Counting = new FieldCounting(
+                report.Counting == global::Lowline.Counting.Unprompted ? CountedOn.Unprompted : CountedOn.Settled, report.Checks,
+                Suggestions.ChecksToCountOn, Suggestions.Recheck.Rate),
         }
         : curve;
 

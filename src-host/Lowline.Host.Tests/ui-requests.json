@@ -10,7 +10,8 @@
       ]
     },
     "document": "doc-1",
-    "typed": "장"
+    "typed": "장",
+    "roll": 0.5
   },
   "host_search": {
     "query": "모니터",

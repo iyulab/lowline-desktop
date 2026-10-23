@@ -5,7 +5,11 @@
 import type { FieldValue, FieldValues } from './documents.js'
 import type { Suggestion } from './projection.js'
 
-export type EventKind = 'accept' | 'correct' | 'reject'
+/**
+ * `accept` · `correct` · `reject`: what became of a suggestion shown. `check`: the value entered in a field whose
+ * suggestion was held back to check it — `suggested` is the value held back, `probability` the chance it was drawn with.
+ */
+export type EventKind = 'accept' | 'correct' | 'reject' | 'check'
 
 /** One line of `.lowline/events/<device>.jsonl`. */
 export interface SuggestionEvent {
@@ -48,6 +52,8 @@ export interface SuggestionEvent {
    * without it. A value shown before typing and taken after two characters has `typed` 0 and `decidedTyped` 2.
    */
   decidedTyped?: number
+  /** For a `check`: the chance the field was drawn with — what the value entered is weighted by. */
+  probability?: number
 }
 
 /** A suggestion as it was shown in a draft, and what the person did with it before saving. */
@@ -133,7 +139,50 @@ export function suggestionEvents(
   return events
 }
 
-const KINDS: readonly string[] = ['accept', 'correct', 'reject']
+/**
+ * The checks a save confirms: one per field drawn to check it that the person filled in. A field left empty settled
+ * nothing, and says nothing.
+ */
+export function checkEvents(
+  checks: ReadonlyMap<string, Check>,
+  saved: FieldValues,
+  doc: string,
+  at: Date,
+  template?: string,
+): SuggestionEvent[] {
+  const events: SuggestionEvent[] = []
+  for (const [field, { held, probability, shown, filled }] of checks) {
+    const value = saved[field]
+    if (isEmpty(value)) continue
+    events.push({
+      at: at.toISOString(),
+      doc,
+      ...(template ? { template } : {}),
+      field,
+      kind: 'check',
+      suggested: held,
+      value: value!,
+      source: 'check',
+      recall: null,
+      similarity: null,
+      filled,
+      shownAt: shown.toISOString(),
+      probability,
+    })
+  }
+  return events
+}
+
+/** A field of the draft drawn to check it: the value held back, the chance it was drawn with, and when. */
+export interface Check {
+  held: string
+  probability: number
+  shown: Date
+  /** See {@link SuggestionEvent.filled}. */
+  filled: string[]
+}
+
+const KINDS: readonly string[] = ['accept', 'correct', 'reject', 'check']
 
 /**
  * The events in one device's event file. A line that is not an event — cut short by a sync

@@ -396,6 +396,13 @@ export interface FieldCurve {
    * what `replay`, `similar` and the rest say is from before until they are.
    */
   rechoosing: boolean
+  /**
+   * What the field's precision was counted on when its strengths were last chosen: `checks` of its documents settled it
+   * while its suggestion was held back to check it (one in `1 / rate`), and until `countOnFrom` have, every value a person
+   * settled counts (`settled`) — after, only values entered with nothing in view and checks (`unprompted`). Absent or null
+   * until its strengths were first chosen.
+   */
+  counting?: { counting: 'settled' | 'unprompted'; checks: number; countOnFrom: number; rate: number } | null
   similar?: {
     threshold: number
     precision: number
@@ -445,9 +452,11 @@ export interface Suggestion {
    * as the template's `lowline.coarse` counts them — kept to the same promise · `memory`: the value a similar document
    * confirmed, where none settled alongside answered — only on a field whose replay of similar documents kept the target
    * over enough answers · `abstain` · `rejected` · `proposed`: the value another program wrote into the document as a
-   * suggestion (`lowline.proposed` — the app's own, never the sidecar's).
+   * suggestion (`lowline.proposed` — the app's own, never the sidecar's) · `check`: no value — the field was drawn to check
+   * it, and the value it would be shown is held back (`held`) so that what the person enters counts as entered with
+   * nothing in view.
    */
-  mode: 'key' | 'coarse' | 'memory' | 'abstain' | 'rejected' | 'proposed'
+  mode: 'key' | 'coarse' | 'memory' | 'abstain' | 'rejected' | 'proposed' | 'check'
   /**
    * What it rests on: the other field's value (`부서: 영업`) — for a similar document's value, that document's id — or, for a
    * proposed value, who wrote it (empty: unsaid).
@@ -455,4 +464,8 @@ export interface Suggestion {
   source: string | null
   /** Why there is none, when `value` is null and the field was asked (`abstain`). */
   reason?: Abstention | null
+  /** For `check`: the chance the field was drawn with. */
+  probability?: number | null
+  /** For `check`: the value held back — recorded with what the person enters, never shown. */
+  held?: string | null
 }

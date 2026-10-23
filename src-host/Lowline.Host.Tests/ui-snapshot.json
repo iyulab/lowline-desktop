@@ -204,6 +204,23 @@
       "decidedAt": "2026-10-03T00:00:05.000Z",
       "typed": 0,
       "decidedTyped": 0
+    },
+    {
+      "at": "2026-10-03T00:00:10.000Z",
+      "doc": "doc-1",
+      "template": "intake@2",
+      "field": "고객",
+      "kind": "check",
+      "suggested": "customer-2",
+      "value": "customer-1",
+      "source": "check",
+      "recall": null,
+      "similarity": null,
+      "filled": [
+        "요청"
+      ],
+      "shownAt": "2026-10-03T00:00:01.000Z",
+      "probability": 0.05
     }
   ]
 }

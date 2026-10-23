@@ -145,6 +145,8 @@ export const strings = {
           ? `지금 입력한 값들로는 함께 확정된 값이 정해지지 않아 비워 둡니다.`
           : `확정한 ${learned}건으로는 함께 확정된 값이 목표만큼 맞는다는 것을 아직 보이지 못해 제안하지 않습니다.`) +
         (cases ? ` 아래 '비슷한 사례'에서 다른 문서가 확정한 값을 볼 수 있습니다.` : ''),
+  // The field was drawn to check it (one in twenty): nothing is shown, and what is entered teaches how often it is right.
+  judgmentCheck: '확인용 — 이번에는 제안 없이 직접 입력해 주세요. 입력한 값으로 제안이 얼마나 맞는지 잽니다.',
   // Asked after each pause in typing, so the next pause asks again.
   judgmentUnavailable: '이 칸의 제안을 준비하지 못했습니다 — 입력을 이어 가면 다시 묻습니다.',
   // The sidecar did not start: filling in and saving do not need it.
@@ -303,6 +305,12 @@ export const strings = {
         : '저장된 기록을 순서대로 다시 물어 제안 기준을 고르는 중입니다 — 끝나면 여기에 나타납니다.',
   // Shown after what the field's replay said before, while one over its grown history chooses again.
   learningRechoosing: '(기록이 늘어 다시 고르는 중 — 끝나면 바뀝니다)',
+  // One in 1/rate suggestions is held back to check it; until enough checks gather, every confirmed value counts.
+  learningCounting: ({ counting, checks, countOnFrom, rate }: { counting: 'settled' | 'unprompted'; checks: number; countOnFrom: number; rate: number }) =>
+    `확인용(제안 없이 직접 입력 — ${Math.round(1 / rate)}번에 한 번) ${checks}건. ` +
+    (counting === 'unprompted'
+      ? `확인용이 ${countOnFrom}건 모여, 맞는 정도는 제안 없이 입력한 값과 확인용으로만 셉니다 — 제안을 받았다고 맞은 것으로 치지 않습니다.`
+      : `${countOnFrom}건이 모이기 전까지는 확정한 값을 모두 셉니다 — 제안을 받은 값도 맞은 것으로 칩니다.`),
   learningSimilarOnly: '함께 확정된 값으로는 저장된 기록을 순서대로 다시 물어도 목표만큼 맞히는 기준이 없습니다 — 이 칸은 아래의 비슷한 기록으로만 제안합니다.',
   learningTitle: (template: string, field: string) => `${template} · ${field}`,
   // Counted over fields that got a suggestion; a field the memory left blank is not in it.

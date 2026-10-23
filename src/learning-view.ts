@@ -291,6 +291,12 @@ export class LlLearning extends LitElement {
     }
   }
 
+  /** What the field's precision is counted on, and the checks that decide it. */
+  private renderCounting(curve: FieldCurve) {
+    const counting = curve.counting
+    return counting ? html`<p class="secondary counting">${strings.learningCounting(counting)}</p>` : nothing
+  }
+
   private renderCurve(curve: FieldCurve) {
     const label = this.label(curve)
     const points = curve.points
@@ -305,6 +311,7 @@ export class LlLearning extends LitElement {
             ? strings.learningReplay(curve.replay)
             : this.noReplay(curve)}${curve.rechoosing ? ` ${strings.learningRechoosing}` : nothing}
         </p>
+        ${this.renderCounting(curve)}
         ${this.renderDependsOn(curve)}${this.renderSimilar(curve)}${this.renderTyping(curve)}${this.renderClass(curve)}
       </section>`
     const last = points[points.length - 1]
@@ -329,6 +336,7 @@ export class LlLearning extends LitElement {
           ? strings.learningReplay(curve.replay)
           : this.noReplay(curve)}${curve.rechoosing ? ` ${strings.learningRechoosing}` : nothing}
       </p>
+      ${this.renderCounting(curve)}
       ${this.renderDependsOn(curve)}${this.renderSimilar(curve)}${this.renderTyping(curve)}${this.renderClass(curve)}
       ${this.renderChart(curve, label)}
       <details>

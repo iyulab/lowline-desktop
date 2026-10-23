@@ -1,7 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 import type { FieldStates } from '@formdown/ui'
 import { holdsValue, isEmpty, type FieldValues } from './documents.js'
-import { charactersTyped, fillOrder, presentation, suggestionEvents, type Offer } from './events.js'
+import { charactersTyped, checkEvents, fillOrder, presentation, suggestionEvents, type Check, type Offer } from './events.js'
 import type { Abstention, Suggestion, TemplateSnapshot } from './projection.js'
 import { strings } from './strings.js'
 import { host, vault } from './vault-client.js'
@@ -75,6 +75,24 @@ export class JudgmentController implements ReactiveController {
    * saved the rejection is an event, and the sidecar keeps it out of the document after reopening.
    */
   private rejected = new Set<string>()
+  /**
+   * A number drawn once for each judgment field of the open draft, the first time it is asked about — before any answer
+   * is seen. The sidecar holds a field's value back to check it when this falls below its rate.
+   */
+  private rolls = new Map<string, number>()
+  /**
+   * Fields drawn to check them: shown no value, asked about no more while the draft is open. What the person enters is
+   * recorded as a check when the document is saved — the field's precision counts it as entered with nothing in view.
+   */
+  checks = new Map<string, Check>()
+  /**
+   * Draws a field's roll, uniformly from [0, 1). End-to-end scenarios fix it through the page's `lowlineRoll`, so whether
+   * a suggestion is held back is theirs to say.
+   */
+  private roll(): number {
+    const fixed = (globalThis as { lowlineRoll?: () => number }).lowlineRoll
+    return fixed ? fixed() : Math.random()
+  }
   private suggestTimer?: ReturnType<typeof setTimeout>
   /** Counts requests for suggestions; only the latest one's answers are shown. */
   private suggestRun = 0
@@ -102,6 +120,8 @@ export class JudgmentController implements ReactiveController {
     this.filled = []
     this.typing = new Set()
     this.rejected = new Set()
+    this.rolls = new Map()
+    this.checks = new Map()
     this.proposed = new Map()
     this.marked = []
     this.shownAsIs = new Map()
@@ -249,11 +269,13 @@ export class JudgmentController implements ReactiveController {
       const at = new Date()
       const events = suggestionEvents(this.offered, this.rejected, values, id, at, this.template?.ref)
       const classes = suggestionEvents(this.classes, new Set(), values, id, at, this.template?.ref)
+      const checks = checkEvents(this.checks, values, id, at, this.template?.ref)
+      for (const event of checks) this.checks.delete(event.field)
       // Each event is recorded once; a rejection stays in force while the draft is open. A suggestion
       // the save said nothing about is still the one showing, not a new presentation.
       for (const event of events) this.offered.delete(event.field)
       this.classes = new Map()
-      for (const event of [...classes, ...events]) await vault.recordEvent(event)
+      for (const event of [...classes, ...events, ...checks]) await vault.recordEvent(event)
     }
     this.typing = new Set()
     // The file holds marks only on the values not yet decided.
@@ -273,6 +295,7 @@ export class JudgmentController implements ReactiveController {
       const note = s.mode === 'coarse' ? strings.suggestionClass(this.source.sourceOf(s)) : this.source.sourceOf(s)
       states[field] = { suggestions: [s.value!], note, decline: strings.reject }
     }
+    for (const field of this.checks.keys()) states[field] = { note: strings.judgmentCheck }
     for (const [field, reason] of this.abstained) {
       states[field] = {
         note:
@@ -298,7 +321,10 @@ export class JudgmentController implements ReactiveController {
     const next = new Map<string, Suggestion>()
     const abstained = new Map<string, Abstention | null | 'unavailable'>()
     const typedWhenAsked = new Map<string, number>()
+    const drawn = new Map<string, Suggestion>()
     for (const field of template.suggest) {
+      // Drawn to check it: its value stays held back while the draft is open.
+      if (this.checks.has(field)) continue
       // A field being typed into is asked with what has been typed, as an open field; one holding a value otherwise
       // is settled, and not asked about.
       const typed = this.typing.has(field) && typeof values[field] === 'string' ? (values[field] as string) : undefined
@@ -308,9 +334,15 @@ export class JudgmentController implements ReactiveController {
       try {
         const document = this.source.draft()?.id
         const { [field]: _, ...others } = values
-        const suggestion = await host.suggest(template.ref, field, typed === undefined ? values : others, document, typed)
+        let roll = this.rolls.get(field)
+        if (roll === undefined) this.rolls.set(field, (roll = this.roll()))
+        const suggestion = await host.suggest(template.ref, field, typed === undefined ? values : others, document, typed, roll)
         // Declined here, now or before it was last saved: not offered again, and nothing to explain.
         if (this.rejected.has(field) || suggestion.mode === 'rejected') continue
+        if (suggestion.mode === 'check') {
+          drawn.set(field, suggestion)
+          continue
+        }
         // While typing, only a value that adds to the text is worth showing, and no reason is given for there being none.
         if (typed !== undefined) {
           if (suggestion.value !== null && suggestion.value !== typed) next.set(field, suggestion)
@@ -325,8 +357,12 @@ export class JudgmentController implements ReactiveController {
     if (run !== this.suggestRun || this.template !== template) return
     this.suggestions = next
     this.abstained = abstained
-    this.host.requestUpdate()
     const filled = fillOrder(this.filled, values)
+    for (const [field, { held, probability }] of drawn) {
+      if (typeof held === 'string' && typeof probability === 'number')
+        this.checks.set(field, { held, probability, shown: new Date(), filled })
+    }
+    this.host.requestUpdate()
     for (const [field, suggestion] of next) {
       // Asked again after each pause in typing: the same value still showing is the same presentation.
       if (this.offered.get(field)?.suggestion.value === suggestion.value) continue
