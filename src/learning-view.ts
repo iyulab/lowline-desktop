@@ -60,6 +60,10 @@ export class LlLearning extends LitElement {
     p.replay {
       margin: 0;
     }
+    /* A line of prose stays readable however wide the window: the replay and what it is counted on run long. */
+    p.secondary {
+      max-width: 72ch;
+    }
     svg {
       width: 100%;
       height: auto;
