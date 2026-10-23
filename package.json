@@ -1,6 +1,6 @@
 {
   "name": "lowline",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "A local form editor that learns from your confirmations",
   "license": "AGPL-3.0-only",
