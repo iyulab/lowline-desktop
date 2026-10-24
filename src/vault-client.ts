@@ -163,6 +163,38 @@ export function onNavigationRefused(onRefused: (address: string) => void): Promi
 export const openLink = (address: string) => invoke<boolean>('open_link', { url: address })
 
 /**
+ * The saves of the file a view has open, for an outside change to tell whether one overlapped it. A notice handled
+ * while the view was saving, or concluded about a file a save has written since the notice began, is about a file the
+ * save has replaced — a removal it reports the save has undone — so the view leaves the screen to the save.
+ */
+export class Saves {
+  private ticks = 0
+  private running = 0
+
+  /** Runs `save`, marking it as overlapping every notice handled meanwhile. */
+  async run<T>(save: () => Promise<T>): Promise<T> {
+    this.ticks++
+    this.running++
+    try {
+      return await save()
+    } finally {
+      this.running--
+      this.ticks++
+    }
+  }
+
+  /** A mark to take before handling a notice. */
+  mark(): number {
+    return this.ticks
+  }
+
+  /** Whether no save ran since `mark` was taken, and none is running. */
+  quietSince(mark: number): boolean {
+    return this.running === 0 && this.ticks === mark
+  }
+}
+
+/**
  * Whether a change removed `path`. When changes were lost there is no list of removals, so the
  * vault's listing as it is now — `listed`, read after the change — decides.
  */

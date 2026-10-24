@@ -31,7 +31,7 @@ import { cellText, referenceTargets, type CaseHit, type DocumentSnapshot, type S
 import { namedEvidence, referenceChoices, referringDocuments, referringTable } from './references.js'
 import { strings } from './strings.js'
 import type { UnlistenFn } from '@tauri-apps/api/event'
-import { failureKind, host, removedBy, touches, vault, type VaultChanged, type VaultEntry, type VaultInfo } from './vault-client.js'
+import { failureKind, host, removedBy, Saves, touches, vault, type VaultChanged, type VaultEntry, type VaultInfo } from './vault-client.js'
 import { readVault, syncVault, onVaultChanged } from './vault-snapshot.js'
 import { documentsOf, newestFirst, type TemplateItem } from './template-scope.js'
 import { createDocumentFile } from './document-files.js'
@@ -277,6 +277,7 @@ export class LlDocuments extends LitElement {
   /** Counts accepted suggestions, so the form is handed its values again. */
   @state() private applied = 0
   @state() private dirty = false
+  private readonly saves = new Saves()
   /** The import panel is showing instead of a document. */
   @state() private importing = false
   /** The open document changed outside while it had unsaved edits: the person chooses which to keep. */
@@ -326,6 +327,7 @@ export class LlDocuments extends LitElement {
    * the vault as it is now.
    */
   private async outsideChange(change: VaultChanged) {
+    const mark = this.saves.mark()
     await this.refresh()
     // A change that touched no file is the sidecar started again after it ended (`vault-snapshot.ts`): what it
     // could not suggest for the open draft is asked again, once it has the vault.
@@ -334,7 +336,8 @@ export class LlDocuments extends LitElement {
       return
     }
     const draft = this.draft
-    if (draft?.kind === 'existing' && touches(change, draft.path)) {
+    // A save that ran meanwhile wrote what is on screen: what the notice says of the file before it no longer holds.
+    if (draft?.kind === 'existing' && touches(change, draft.path) && this.saves.quietSince(mark)) {
       if (removedBy(change, draft.path, this.documents.map((d) => d.path))) {
         // What is on screen is now held nowhere else: it is unsaved, whatever was typed.
         this.dirty = true
@@ -607,7 +610,11 @@ export class LlDocuments extends LitElement {
   }
 
   /** Saves the open document; the app's save shortcut calls this too. */
-  async save() {
+  save() {
+    return this.saves.run(() => this.write())
+  }
+
+  private async write() {
     const draft = this.draft
     if (!draft) return
     this.error = ''

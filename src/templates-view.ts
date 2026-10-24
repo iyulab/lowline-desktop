@@ -30,7 +30,7 @@ import { confirmDiscard, markUnsaved } from './unsaved.js'
 import { deleteFile, keepConflictCopy } from './file-lifecycle.js'
 import { strings } from './strings.js'
 import type { UnlistenFn } from '@tauri-apps/api/event'
-import { failureKind, removedBy, touches, vault, type VaultChanged, type VaultEntry, type VaultInfo } from './vault-client.js'
+import { failureKind, removedBy, Saves, touches, vault, type VaultChanged, type VaultEntry, type VaultInfo } from './vault-client.js'
 
 /** What a template's file name ends with. */
 const TEMPLATE_SUFFIX = '.fd.md'
@@ -186,6 +186,7 @@ export class LlTemplates extends LitElement {
   /** The open template as it was last read or saved: what the file holds unless changed outside. */
   private loaded = ''
   @state() private dirty = false
+  private readonly saves = new Saves()
   /** The open template changed outside while it had unsaved edits: the person chooses which to keep. */
   @state() private changedOutside = false
   /** The trash would not take the open template: whether to delete it for good is being asked. */
@@ -224,10 +225,12 @@ export class LlTemplates extends LitElement {
 
   /** Shows what another program did to the templates; an edit in progress is never replaced. */
   private async outsideChange(change: VaultChanged) {
+    const mark = this.saves.mark()
     try {
       await this.refresh()
       const selected = this.selected
-      if (!selected || !touches(change, selected)) return
+      // A save that ran meanwhile wrote what is on screen: what the notice says of the file before it no longer holds.
+      if (!selected || !touches(change, selected) || !this.saves.quietSince(mark)) return
       if (removedBy(change, selected, this.entries.map((e) => e.path))) {
         // What is on screen is now held nowhere else: it is unsaved, whatever was typed.
         this.dirty = true
@@ -524,7 +527,11 @@ export class LlTemplates extends LitElement {
 
 
   /** Saves the template as it is on screen; the app's save shortcut calls this too. */
-  async save() {
+  save() {
+    return this.saves.run(() => this.write())
+  }
+
+  private async write() {
     if (!this.selected) return
     this.error = ''
     this.message = '' // "saved" is said again only once this save has landed
