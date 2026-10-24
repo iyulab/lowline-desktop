@@ -32,8 +32,8 @@
     "versions": "tauri-kit-dev versions --config versions.config.mjs"
   },
   "dependencies": {
-    "@formdown/core": "^0.24.0",
-    "@formdown/ui": "^0.24.0",
+    "@formdown/core": "^0.25.0",
+    "@formdown/ui": "^0.25.0",
     "@iyulab/chat-components": "0.27.4",
     "@iyulab/components": "^2.34.0",
     "@iyulab/desktop-compact": "^0.15.1",
