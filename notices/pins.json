@@ -85,25 +85,9 @@
       "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9"
     }
   ],
-  "DesktopHost.Files@0.3.0": {
-    "source": "https://raw.githubusercontent.com/iyulab/desktop-host/0a1d8869bfdc725be35bd84ba81380ac8c31bf75/LICENSE",
-    "sha256": "16d5280c46463f25ada2a292bf61eff7e53bb6d140501d4bb5a8af51fbc07e03"
-  },
-  "Google.GenAI@1.24.0": {
-    "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/63f8806a6e6979444fa19c8ac0888104145d02fb/LICENSE",
-    "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
-  },
   "OpenAI@2.14.0": {
     "source": "https://raw.githubusercontent.com/openai/openai-dotnet/2e77b08828145f658ec04e49aec87abb1543c553/LICENSE",
     "sha256": "5b1ac9960dc46756e316a2962c77fb8cbdee8fa87c9ab1825671235fac6a1f96"
-  },
-  "System.ClientModel@1.15.0": {
-    "source": "https://raw.githubusercontent.com/Azure/azure-sdk-for-net/6366473d5584b140bda80ddd1120c2f67e5d2658/LICENSE.txt",
-    "sha256": "9b45236978bb5cd5de992021769e1eeaa79f0116d3b02cf8ba065a1ed603d5fa"
-  },
-  "System.Memory.Data@10.0.9": {
-    "source": "https://raw.githubusercontent.com/dotnet/dotnet/901ca941248413c79832d2fdbd709da0c4386353/LICENSE.TXT",
-    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
   },
   "Tiktoken.Core@3.1.5": {
     "source": "https://raw.githubusercontent.com/tryAGI/Tiktoken/871d38c16d8478faeb6d53f4fdf8a5e76c382854/LICENSE.txt",
@@ -119,6 +103,22 @@
   },
   "Microsoft.Data.Sqlite.Core@10.0.13": {
     "source": "https://raw.githubusercontent.com/dotnet/dotnet/4099f83977f4d29604a9aeb971fb0a7bc1d5f699/src/efcore/LICENSE.txt",
+    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "DesktopHost.Files@0.4.0": {
+    "source": "https://raw.githubusercontent.com/iyulab/desktop-host/fe680d3099ea3a500c65610f798a714bd17499de/LICENSE",
+    "sha256": "16d5280c46463f25ada2a292bf61eff7e53bb6d140501d4bb5a8af51fbc07e03"
+  },
+  "Google.GenAI@1.27.0": {
+    "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/2a9d172558cf4461391bce9fd1a3e6668e51d4c6/LICENSE",
+    "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+  },
+  "System.ClientModel@1.16.0": {
+    "source": "https://raw.githubusercontent.com/Azure/azure-sdk-for-net/dcd5b3aadd7fe3ebc73a22408cb514bd18ec3e6f/LICENSE.txt",
+    "sha256": "9b45236978bb5cd5de992021769e1eeaa79f0116d3b02cf8ba065a1ed603d5fa"
+  },
+  "System.Memory.Data@10.0.10": {
+    "source": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
     "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
   }
 }
