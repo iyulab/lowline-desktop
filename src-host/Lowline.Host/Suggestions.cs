@@ -27,10 +27,13 @@ public sealed record SuggestRequest(
 /// those settle nothing, and only on a field whose replay showed that layer right often enough over enough answers
 /// (<see cref="Suggestions.SimilarMinimumAnswered"/>) — each layer keeps the precision its own replay promises. A field drawn
 /// to be checked (<see cref="SuggestionMode.Check"/>) is shown no value: <see cref="Held"/> is the one held back, to record
-/// with what the person enters, and <see cref="Probability"/> the chance it was drawn with.
+/// with what the person enters, and <see cref="Probability"/> the chance it was drawn with. <see cref="Promise"/> is
+/// the precision the layer that gave the value promised when it was shown (for a check, the value held back), to be
+/// recorded with what the person does with it; absent when the engine reported none.
 /// </summary>
 public sealed record Suggestion(
-    string? Value, string Mode, string? Source, string? Reason = null, double? Probability = null, string? Held = null);
+    string? Value, string Mode, string? Source, string? Reason = null, double? Probability = null, string? Held = null,
+    double? Promise = null);
 
 /// <summary>What a <see cref="Suggestion"/> is: a value to offer, none, or none because the person turned it down.</summary>
 public static class SuggestionMode
@@ -609,7 +612,7 @@ public sealed class Suggestions : IDisposable
         var typed = string.IsNullOrEmpty(request.Typed) ? null : request.Typed;
         var proposal = form.Engine.ProposeField(request.Document ?? Unsaved, held, request.Field, typed);
         if (proposal is not null && request.Roll is { } roll && Recheck.Draw(proposal, roll) is { } probability)
-            return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Check, null, null, probability, proposal.Suggestion!.Value));
+            return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Check, null, null, probability, proposal.Suggestion!.Value, proposal.Promise));
         if (proposal?.Together is { } group && request.Rolls is { } rolls
             && rolls.Any(r => r.Key != request.Field && PartnerDrawn(template, request, held, group, r.Key, r.Value)))
             return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Abstain, null, Abstention.CheckedTogether));
@@ -617,7 +620,8 @@ public sealed class Suggestions : IDisposable
             ? new Suggestion(
                 offered.Value,
                 offered.Fit == "prefix" ? SuggestionMode.Coarse : proposal.Layer == Engine.Layer.Similar ? SuggestionMode.Memory : SuggestionMode.Key,
-                SourceOf(proposal))
+                SourceOf(proposal),
+                Promise: proposal.Promise)
             : proposal?.Abstain == Engine.Abstain.Together
                 ? new Suggestion(null, SuggestionMode.Abstain, null, Abstention.Together)
                 : Abstain(request.Template, request.Field);

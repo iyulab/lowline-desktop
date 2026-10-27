@@ -54,6 +54,11 @@ export interface SuggestionEvent {
   decidedTyped?: number
   /** For a `check`: the chance the field was drawn with — what the value entered is weighted by. */
   probability?: number
+  /**
+   * The precision the layer that gave the suggestion promised when it was shown — for a `check`, the layer of the value
+   * held back. Absent in events from before it was recorded, and when none was reported: not known, not 0.
+   */
+  promise?: number
 }
 
 /** A suggestion as it was shown in a draft, and what the person did with it before saving. */
@@ -134,6 +139,7 @@ export function suggestionEvents(
       ...(decided ? { decidedAt: decided.toISOString() } : {}),
       typed,
       ...(decided && decidedTyped !== undefined ? { decidedTyped } : {}),
+      ...(typeof suggestion.promise === 'number' ? { promise: suggestion.promise } : {}),
     })
   }
   return events
@@ -151,7 +157,7 @@ export function checkEvents(
   template?: string,
 ): SuggestionEvent[] {
   const events: SuggestionEvent[] = []
-  for (const [field, { held, probability, shown, filled }] of checks) {
+  for (const [field, { held, probability, promise, shown, filled }] of checks) {
     const value = saved[field]
     if (isEmpty(value)) continue
     events.push({
@@ -168,6 +174,7 @@ export function checkEvents(
       filled,
       shownAt: shown.toISOString(),
       probability,
+      ...(promise !== undefined ? { promise } : {}),
     })
   }
   return events
@@ -177,6 +184,8 @@ export function checkEvents(
 export interface Check {
   held: string
   probability: number
+  /** See {@link SuggestionEvent.promise}: that of the value held back. */
+  promise?: number
   shown: Date
   /** See {@link SuggestionEvent.filled}. */
   filled: string[]

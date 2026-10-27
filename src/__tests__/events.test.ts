@@ -96,6 +96,11 @@ describe('checkEvents', () => {
     expect(checkEvents(checks, {}, '문서/a.md', at)).toEqual([])
   })
 
+  it('records the promise of the value held back when one was reported', () => {
+    const promised = new Map<string, Check>([['담당', { held: '장비', probability: 0.05, promise: 0.9, shown, filled: [] }]])
+    expect(checkEvents(promised, { 담당: '인사' }, 'd', at)[0].promise).toBe(0.9)
+  })
+
   it('is read back from the event file', () => {
     const events = checkEvents(checks, { 담당: '장비' }, '문서/a.md', at)
     expect(parseEvents(events.map((e) => JSON.stringify(e)).join('\n'))).toEqual(events)
@@ -178,5 +183,13 @@ describe('charactersTyped', () => {
       ['처리', 'correct', 0, undefined],
     ])
     expect('decidedTyped' in events[2]).toBe(false)
+  })
+
+  it('records the precision the layer promised, and nothing when none was reported', () => {
+    const promised: Offer = { ...offer('장비'), suggestion: { ...suggestion('장비'), promise: 0.87 } }
+    const events = suggestionEvents(new Map([['담당', promised], ['분류', offer('하드웨어')]]), new Set(), { 담당: '장비', 분류: '하드웨어' }, 'd', at)
+    expect(events.map((e) => e.promise)).toEqual([0.87, undefined])
+    expect('promise' in events[1]).toBe(false)
+    expect(parseEvents(events.map((e) => JSON.stringify(e)).join('\n'))[0].promise).toBe(0.87)
   })
 })

@@ -106,6 +106,7 @@ const suggestion: Shape<Suggestion> = {
   reason: 'optional',
   probability: 'optional',
   held: 'optional',
+  promise: 'optional',
 }
 
 const hit: Shape<CaseHit> = { path: 'required', template: 'required', text: 'required', conflicted: 'required', score: 'required' }

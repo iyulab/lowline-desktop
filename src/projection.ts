@@ -471,4 +471,9 @@ export interface Suggestion {
   probability?: number | null
   /** For `check`: the value held back — recorded with what the person enters, never shown. */
   held?: string | null
+  /**
+   * The precision the layer that gave the value promised when it was shown (for a `check`, the value held back) —
+   * recorded with the event; absent when the engine reported none.
+   */
+  promise?: number | null
 }

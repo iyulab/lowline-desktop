@@ -377,9 +377,15 @@ export class JudgmentController implements ReactiveController {
     this.suggestions = next
     this.abstained = abstained
     const filled = fillOrder(this.filled, values)
-    for (const [field, { held, probability }] of drawn) {
+    for (const [field, { held, probability, promise }] of drawn) {
       if (typeof held === 'string' && typeof probability === 'number')
-        this.checks.set(field, { held, probability, shown: new Date(), filled })
+        this.checks.set(field, {
+          held,
+          probability,
+          ...(typeof promise === 'number' ? { promise } : {}),
+          shown: new Date(),
+          filled,
+        })
     }
     this.host.requestUpdate()
     for (const [field, suggestion] of next) {

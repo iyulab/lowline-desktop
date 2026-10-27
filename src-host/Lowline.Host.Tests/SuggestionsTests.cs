@@ -19,6 +19,9 @@ public sealed class SuggestionsTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>A suggestion without the promise it reports, for comparing the rest of it.</summary>
+    private static Suggestion? Bare(Suggestion? suggestion) => suggestion is null ? null : suggestion with { Promise = null };
+
     private static async Task<VaultProjection> Vault(params DocumentSnapshot[] documents)
     {
         var vault = new VaultProjection();
@@ -348,7 +351,7 @@ public sealed class SuggestionsTests
 
         // 업소-43, seen once, is 중; 재점검 mostly goes with 하.
         var request = new SuggestRequest("inspection@1", "위험도", Values("""{"업소": "업소-43", "유형": "재점검"}"""));
-        Assert.Equal(new Suggestion("중", "key", "업소: 업소-43"), await suggestions.SuggestAsync(request, Ct));
+        Assert.Equal(new Suggestion("중", "key", "업소: 업소-43"), Bare(await suggestions.SuggestAsync(request, Ct)));
     }
 
     [Fact]
@@ -377,7 +380,7 @@ public sealed class SuggestionsTests
         await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
 
         var request = new SuggestRequest("inquiry@1", "담당", Values($$"""{"요청": "전혀 다른 요청", "고객": "{{customers[1]}}"}"""));
-        Assert.Equal(new Suggestion("인사", "key", $"고객: {customers[1]}"), await suggestions.SuggestAsync(request, Ct));
+        Assert.Equal(new Suggestion("인사", "key", $"고객: {customers[1]}"), Bare(await suggestions.SuggestAsync(request, Ct)));
     }
 
     [Fact]
@@ -391,7 +394,7 @@ public sealed class SuggestionsTests
         Assert.Equal(new Suggestion(null, "abstain", null, Abstention.BelowTarget), await suggestions.SuggestAsync(request, Ct));
 
         await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
-        Assert.Equal(new Suggestion("인사", "key", "부서: 개발"), await suggestions.SuggestAsync(request, Ct));
+        Assert.Equal(new Suggestion("인사", "key", "부서: 개발"), Bare(await suggestions.SuggestAsync(request, Ct)));
     }
 
     [Fact]
@@ -403,8 +406,12 @@ public sealed class SuggestionsTests
 
         Assert.Equal(
             new Suggestion(null, SuggestionMode.Check, null, null, Suggestions.Recheck.Rate, "인사"),
-            await suggestions.SuggestAsync(request with { Roll = 0.01 }, Ct));
-        Assert.Equal(new Suggestion("인사", "key", "부서: 개발"), await suggestions.SuggestAsync(request with { Roll = 0.5 }, Ct));
+            Bare(await suggestions.SuggestAsync(request with { Roll = 0.01 }, Ct)));
+        Assert.Equal(new Suggestion("인사", "key", "부서: 개발"), Bare(await suggestions.SuggestAsync(request with { Roll = 0.5 }, Ct)));
+        // A value and the value held back for a check both say the precision their layer promised.
+        var promised = (await suggestions.SuggestAsync(request, Ct))!.Promise;
+        Assert.Equal(suggestions.Report("intake@1", "담당")!.Key!.Promise, promised);
+        Assert.Equal(promised, (await suggestions.SuggestAsync(request with { Roll = 0.01 }, Ct))!.Promise);
         // Nothing to show is nothing to hold back: the roll waits for a field that has a value to show.
         var undecided = new SuggestRequest("intake@1", "담당", Values("""{"요청": "전혀 다른 요청", "부서": "기획"}"""), Roll: 0.01);
         Assert.Equal(SuggestionMode.Abstain, (await suggestions.SuggestAsync(undecided, Ct))!.Mode);
@@ -435,7 +442,7 @@ public sealed class SuggestionsTests
 
         // Nobody drawn: both are shown.
         Assert.Equal(new Suggestion("인사", "key", "부서: 개발"),
-            await suggestions.SuggestAsync(asked with { Rolls = new Dictionary<string, double> { ["승인"] = 0.5 } }, Ct));
+            Bare(await suggestions.SuggestAsync(asked with { Rolls = new Dictionary<string, double> { ["승인"] = 0.5 } }, Ct)));
         // The partner drawn: held back with it, as no check — and the reason does not say which was drawn.
         Assert.Equal(new Suggestion(null, SuggestionMode.Abstain, null, Abstention.CheckedTogether),
             await suggestions.SuggestAsync(asked with { Rolls = new Dictionary<string, double> { ["승인"] = 0.01 } }, Ct));
@@ -531,7 +538,7 @@ public sealed class SuggestionsTests
         var asked = new SuggestRequest("routed@1", "승인", Values("""{"요청": "전혀 다른 요청"}"""));
         Assert.Equal(new Suggestion(null, "abstain", null, Abstention.Undecided), await suggestions.SuggestAsync(asked, Ct));
         var owned = asked with { Values = Values("""{"요청": "전혀 다른 요청", "담당": "인사"}""") };
-        Assert.Equal(new Suggestion("이", "key", "담당: 인사"), await suggestions.SuggestAsync(owned, Ct));
+        Assert.Equal(new Suggestion("이", "key", "담당: 인사"), Bare(await suggestions.SuggestAsync(owned, Ct)));
     }
 
     [Fact]
@@ -600,7 +607,7 @@ public sealed class SuggestionsTests
         Assert.Equal(new Suggestion(null, "abstain", null, Abstention.BelowTarget), await suggestions.SuggestAsync(asked, Ct));
         // The first character typed tells them apart.
         Assert.NotNull(suggestions.Report("assigned@1", "담당자")!.Typed?[0]);
-        Assert.Equal(new Suggestion("박영희", "key", "부서: 영업"), await suggestions.SuggestAsync(asked with { Typed = "박" }, Ct));
+        Assert.Equal(new Suggestion("박영희", "key", "부서: 영업"), Bare(await suggestions.SuggestAsync(asked with { Typed = "박" }, Ct)));
         // Nothing settled with 부서 begins with what is typed: nothing is offered.
         Assert.Null((await suggestions.SuggestAsync(asked with { Typed = "최" }, Ct))!.Value);
     }

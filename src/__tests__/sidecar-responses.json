@@ -434,7 +434,8 @@
       "source": "부서: 영업",
       "reason": null,
       "probability": null,
-      "held": null
+      "held": null,
+      "promise": 0
     },
     {
       "value": null,
@@ -442,7 +443,8 @@
       "source": null,
       "reason": "below-target",
       "probability": null,
-      "held": null
+      "held": null,
+      "promise": null
     },
     {
       "value": null,
@@ -450,7 +452,8 @@
       "source": null,
       "reason": null,
       "probability": null,
-      "held": null
+      "held": null,
+      "promise": null
     },
     {
       "value": null,
@@ -458,7 +461,8 @@
       "source": null,
       "reason": null,
       "probability": 0,
-      "held": "장비"
+      "held": "장비",
+      "promise": 0
     },
     {
       "value": "32",
@@ -466,7 +470,8 @@
       "source": "장비: 펌프",
       "reason": null,
       "probability": null,
-      "held": null
+      "held": null,
+      "promise": 0
     },
     {
       "value": "화면",
@@ -474,7 +479,8 @@
       "source": "분류/001.md",
       "reason": null,
       "probability": null,
-      "held": null
+      "held": null,
+      "promise": 0
     }
   ],
   "search": [
