@@ -986,4 +986,53 @@ public sealed class SuggestionsTests
             File.Delete(file);
         }
     }
+
+    [Fact]
+    public async Task A_record_built_from_events_says_what_the_events_say_and_nothing_more()
+    {
+        var documents = Decided();
+        var events = new[]
+        {
+            // Taken: the layer, the promise and the 2.5 s from view to the save.
+            new SuggestionEvent("2026-10-23T10:00:02.500Z", documents[0].Path, "담당", "accept", "장비", "intake@1", "key", null, 0.9, "2026-10-23T10:00:00.000Z"),
+            // Changed: what was in view is still the answer in view.
+            new SuggestionEvent("2026-10-23T10:00:01.000Z", documents[1].Path, "담당", "correct", "총무", "intake@1", "key", null, 0.85, "2026-10-23T10:00:00.000Z"),
+            // Entered with the answer held back: the held answer is in view for the record of the check, with its promise.
+            new SuggestionEvent("2026-10-23T10:00:04.000Z", documents[2].Path, "담당", SuggestionMode.Check, "총무", "intake@1", "check", 0.05, 0.8, "2026-10-23T10:00:00.000Z"),
+            // A class names no layer; a line written before promises were recorded has none to report.
+            new SuggestionEvent("2026-10-23T10:00:00.000Z", documents[3].Path, "담당", "accept", "장", "intake@1", "coarse"),
+        };
+        using var suggestions = await Suggestions.BuildAsync(new VaultSnapshot([Intake], documents, events), Ct);
+
+        var records = suggestions.RecordsOf("intake@1").Select(r => JsonNode.Parse(r)!).ToDictionary(r => r["id"]!.GetValue<string>());
+        var taken = records[documents[0].Identity];
+        Assert.Equal("장비", taken["suggested"]!["담당"]!.GetValue<string>());
+        Assert.Equal("KeyMemory", taken["sources"]!["담당"]!.GetValue<string>());
+        Assert.Equal(0.9, taken["promises"]!["담당"]!.GetValue<double>());
+        Assert.Equal(2_500, taken["settle_ms"]!["담당"]!.GetValue<long>());
+        var changed = records[documents[1].Identity];
+        Assert.Equal("총무", changed["suggested"]!["담당"]!.GetValue<string>());
+        Assert.Equal(1_000, changed["settle_ms"]!["담당"]!.GetValue<long>());
+        var held = records[documents[2].Identity];
+        Assert.Equal("Check", held["settlements"]!["담당"]!.GetValue<string>());
+        Assert.Equal(0.8, held["promises"]!["담당"]!.GetValue<double>());
+        Assert.Null(held["sources"]);
+        var cls = records[documents[3].Identity];
+        Assert.Equal("장", cls["suggested"]!["담당"]!.GetValue<string>());
+        Assert.Null(cls["promises"]);
+        Assert.Null(cls["sources"]);
+        Assert.Null(cls["settle_ms"]);
+        // What no event says is not written: the order values arrived in, how long the document was open, who settled it.
+        foreach (var record in records.Values)
+        {
+            Assert.Null(record["arrival"]);
+            Assert.Null(record["open_ms"]);
+            Assert.Null(record["settled_by"]);
+            Assert.Null(record["form_version"]);
+        }
+        // A document with no event keeps the record it always had.
+        var plain = records[documents[10].Identity];
+        Assert.Null(plain["suggested"]);
+        Assert.Null(plain["promises"]);
+    }
 }

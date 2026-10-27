@@ -309,7 +309,8 @@ public sealed class Suggestions : IDisposable
                             var values = Values(template, document.Values);
                             var (settled, checks) = Settled(template, document, values, latest);
                             var record = lease.Engine.Record(
-                                document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0), checks).Json;
+                                document.Identity, values, settled, DateTimeOffset.FromUnixTimeMilliseconds(document.Modified ?? 0), checks,
+                                Account(document, settled, checks, latest)).Json;
                             learnt = new Learnt(made, record,
                                 [.. judged.Where(f => values.ContainsKey(f) && settled.GetValueOrDefault(f) is not Engine.SettlementKind.Fill)]);
                             changed.Add(record);
@@ -378,7 +379,7 @@ public sealed class Suggestions : IDisposable
         foreach (var field in template.Suggest!)
         {
             if (latest.GetValueOrDefault((document.Identity, field)) is { } e)
-                made.Append('\u0004').Append(field).Append('\u0002').Append(e.At).Append(e.Kind).Append(e.Source).Append(e.Probability);
+                made.Append('\u0004').Append(field).Append('\u0002').Append(e.At).Append(e.Kind).Append(e.Source).Append(e.Probability).Append(e.Promise).Append(e.ShownAt);
         }
         return made.ToString();
     }
@@ -547,6 +548,67 @@ public sealed class Suggestions : IDisposable
         return (settled, checks);
     }
 
+    /// <summary>
+    /// The account of what was shown for a document's judgment fields, as the engine's draft reads it, rebuilt from the
+    /// events its fields' latest suggestions left — so a record built from a vault says what a record settled while the
+    /// form was open says: the answer in view, the layer that gave it, the precision it promised, and the time the person
+    /// took. Only what the events say is reported. A layer is named where the event names it (<c>key</c>; <c>memory</c>, a
+    /// similar record); a class (<c>coarse</c>) and a value held back for a check do not, so none is written for them. The
+    /// order values arrived in is not reported: the events keep the fields filled when a suggestion was made, not those
+    /// filled after the last one, and the engine reads a field a list leaves out as there from the start. How long the
+    /// document was open and who settled it are in no event. The time a field took is the time from its suggestion coming
+    /// into view to the save that confirmed it; the draft has one save time, so each field's reach is placed that far
+    /// before the latest save of the document.
+    /// </summary>
+    private static string? Account(
+        DocumentSnapshot document, IReadOnlyDictionary<string, Engine.SettlementKind> settled,
+        IReadOnlyDictionary<string, double> checks, IReadOnlyDictionary<(string, string), SuggestionEvent> latest)
+    {
+        var tracks = new List<(string Field, SuggestionEvent Event, bool Held, long? Took)>();
+        foreach (var field in settled.Keys.Concat(checks.Keys))
+        {
+            if (latest.GetValueOrDefault((document.Identity, field)) is not { } e) continue;
+            var held = e.Kind == SuggestionMode.Check;
+            if (held != checks.ContainsKey(field)) continue;
+            long? took = Instant(e.ShownAt) is { } shown && Instant(e.At) is { } saved && saved >= shown ? saved - shown : null;
+            tracks.Add((field, e, held, took));
+        }
+        if (tracks.Count == 0) return null;
+        var fields = new JsonObject();
+        foreach (var (field, e, held, took) in tracks)
+        {
+            var other = e.Source == SuggestionSource.Proposed;
+            var answer = new JsonObject
+            {
+                ["value"] = e.Suggested,
+                ["origin"] = other ? "other" : "decider",
+                ["fit"] = e.Source == SuggestionMode.Coarse ? "prefix" : "exact",
+            };
+            var track = new JsonObject();
+            if (held) { track["held"] = e.Probability; track["withheld"] = answer; }
+            else { track["shown"] = answer; track["declined"] = false; }
+            if (!other && e.Source switch { SuggestionMode.Key => "key", SuggestionMode.Memory => "similar", _ => null } is { } layer)
+                track["layer"] = layer;
+            if (!other && e.Promise is { } promise) track["promise"] = promise;
+            fields[field] = track;
+        }
+        var anchor = tracks.Where(t => t.Took is not null).Select(t => Instant(t.Event.At)).Max();
+        if (anchor is { } saveAt)
+        {
+            foreach (var (field, _, _, took) in tracks)
+                if (took is { } ms && saveAt - ms >= 0) fields[field]!["at"] = saveAt - ms;
+        }
+        var account = new JsonObject { ["opened"] = new JsonObject(), ["fields"] = fields };
+        if (anchor is { } at) account["saved_at"] = at;
+        return account.ToJsonString();
+    }
+
+    /// <summary>A time as the event files write it, in milliseconds since the Unix epoch; null when it is absent or unreadable.</summary>
+    private static long? Instant(string? text) =>
+        DateTimeOffset.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var at)
+            ? at.ToUnixTimeMilliseconds()
+            : null;
+
     /// <summary>Whether any template's thresholds should be chosen again: never chosen, or no longer standing.</summary>
     public bool NeedsSelection => _forms.Values.Any(f => f.Engine.Stale is not null);
 
@@ -591,6 +653,9 @@ public sealed class Suggestions : IDisposable
     /// <summary>How a judgment field's thresholds were chosen, and how its replays went; null until they have been.</summary>
     public Engine.FieldReport? Report(string template, string field) =>
         _forms.TryGetValue(template, out var form) ? form.Report.GetValueOrDefault(field) : null;
+
+    /// <summary>The records built for a template's documents, as the lines the engine learned from.</summary>
+    internal IReadOnlyList<string> RecordsOf(string template) => _forms.TryGetValue(template, out var form) ? form.Records : [];
 
     /// <summary>The documents holding a value a person confirmed for a judgment field.</summary>
     public int Confirmed(string template, string field) =>

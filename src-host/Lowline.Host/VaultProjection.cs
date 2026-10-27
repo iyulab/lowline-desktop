@@ -92,7 +92,7 @@ public sealed record DocumentSnapshot(
 /// </summary>
 public sealed record SuggestionEvent(
     string At, string Doc, string Field, string Kind, string Suggested, string? Template = null, string? Source = null,
-    double? Probability = null);
+    double? Probability = null, double? Promise = null, string? ShownAt = null);
 
 /// <summary>
 /// Everything the sidecar knows about a vault: what the shell read and the UI parsed — templates,

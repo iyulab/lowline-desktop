@@ -30,11 +30,9 @@ public sealed class SnapshotContractTests
             ["recall"] = "which values a suggestion rested on, for the person; not learned from",
             ["similarity"] = "kept in the event format, always empty since similar records stopped being suggested",
             ["filled"] = "the fill order, for studying the curves; not learned from",
-            ["shownAt"] = "timing, for studying the curves; not learned from",
             ["decidedAt"] = "timing, for studying the curves; not learned from",
             ["typed"] = "the characters typed when the suggestion was shown, for studying the curves; not learned from",
             ["decidedTyped"] = "the characters in the field when the suggestion was taken or rejected, for studying the curves; not learned from",
-            ["promise"] = "the precision the suggestion's layer promised when it was shown, to be recorded with the document once the engine takes that account",
         },
     };
 
