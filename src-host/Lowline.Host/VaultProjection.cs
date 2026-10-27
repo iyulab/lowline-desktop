@@ -20,10 +20,12 @@ public sealed record TemplateField(
 /// <summary>
 /// What a field's Formdown <c>suggest:*</c> attributes say beyond whether it is judged: <c>confirm</c> — suggested, but
 /// only a person puts the value in; <see cref="Evidence"/> false — no clue for the other fields; the field its choices
-/// depend on (<see cref="Parent"/>); values never to miss (<see cref="MustCatch"/>).
+/// depend on (<see cref="Parent"/>); values never to miss (<see cref="MustCatch"/>); the group of fields it is settled
+/// together with (<see cref="Together"/>).
 /// </summary>
 public sealed record FieldSuggestion(
-    string? Policy = null, bool? Evidence = null, string? Parent = null, IReadOnlyList<string>? MustCatch = null);
+    string? Policy = null, bool? Evidence = null, string? Parent = null, IReadOnlyList<string>? MustCatch = null,
+    string? Together = null);
 
 /// <summary>
 /// A column a template's documents can be counted by: one of its own fields, or — through <see cref="Via"/>, a field of it

@@ -93,6 +93,24 @@ export class JudgmentController implements ReactiveController {
     const fixed = (globalThis as { lowlineRoll?: () => number }).lowlineRoll
     return fixed ? fixed() : Math.random()
   }
+
+  /**
+   * The rolls of the fields settled together with `field` (`suggest:together`), each drawn once like its own: when the
+   * sidecar finds one of them drawn to be checked, it holds this field back with it. None for a field in no group.
+   */
+  private partnerRolls(template: TemplateSnapshot, field: string): Record<string, number> | undefined {
+    const group = template.fields.find((f) => f.name === field)?.suggest?.together
+    if (group === undefined) return undefined
+    const rolls: Record<string, number> = {}
+    for (const partner of template.suggest) {
+      if (partner === field || template.fields.find((f) => f.name === partner)?.suggest?.together !== group) continue
+      let roll = this.rolls.get(partner)
+      if (roll === undefined) this.rolls.set(partner, (roll = this.roll()))
+      rolls[partner] = roll
+    }
+    return Object.keys(rolls).length > 0 ? rolls : undefined
+  }
+
   private suggestTimer?: ReturnType<typeof setTimeout>
   /** Counts requests for suggestions; only the latest one's answers are shown. */
   private suggestRun = 0
@@ -336,7 +354,8 @@ export class JudgmentController implements ReactiveController {
         const { [field]: _, ...others } = values
         let roll = this.rolls.get(field)
         if (roll === undefined) this.rolls.set(field, (roll = this.roll()))
-        const suggestion = await host.suggest(template.ref, field, typed === undefined ? values : others, document, typed, roll)
+        const rolls = this.partnerRolls(template, field)
+        const suggestion = await host.suggest(template.ref, field, typed === undefined ? values : others, document, typed, roll, rolls)
         // Declined here, now or before it was last saved: not offered again, and nothing to explain.
         if (this.rejected.has(field) || suggestion.mode === 'rejected') continue
         if (suggestion.mode === 'check') {

@@ -10,11 +10,13 @@ namespace Lowline.Host;
 /// the text a person has typed into the field so far: the field stays open, and only a value that begins with it is offered.
 /// <see cref="Roll"/> is a number the UI drew uniformly from [0, 1) for this field of the draft, before seeing any answer —
 /// the same one each time it asks: below <see cref="Suggestions.Recheck"/>'s rate, a value the field would be shown is held
-/// back to check it (<see cref="SuggestionMode.Check"/>).
+/// back to check it (<see cref="SuggestionMode.Check"/>). <see cref="Rolls"/> are the same kind of number for the fields
+/// settled together with this one: when one of them is drawn to be checked, this one is shown nothing either
+/// (<see cref="Abstention.CheckedTogether"/>), so the person settling the checked field is not led by it.
 /// </summary>
 public sealed record SuggestRequest(
     string Template, string Field, IReadOnlyDictionary<string, JsonElement> Values, string? Document = null, string? Typed = null,
-    double? Roll = null);
+    double? Roll = null, IReadOnlyDictionary<string, double>? Rolls = null);
 
 /// <summary>
 /// A suggestion for one field. <see cref="Value"/> is null when there is none to make (<c>abstain</c>) —
@@ -83,6 +85,19 @@ public static class Abstention
 
     /// <summary>The field's values settled alongside have shown they decide it, and this document's other values settle none.</summary>
     public const string Undecided = "undecided";
+
+    /// <summary>
+    /// The field is settled together with others (Formdown's <c>suggest:together</c>) and one of them, still empty, has no
+    /// suggestion: shown alone, the sure one would lead the person deciding the unsure one.
+    /// </summary>
+    public const string Together = "together";
+
+    /// <summary>
+    /// A field settled together with this one is drawn to be checked and shown nothing; this one is held back with it. It is
+    /// not itself a check: what is entered counts as a value entered with nothing in view, and the reason says no more than
+    /// that — a person must not learn which of the group is the check.
+    /// </summary>
+    public const string CheckedTogether = "checked-together";
 }
 
 /// <summary>Why a judgment field has no replay to show yet — one of these, or <see cref="Abstention.BelowTarget"/>.</summary>
@@ -376,6 +391,14 @@ public sealed class Suggestions : IDisposable
     internal static string Definition(TemplateSnapshot template)
     {
         var judged = template.Suggest ?? [];
+        // A group holds back only judgment fields, and only two or more of them: a group the template's other fields
+        // leave with one judgment field says nothing (the engine refuses it).
+        var groups = template.Fields
+            .Where(f => judged.Contains(f.Name) && f.Suggest?.Together is not null)
+            .GroupBy(f => f.Suggest!.Together!)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet();
         var fields = new JsonArray();
         foreach (var field in template.Fields)
         {
@@ -400,6 +423,10 @@ public sealed class Suggestions : IDisposable
                 }
                 if (said.Evidence is { } evidence) json["evidence"] = evidence;
                 if (said.Parent is { } parent && template.Fields.Any(f => f.Name == parent)) json["parent"] = parent;
+                if (judged.Contains(field.Name) && said.Together is { } together && groups.Contains(together))
+                {
+                    json["together"] = together;
+                }
             }
             fields.Add(json);
         }
@@ -583,13 +610,35 @@ public sealed class Suggestions : IDisposable
         var proposal = form.Engine.ProposeField(request.Document ?? Unsaved, held, request.Field, typed);
         if (proposal is not null && request.Roll is { } roll && Recheck.Draw(proposal, roll) is { } probability)
             return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Check, null, null, probability, proposal.Suggestion!.Value));
+        if (proposal?.Together is { } group && request.Rolls is { } rolls
+            && rolls.Any(r => r.Key != request.Field && PartnerDrawn(template, request, held, group, r.Key, r.Value)))
+            return Task.FromResult<Suggestion?>(new Suggestion(null, SuggestionMode.Abstain, null, Abstention.CheckedTogether));
         var suggestion = proposal?.Suggestion is { } offered
             ? new Suggestion(
                 offered.Value,
                 offered.Fit == "prefix" ? SuggestionMode.Coarse : proposal.Layer == Engine.Layer.Similar ? SuggestionMode.Memory : SuggestionMode.Key,
                 SourceOf(proposal))
-            : Abstain(request.Template, request.Field);
+            : proposal?.Abstain == Engine.Abstain.Together
+                ? new Suggestion(null, SuggestionMode.Abstain, null, Abstention.Together)
+                : Abstain(request.Template, request.Field);
         return Task.FromResult<Suggestion?>(suggestion);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="partner"/>, a judgment field of the same <paramref name="group"/> as the field asked about, is
+    /// drawn for a check by its <paramref name="roll"/> — the way it would be if it were asked about now, with the document's
+    /// values but its own.
+    /// </summary>
+    private bool PartnerDrawn(TemplateSnapshot template, SuggestRequest request, IReadOnlyDictionary<string, Engine.FieldValue> held,
+        string group, string partner, double roll)
+    {
+        if (template.Suggest?.Contains(partner) != true
+            || template.Fields.FirstOrDefault(f => f.Name == partner)?.Suggest?.Together != group
+            || held.ContainsKey(partner)
+            || !_forms.TryGetValue(request.Template, out var form)) return false;
+        var rest = held.Where(v => v.Key != partner).ToDictionary(v => v.Key, v => v.Value);
+        var other = form.Engine.ProposeField(request.Document ?? Unsaved, rest, partner, null);
+        return other is not null && Recheck.Draw(other, roll) is not null;
     }
 
     /// <summary>What a suggestion rests on, as the UI shows it: the value settled alongside, or the similar document.</summary>

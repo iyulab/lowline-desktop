@@ -754,7 +754,9 @@
     "reason": [
       "no-history",
       "below-target",
-      "undecided"
+      "undecided",
+      "together",
+      "checked-together"
     ],
     "whyNoReplay": [
       "few",

@@ -411,6 +411,47 @@ public sealed class SuggestionsTests
     }
 
     [Fact]
+    public async Task A_field_settled_together_with_one_drawn_to_check_it_is_held_back_with_it_and_is_not_a_check()
+    {
+        // 담당 and 승인 are settled together, and 부서 decides both: when 승인 is drawn to be checked and shown nothing,
+        // 담당 is shown nothing either — the person settling 승인 is not led by the value suggested for 담당.
+        // 담당 gives no clue for the other fields, so 승인 stays answerable from 부서 alone while 담당 is open.
+        var together = new FieldSuggestion(Evidence: false, Together: "결재");
+        var routed = Templates.Of("routed@1",
+        [
+            new TemplateField("요청", "textarea"),
+            new TemplateField("부서", "text"),
+            new TemplateField("담당", "select", Suggest: together),
+            new TemplateField("승인", "select", Suggest: together),
+        ], Suggest: ["담당", "승인"]);
+        Dictionary<string, string> approvers = new() { ["장비"] = "김", ["인사"] = "이", ["총무"] = "박" };
+        var vault = new VaultSnapshot([routed], [
+            .. Enumerable.Range(0, 30).Select(i => new DocumentSnapshot($"문서/{i}.md", "routed@1",
+                Values($$"""{"요청": "{{Words[i % 10]}} {{Words[i / 10 * 3 % 10]}} {{i}}", "부서": "{{Departments[i % 3]}}", "담당": "{{Owners[Departments[i % 3]]}}", "승인": "{{approvers[Owners[Departments[i % 3]]]}}"}"""),
+                Modified: i))]);
+        var suggestions = await Suggestions.BuildAsync(vault, Ct);
+        await suggestions.ApplyAsync(await suggestions.SelectThresholdsAsync(Ct), Ct);
+        var asked = new SuggestRequest("routed@1", "담당", Values("""{"요청": "전혀 다른 요청", "부서": "개발"}"""), Roll: 0.5);
+
+        // Nobody drawn: both are shown.
+        Assert.Equal(new Suggestion("인사", "key", "부서: 개발"),
+            await suggestions.SuggestAsync(asked with { Rolls = new Dictionary<string, double> { ["승인"] = 0.5 } }, Ct));
+        // The partner drawn: held back with it, as no check — and the reason does not say which was drawn.
+        Assert.Equal(new Suggestion(null, SuggestionMode.Abstain, null, Abstention.CheckedTogether),
+            await suggestions.SuggestAsync(asked with { Rolls = new Dictionary<string, double> { ["승인"] = 0.01 } }, Ct));
+        // The field itself drawn: a check, whatever its partner's roll.
+        Assert.Equal(SuggestionMode.Check,
+            (await suggestions.SuggestAsync(asked with { Roll = 0.01, Rolls = new Dictionary<string, double> { ["승인"] = 0.01 } }, Ct))!.Mode);
+        // The partner already settled has no answer to hide.
+        var settled = asked with
+        {
+            Values = Values("""{"요청": "전혀 다른 요청", "부서": "개발", "승인": "이"}"""),
+            Rolls = new Dictionary<string, double> { ["승인"] = 0.01 },
+        };
+        Assert.Equal("인사", (await suggestions.SuggestAsync(settled, Ct))!.Value);
+    }
+
+    [Fact]
     public async Task A_later_build_goes_on_with_the_engine_and_learns_only_what_changed()
     {
         var documents = Decided();

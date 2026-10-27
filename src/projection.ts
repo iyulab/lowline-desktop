@@ -27,7 +27,8 @@ export interface TemplateField {
   /**
    * What the field says of suggesting its value beyond being judged (Formdown's `suggest:*`), for the sidecar's engine:
    * `confirm` — suggested but only a person puts the value in; `evidence: false` — no clue for the other fields; the
-   * field its choices depend on; values never to miss. Absent when it says none of these.
+   * field its choices depend on; values never to miss; the group of fields it is settled together with. Absent when it
+   * says none of these.
    */
   suggest?: FieldSuggestion
 }
@@ -38,6 +39,7 @@ export interface FieldSuggestion {
   evidence?: boolean
   parent?: string
   mustCatch?: string[]
+  together?: string
 }
 
 /** What of a field's `suggest:*` attributes the sidecar acts on beyond `role`, `coarse` and `policy=off`, or undefined. */
@@ -48,6 +50,7 @@ function suggestionOf(said: FieldSuggest | undefined): FieldSuggestion | undefin
     ...(said.evidence !== undefined && { evidence: said.evidence }),
     ...(said.parent !== undefined && { parent: said.parent }),
     ...(said.mustCatch?.length && { mustCatch: [...said.mustCatch] }),
+    ...(said.together !== undefined && { together: said.together }),
   }
   return Object.keys(kept).length > 0 ? kept : undefined
 }
@@ -431,7 +434,7 @@ export interface TypedReplay {
  * alongside the observed ones have not yet shown, replaying its history, that they are right often enough;
  * `undecided` — they have, and this document's observed values settle none.
  */
-export type Abstention = 'no-history' | 'below-target' | 'undecided'
+export type Abstention = 'no-history' | 'below-target' | 'undecided' | 'together' | 'checked-together'
 
 /** A document found by the words of its values: where it is, its template, its matching text, how well it matched. */
 export interface CaseHit {

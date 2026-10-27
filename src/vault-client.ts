@@ -236,9 +236,17 @@ export const host = {
   /**
    * `roll`: a number drawn uniformly from [0, 1) for this field of the open draft, before any answer was seen — the same
    * each time the field is asked about. Below the sidecar's rate, a value the field would be shown is held back (`check`).
+   * `rolls`: the same for the fields settled together with this one — when one is drawn, this one is held back with it.
    */
-  suggest: (template: string, field: string, values: Record<string, unknown>, document?: string, typed?: string, roll?: number) =>
-    invoke<Suggestion>('host_suggest', { request: { template, field, values, document, typed, roll } }),
+  suggest: (
+    template: string,
+    field: string,
+    values: Record<string, unknown>,
+    document?: string,
+    typed?: string,
+    roll?: number,
+    rolls?: Record<string, number>,
+  ) => invoke<Suggestion>('host_suggest', { request: { template, field, values, document, typed, roll, rolls } }),
   /** Documents whose values hold these words, best first — of one template when named. */
   search: (query: string, template?: string) => invoke<CaseHit[]>('host_search', { request: { query, template } }),
   /** The documents of the same template most like the one at `path`, best first. */

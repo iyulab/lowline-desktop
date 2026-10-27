@@ -139,7 +139,11 @@ export const strings = {
   judgmentFields: (labels: string[]) => `제안 받는 칸: ${labels.join(', ')}`,
   // `cases`: the document has "비슷한 사례" below, where the person can look at other documents' values themselves.
   judgmentAbstained: (reason: Abstention | null | undefined, learned: number, cases = false) =>
-    reason === 'no-history' || (!reason && learned === 0)
+    reason === 'together'
+      ? `함께 정하는 칸이 아직 확실하지 않아 비웠습니다.`
+      : reason === 'checked-together'
+      ? `이번에는 이 칸을 제안 없이 직접 정해 주세요.`
+      : reason === 'no-history' || (!reason && learned === 0)
       ? `확정한 문서가 아직 없어 제안하지 않습니다. 저장할 때마다 배웁니다.`
       : (reason === 'undecided'
           ? `지금 입력한 값들로는 함께 확정된 값이 정해지지 않아 비워 둡니다.`

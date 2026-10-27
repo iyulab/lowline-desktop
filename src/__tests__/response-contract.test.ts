@@ -166,7 +166,7 @@ const answers = {
 const words = {
   // `proposed` is the app's own — a value read from the document — and never the sidecar's.
   mode: { key: true, coarse: true, memory: true, abstain: true, rejected: true, check: true } satisfies Record<Exclude<Suggestion['mode'], 'proposed'>, true>,
-  reason: { 'no-history': true, 'below-target': true, undecided: true } satisfies Record<Abstention, true>,
+  reason: { 'no-history': true, 'below-target': true, undecided: true, together: true, 'checked-together': true } satisfies Record<Abstention, true>,
   whyNoReplay: { few: true, pending: true, 'below-target': true } satisfies Record<NonNullable<FieldCurve['whyNoReplay']>, true>,
   counting: { settled: true, unprompted: true } satisfies Record<NonNullable<FieldCurve['counting']>['counting'], true>,
   probeFailure: {
