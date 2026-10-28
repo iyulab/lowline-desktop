@@ -53,6 +53,23 @@ public sealed class CaseIndexTests
     }
 
     [Fact]
+    public async Task Finds_a_long_document_by_a_word_anywhere_in_it_and_still_as_one_entry()
+    {
+        // Long enough that the index keeps it in several pieces; what is found is still the document, once.
+        var sentences = Enumerable.Range(1, 400).Select(i => $"{i}번째 점검 기록입니다. 장비 상태를 확인했고 특이 사항은 없었어요.").ToList();
+        var text = "시작표지 " + string.Join(' ', sentences.Take(200)) + " 중간표지 " + string.Join(' ', sentences.Skip(200)) + " 끝표지";
+        var longOne = Doc("문서/긴글.md", JsonSerializer.Serialize(new Dictionary<string, string> { ["요청"] = text, ["부서"] = "영업", ["담당"] = "장비" }));
+        await using var vault = new VaultProjection();
+        await vault.IngestAsync(new VaultSnapshot([Intake, Bug], [longOne, .. Documents]), Ct);
+
+        Assert.Equal(["문서/긴글.md"], await Search(vault, "시작표지"));
+        Assert.Equal(["문서/긴글.md"], await Search(vault, "중간표지"));
+        Assert.Equal(["문서/긴글.md"], await Search(vault, "끝표지"));
+        // A word in every piece is one entry, not one per piece.
+        Assert.Equal(["문서/긴글.md"], await Search(vault, "점검"));
+    }
+
+    [Fact]
     public async Task Finds_a_changed_document_by_its_new_text_only_and_a_removed_one_not_at_all()
     {
         await using var vault = new VaultProjection();
