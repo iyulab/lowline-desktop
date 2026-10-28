@@ -1,8 +1,77 @@
-import { rm } from 'node:fs/promises'
+import { rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { q } from '../app.mjs'
 import { BUG, INTAKE, documentsIn, events, presentations, fileValues } from '../shared.mjs'
+
+// Fields settled together (`suggest:together`): templates written into the vault with the documents they are learned from,
+// as a person's own would be, and left again before the next scenario.
+const ROUTING = { name: '결재', ref: 'routing@1', path: '서식/결재.fd.md' }
+const ROUTING_BODY =
+  '# 결재\n\n요청: ___@요청\n\n@부서: [select options="영업,개발,인사"]\n\n' +
+  '@담당: [select options="장비,인사,총무" suggest:role=judged suggest:evidence=false suggest:together=결재]\n\n' +
+  '@승인: [select options="김,이,박" suggest:role=judged suggest:evidence=false suggest:together=결재]\n'
+const CODING = { name: '업체', ref: 'coding@1', path: '서식/업체.fd.md' }
+const CODING_BODY =
+  '# 업체\n\n@회사: [select options="은행,상점,병원,지점"]\n\n' +
+  '@산업: [select options="금융,유통,보건" suggest:role=judged suggest:together=코딩]\n\n' +
+  '@직업: [select options="분석가,점원,간호사,창구" suggest:role=judged suggest:together=코딩]\n'
+const DEPARTMENTS = ['영업', '개발', '인사']
+const OWNERS = ['장비', '인사', '총무']
+const APPROVERS = ['김', '이', '박']
+
+/** Runs `run` with the template written into the vault and its documents learned from, then takes both away. */
+async function learnedFrom(app, vault, template, body, rows, run) {
+  const path = join(vault, template.path)
+  await writeFile(path, `---\nid: ${template.ref.split('@')[0]}\nversion: 1\n---\n${body}`)
+  const names = []
+  for (const [i, values] of rows.entries()) {
+    const name = `${template.name}-${i + 1}.md`
+    names.push(name)
+    const fields = Object.entries(values).map(([k, v]) => `${k}: ${v}`).join('\n')
+    await writeFile(join(vault, '문서', name), `---\ntemplate: ${template.ref}\n${fields}\n---\n${body}`)
+  }
+  const before = new Set(await documentsIn(vault))
+  try {
+    await app.sidebar(template.name, { timeoutMs: 60_000 })
+    await run()
+  } finally {
+    // Left before it goes: removed while open, a document is said to be gone outside. A scenario that failed with
+    // a form half filled in leaves by throwing the edits away, so the failure it ended on is the one reported.
+    const unsaved = await app.cdp.evaluate(`__e2e.all('dc-confirm-dialog').some((d) => d.open)`)
+    if (!unsaved) await app.templateOf(BUG).catch(() => {})
+    if (unsaved || (await app.cdp.evaluate(`__e2e.all('dc-confirm-dialog').some((d) => d.open)`))) {
+      await app.answerUnsaved('편집 버리기')
+      await app.templateOf(BUG)
+    }
+    for (const name of (await documentsIn(vault)).filter((n) => !before.has(n) || names.includes(n))) await rm(join(vault, '문서', name), { force: true })
+    await rm(path, { force: true })
+  }
+  await app.cdp.waitFor(`!__e2e.one('button.item:not(.group-toggle)', '${template.name}')`, 'the template gone from the sidebar', { timeoutMs: 30_000 })
+}
+
+/**
+ * Waits until the sidecar answers for `field`, given `values`, as `expected` says ({ value } or { reason }). It chooses its
+ * thresholds away from the ingest of the files just written, which it is given when a document of the template is opened; and a
+ * document is asked about once per pause in typing, so what is entered before they are in use keeps the answer it got.
+ */
+async function untilSidecarAnswers(app, ref, field, values, expected, timeoutMs = 120_000) {
+  const request = JSON.stringify({ template: ref, field, values })
+  const start = Date.now()
+  let last
+  for (;;) {
+    last = await app.cdp.evaluate(`(async () => { try { const s = await window.__TAURI_INTERNALS__.invoke('host_suggest', { request: ${request} }); return JSON.stringify({ value: s.value, reason: s.reason }) } catch (e) { return JSON.stringify({ error: String(e) }) } })()`)
+    const got = JSON.parse(last)
+    if (Object.entries(expected).every(([k, v]) => got[k] === v)) return
+    if (Date.now() - start > timeoutMs) assert.fail(`the sidecar did not answer ${JSON.stringify(expected)} for ${field} within ${timeoutMs / 1000} s; last: ${last}`)
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
+  }
+}
+
+/** What is said under a field (its quiet notes, joined), and the value it offers to take — null when it offers none. */
+const saidUnder = (app, field) =>
+  app.cdp.evaluate(`__e2e.all('[data-formdown-note="${field}"]').map((el) => el.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).join(' | ')`)
+const offeredFor = (app, field) => app.cdp.evaluate(`__e2e.one('[data-formdown-note="${field}"] .formdown-suggestion')?.textContent ?? null`)
 
 export default {
   async 'suggests a judgment value from confirmed documents, and saves it once accepted'(app, vault) {
@@ -322,5 +391,105 @@ export default {
       await app.learning()
       for (const name of (await documentsIn(vault)).filter((n) => !before.has(n))) await rm(join(vault, '문서', name))
     }
+  },
+
+  async 'leaves both of two fields settled together empty while one is unsure, whichever of them a person settles'(app, vault) {
+    // 담당 follows from 부서; 승인 goes either way within a department. Neither is a clue for the other.
+    const rows = Array.from({ length: 60 }, (_, i) => {
+      const d = i % 3
+      return { 요청: `요청 ${i}`, 부서: DEPARTMENTS[d], 담당: OWNERS[d], 승인: APPROVERS[(d + (Math.floor(i / 3) % 2)) % 3] }
+    })
+    await learnedFrom(app, vault, ROUTING, ROUTING_BODY, rows, async () => {
+      await app.newDocument(ROUTING)
+      await app.cdp.waitFor(`__e2e.one('[data-field-name="요청"]')?.textContent === ''`, 'an empty form')
+      await untilSidecarAnswers(app, ROUTING.ref, '담당', { 부서: '영업' }, { reason: 'together' })
+      await app.fill('[data-field-name="요청"]', '결재 올립니다')
+      await app.choose('select[name="부서"]', '영업')
+      // The sure one is held back with the unsure one, and says so; the unsure one says why it has nothing.
+      await app.cdp.waitFor(
+        `__e2e.all('[data-formdown-note="담당"]').some((el) => el.textContent.includes('함께 정하는 칸이 아직 확실하지 않아 비웠습니다'))`,
+        '담당 held back with 승인',
+        { timeoutMs: 30_000 },
+      )
+      assert.match(await saidUnder(app, '승인'), /목표만큼 맞는다는 것을 아직 보이지 못해 제안하지 않습니다/)
+      assert.equal(await offeredFor(app, '담당'), null)
+      assert.equal(await offeredFor(app, '승인'), null)
+      assert.equal(await app.cdp.evaluate(`__e2e.all('.formdown-suggestion').length`), 0, 'nothing to take')
+      // The person settles the sure one: the unsure one is still unsure, so both stay empty.
+      await app.choose('select[name="담당"]', '장비')
+      await app.cdp.waitFor(`!__e2e.all('[data-formdown-note="담당"]').some((el) => el.textContent.includes('함께 정하는 칸'))`, '담당 settled, no longer held')
+      assert.match(await saidUnder(app, '승인'), /목표만큼 맞는다는 것을 아직 보이지 못해 제안하지 않습니다/)
+      assert.equal(await app.value('select[name="승인"]'), '', 'nothing filled in')
+      assert.equal(await app.cdp.evaluate(`__e2e.all('.formdown-suggestion').length`), 0, 'nothing to take')
+      await app.click('dc-button', '저장')
+      await app.status('저장했습니다')
+      await app.noAlert()
+    })
+  },
+
+  async 'shows the sure field of a chain first and the one it keys once that is settled'(app, vault) {
+    // A company has one industry; its occupation follows from the company within it — so the occupation waits on the industry.
+    const table = [
+      ['은행', '금융', '분석가'],
+      ['상점', '유통', '점원'],
+      ['병원', '보건', '간호사'],
+      ['지점', '금융', '창구'],
+      ['지점', '금융', '분석가'],
+    ]
+    const rows = Array.from({ length: 150 }, (_, i) => {
+      const [회사, 산업, 직업] = table[i % 5]
+      return { 회사, 산업, 직업 }
+    })
+    await learnedFrom(app, vault, CODING, CODING_BODY, rows, async () => {
+      await app.newDocument(CODING)
+      await app.cdp.waitFor(`__e2e.one('select[name="회사"]')?.value === ''`, 'an empty form')
+      await untilSidecarAnswers(app, CODING.ref, '산업', { 회사: '은행' }, { value: '금융' })
+      await app.choose('select[name="회사"]', '은행')
+      // The industry is shown; the occupation, still waiting on it, holds nothing back.
+      await app.cdp.waitFor(`__e2e.one('[data-formdown-note="산업"] .formdown-suggestion')?.textContent === '금융'`, 'the industry offered', { timeoutMs: 60_000 })
+      assert.equal(await offeredFor(app, '직업'), null, 'the occupation is not offered before the industry is settled')
+      assert.ok(!(await saidUnder(app, '산업')).includes('함께 정하는 칸'), 'the industry is not held back by the occupation')
+      assert.ok(!(await saidUnder(app, '직업')).includes('함께 정하는 칸'), 'nor the occupation by the industry')
+      // Settled by the person, the industry lets the occupation be asked.
+      await app.click('[data-formdown-note="산업"] .formdown-suggestion', '금융')
+      await app.cdp.waitFor(`__e2e.one('select[name="산업"]')?.value === '금융'`, 'the industry taken')
+      await app.cdp.waitFor(`__e2e.one('[data-formdown-note="직업"] .formdown-suggestion')?.textContent === '분석가'`, 'the occupation offered once the industry is settled', { timeoutMs: 30_000 })
+      await app.click('dc-button', '저장')
+      await app.status('저장했습니다')
+      await app.noAlert()
+    })
+  },
+
+  async 'holds a field back with the partner drawn to be checked, and does not count it as a check'(app, vault) {
+    // Both follow from 부서, so both are sure; 담당 asked first is not drawn, its partner 승인 is.
+    const rows = Array.from({ length: 60 }, (_, i) => {
+      const d = i % 3
+      return { 요청: `요청 ${i}`, 부서: DEPARTMENTS[d], 담당: OWNERS[d], 승인: APPROVERS[d] }
+    })
+    await learnedFrom(app, vault, ROUTING, ROUTING_BODY, rows, async () => {
+      const eventsBefore = (await events(vault)).length
+      await app.cdp.evaluate(`globalThis.lowlineRoll = ((rolls) => { let n = 0; return () => rolls[Math.min(n++, rolls.length - 1)] })([0.999999, 0, 0.999999])`)
+      try {
+        await app.newDocument(ROUTING)
+        await app.cdp.waitFor(`__e2e.one('[data-field-name="요청"]')?.textContent === ''`, 'an empty form')
+        await untilSidecarAnswers(app, ROUTING.ref, '담당', { 부서: '개발' }, { value: '인사' })
+        await app.fill('[data-field-name="요청"]', '결재 올립니다')
+        await app.choose('select[name="부서"]', '개발')
+        // 승인 is the check; 담당 is held back with it and says only that it is to be settled without a suggestion.
+        await app.cdp.waitFor(`__e2e.all('[data-formdown-note="담당"]').some((el) => el.textContent.includes('이번에는 이 칸을 제안 없이 직접 정해 주세요'))`, '담당 held back with the check', { timeoutMs: 60_000 })
+        await app.cdp.waitFor(`__e2e.all('[data-formdown-note="승인"]').some((el) => el.textContent.includes('확인용'))`, '승인 drawn to be checked')
+        assert.equal(await app.cdp.evaluate(`__e2e.all('.formdown-suggestion').length`), 0, 'nothing to take')
+        await app.choose('select[name="담당"]', '총무')
+        await app.choose('select[name="승인"]', '박')
+        await app.click('dc-button', '저장')
+        await app.status('저장했습니다')
+        await app.noAlert()
+        // Only the drawn field is a check; the one held back with it is no check and no decision about a suggestion.
+        const written = (await events(vault)).slice(eventsBefore).map((e) => `${e.field}:${e.kind}`)
+        assert.deepEqual(written, ['승인:check'])
+      } finally {
+        await app.holdBack(false)
+      }
+    })
   },
 }

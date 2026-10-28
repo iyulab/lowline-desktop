@@ -258,6 +258,10 @@ export class JudgmentController implements ReactiveController {
     const taken = this.suggestions.get(field)
     this.settle(field)
     this.dismiss(field)
+    // What is in the field now is a clue for the others, which may have waited on it: asked again, an occupation
+    // answers once the industry it follows from is taken.
+    clearTimeout(this.suggestTimer)
+    this.suggestTimer = setTimeout(() => void this.suggest(), 0)
     if (taken?.mode !== 'coarse') {
       this.typing.delete(field)
       return false
@@ -266,8 +270,6 @@ export class JudgmentController implements ReactiveController {
     if (offer) this.classes.set(field, offer)
     this.offered.delete(field)
     this.typing.add(field)
-    clearTimeout(this.suggestTimer)
-    this.suggestTimer = setTimeout(() => void this.suggest(), 0)
     return true
   }
 
