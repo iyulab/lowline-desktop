@@ -43,6 +43,19 @@ export type ReadPlan =
   | { problem: 'unknown-field'; field: string }
   | { problem: 'bad-filter'; field: string }
 
+/**
+ * Plans from what was known when the question went out — and, if that says the reply names a template that does not
+ * exist, once more from `fresh()`: the vault read anew. "There is no such template" is a claim about the vault, and the
+ * read it rests on is older than the time the model took to answer; a template made or renamed in between must not be
+ * denied. Any other outcome is the first one's, and the vault is not read again for it.
+ */
+export async function planChecked<B>(basis: B, plan: (basis: B) => ReadPlan, fresh: () => Promise<B>): Promise<{ read: ReadPlan; basis: B }> {
+  const read = plan(basis)
+  if (!('problem' in read) || read.problem !== 'unknown-template') return { read, basis }
+  const again = await fresh()
+  return { read: plan(again), basis: again }
+}
+
 const OPS = new Set(['equal', 'contains', 'atLeast', 'atMost', 'empty', 'period'])
 
 /**

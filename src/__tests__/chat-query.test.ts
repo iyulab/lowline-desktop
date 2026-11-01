@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { periodDays, planWords, queryPlan } from '../chat-query.ts'
+import { periodDays, planChecked, planWords, queryPlan, type ReadPlan } from '../chat-query.ts'
 import { countColumns, referringTemplates, templateSnapshot } from '../projection.ts'
 import { documentNames } from '../references.ts'
 import { strings } from '../strings.ts'
@@ -332,5 +332,57 @@ version: 1
     expect(planWords({ groupBy: ['청구서'], filters: [], sum: '금액', top: 3 }, item.fields)).toBe(
       [strings.queryAll, strings.queryBy(['청구서']), strings.querySumOf('금액'), strings.queryTopSum(3)].join(' · '),
     )
+  })
+})
+
+describe('planChecked — a "no such template" answer is checked against a vault read anew', () => {
+  const unknown: ReadPlan = { problem: 'unknown-template', template: '문의' }
+  const planned: ReadPlan = { plan: { groupBy: ['고객'], filters: [] } }
+
+  it('plans from a read made after the question went out when the first read did not have the template', async () => {
+    let fresh = 0
+    const { read, basis } = await planChecked(
+      'stale',
+      (b) => (b === 'stale' ? unknown : planned),
+      async () => {
+        fresh++
+        return 'fresh'
+      },
+    )
+    expect(fresh).toBe(1)
+    expect(read).toEqual(planned)
+    expect(basis).toBe('fresh')
+  })
+
+  it('still says there is no such template when the vault read anew has none either', async () => {
+    let fresh = 0
+    const { read, basis } = await planChecked(
+      'stale',
+      () => unknown,
+      async () => {
+        fresh++
+        return 'fresh'
+      },
+    )
+    expect(fresh).toBe(1)
+    expect(read).toEqual(unknown)
+    expect(basis).toBe('fresh')
+  })
+
+  it('reads the vault again only for that answer', async () => {
+    for (const first of [planned, { unanswerable: '모름' }, { problem: 'no-plan' }, { problem: 'unknown-field', field: 'x' }, { problem: 'bad-filter', field: 'x' }] as ReadPlan[]) {
+      let fresh = 0
+      const { read, basis } = await planChecked(
+        'first',
+        () => first,
+        async () => {
+          fresh++
+          return 'fresh'
+        },
+      )
+      expect(fresh).toBe(0)
+      expect(read).toBe(first)
+      expect(basis).toBe('first')
+    }
   })
 })

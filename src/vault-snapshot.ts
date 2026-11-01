@@ -117,6 +117,15 @@ export function readVault(): Promise<ReadVault> {
   return shared.call()
 }
 
+/**
+ * The vault read anew: a read under way is not joined, whatever it knows. For a question whose answer would otherwise
+ * deny something (a template, a document) on a read made before it — files whose time did not move are not read again.
+ */
+export function readVaultAgain(): Promise<ReadVault> {
+  shared.invalidate()
+  return readVault()
+}
+
 const shared = new SharedRun(readNow)
 
 async function readNow(): Promise<ReadVault> {

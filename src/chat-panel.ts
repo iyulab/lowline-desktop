@@ -7,12 +7,12 @@ import '@iyulab/chat-components/dist/components/blocks/UMarkedBlock.js'
 import { strings } from './strings.js'
 import { failureText, modelLabel } from './model-settings.js'
 import { draftProblems, draftsOf, fieldChanges, leftoverFields, retryMessage, rowProblems, sourceId, spreadRows, tidyDraft, wordsOf } from './chat-authoring.js'
-import { planWords, queryPlan, type ReadPlan } from './chat-query.js'
+import { planChecked, planWords, queryPlan, type ReadPlan } from './chat-query.js'
 import { fileName, fileNameFor } from './documents.js'
 import { cellText, countColumns, referringTemplates, templateSnapshot, type AggregateAnswer, type CountColumn, type TemplateField, type TemplateSnapshot } from './projection.js'
 import { open } from '@tauri-apps/plugin-dialog'
 import { host, model as models, vault, type ChatSource, type ChatTurn } from './vault-client.js'
-import { SidecarUnavailable, readVault, syncVault } from './vault-snapshot.js'
+import { SidecarUnavailable, readVault, readVaultAgain, syncVault, type ReadVault } from './vault-snapshot.js'
 import { documentNames, type DocumentNames } from './references.js'
 import { templateId } from './template-revision.js'
 import { describeError } from './errors.js'
@@ -63,6 +63,18 @@ interface Answer {
 
 /** A sum as the answer shows it: grouped by thousands, its decimals as they are. */
 const NUMBER = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 20 })
+
+/** What a question about the template's records rests on, as the vault stands in one read. */
+function queryBasis(template: TemplateSnapshot, vaultNow: ReadVault) {
+  const columns = countColumns(template, vaultNow.templates)
+  const referring = referringTemplates(template, vaultNow.templates).map(({ template: t, via }) => ({
+    ref: t.ref,
+    name: vaultNow.names.get(t.ref) ?? templateId(t.ref),
+    via,
+    columns: countColumns(t, vaultNow.templates),
+  }))
+  return { vaultNow, columns, referring, names: documentNames(vaultNow.documents) }
+}
 
 /** What the chat does: change the template, or ask its records — one task for a model at a time. */
 type Mode = 'author' | 'ask'
@@ -246,20 +258,12 @@ export class LlChatPanel extends LitElement {
     try {
       // What the template's documents can be counted by — its fields, and those of the documents they refer to — is
       // told the model by name and choices, never a value.
-      const vaultNow = await readVault()
-      const columns = countColumns(template, vaultNow.templates)
       const asColumn = (c: TemplateField) => ({ name: c.name, type: c.type, options: c.options })
-      const referred = columns.filter((c) => c.via).map(asColumn)
+      const first = queryBasis(template, await readVault())
+      const referred = first.columns.filter((c) => c.via).map(asColumn)
       // The templates whose documents name this one's — what "the businesses inspected most" counts — told the model
       // the same way: by name, the fields that name this one's documents, and what their documents are counted by.
-      const referring = referringTemplates(template, vaultNow.templates).map(({ template: t, via }) => ({
-        ref: t.ref,
-        name: vaultNow.names.get(t.ref) ?? templateId(t.ref),
-        via,
-        columns: countColumns(t, vaultNow.templates),
-      }))
-      const told = referring.map((r) => ({ name: r.name, via: r.via, columns: r.columns.map(asColumn) }))
-      const names = documentNames(vaultNow.documents)
+      const told = first.referring.map((r) => ({ name: r.name, via: r.via, columns: r.columns.map(asColumn) }))
       // The vault handed to the sidecar as it stands, as the table does before it counts — while the model reads.
       const [reply] = await Promise.all([models.query(model, this.saved, question, referred, told), syncVault()])
       if (ask !== this.asked) return
@@ -267,7 +271,15 @@ export class LlChatPanel extends LitElement {
         fail(strings.chatFailed(failureText(reply.failure, reply.statusCode)))
         return
       }
-      const read = queryPlan(reply.text, columns, new Date(), names, referring, question)
+      // A reply naming a template the read before the question does not know is checked against a read made now: the
+      // model took its time, and "there is no such template" must be a fact about the vault, not about a moment ago.
+      const { read, basis } = await planChecked(
+        first,
+        (b) => queryPlan(reply.text!, b.columns, new Date(), b.names, b.referring, question),
+        async () => queryBasis(template, await readVaultAgain()),
+      )
+      if (ask !== this.asked) return
+      const { vaultNow, columns, referring, names } = basis
       if (!('plan' in read)) {
         fail(notCounted(read))
         return
