@@ -34,10 +34,10 @@
     <PackageReference Include="FluxIndex.SDK" Version="0.105.0" />
     <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.105.0" />
     <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.31.0" />
-    <PackageReference Include="DesktopHost.Files" Version="0.5.0" />
-    <PackageReference Include="Undoc" Version="0.27.1" />
+    <PackageReference Include="DesktopHost.Files" Version="0.7.0" />
+    <PackageReference Include="Undoc" Version="0.27.3" />
     <PackageReference Include="Unhwp" Version="0.23.1" />
-    <PackageReference Include="Unpdf" Version="0.51.0" />
+    <PackageReference Include="Unpdf" Version="0.54.0" />
   </ItemGroup>
 
 </Project>

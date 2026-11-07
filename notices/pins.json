@@ -105,10 +105,6 @@
     "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/efcore/LICENSE.txt",
     "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
   },
-  "DesktopHost.Files@0.5.0": {
-    "source": "https://raw.githubusercontent.com/iyulab/desktop-host/6eb403e690b83901dc87c9e61e44128ce2efb949/LICENSE",
-    "sha256": "16d5280c46463f25ada2a292bf61eff7e53bb6d140501d4bb5a8af51fbc07e03"
-  },
   "Google.GenAI@1.27.0": {
     "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/2a9d172558cf4461391bce9fd1a3e6668e51d4c6/LICENSE",
     "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
@@ -120,5 +116,9 @@
   "System.Memory.Data@10.0.10": {
     "source": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
     "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "DesktopHost.Files@0.7.0": {
+    "source": "https://raw.githubusercontent.com/iyulab/desktop-host/6ab320978d6665bc3586f49864f5b3ad8964c4bf/LICENSE",
+    "sha256": "16d5280c46463f25ada2a292bf61eff7e53bb6d140501d4bb5a8af51fbc07e03"
   }
 }
