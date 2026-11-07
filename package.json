@@ -19,6 +19,7 @@
     "build:e2e": "tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json",
     "test:e2e": "node e2e/run.mjs",
     "check:installer": "node scripts/check-installer.mjs",
+    "walk-update": "node scripts/walk-update.mjs",
     "notices": "tauri-kit-dev notices --config notices/config.mjs",
     "tauri": "tauri",
     "test:host": "dotnet test --project src-host/Lowline.Host.Tests",
@@ -44,7 +45,7 @@
   },
   "devDependencies": {
     "@fontsource/instrument-sans": "5.3.0",
-    "@iyulab/tauri-kit-dev": "^0.12.0",
+    "@iyulab/tauri-kit-dev": "^0.13.0",
     "@resvg/resvg-js": "2.6.2",
     "@tauri-apps/cli": "^2.12.4",
     "opentype.js": "2.0.0",
