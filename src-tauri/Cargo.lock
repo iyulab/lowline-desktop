@@ -4250,9 +4250,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-credentials"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd6af175f14d276b16560fa1d5f8cc69bf7838dcf65aea7b60f68be4ee66b17f"
+checksum = "22d82f59f3cb929c70775bbe14014d40c20e15e1c511518c5c8add0f9a5950c0"
 dependencies = [
  "apple-native-keyring-store",
  "keyring-core",
@@ -4262,9 +4262,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-diagnostics"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "404ca3d342249f1d9bb6b71402c9bb8895962cbd0abcde5c864144c9c681f641"
+checksum = "d8c86d65a91d7e8e7c104ccd4dfcebabb4d97ea694a49abbd169a6b4bd23be96"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -4278,9 +4278,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-fs"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf0ebeeec7e10b9475497b4e541d7f0134194fb9237860891c56e59ffc60312f"
+checksum = "5812ad3cdea932b66a3261a45b1357a8de8d1ebf2fd0dfc697695ad8e9bd8cd7"
 dependencies = [
  "dunce",
  "libc",
@@ -4290,9 +4290,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-sidecar"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20e3814b39e508a8ed1dfa2f3a92024af95ad84d635b2f491aead81f7fe113b9"
+checksum = "941ea144270fcf892952c9109128b30342bc009b52b013d10a45ee53f6565103"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -4304,9 +4304,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-state"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ee53cd992a79750ed18ad67dd260ad9188084900ae46e67b0191503226bae9"
+checksum = "cfc2ca33bd456f63a1b81cafc39e96b228fcd50469d09c36f8dd172520128523"
 dependencies = [
  "getrandom 0.4.3",
  "serde",
@@ -4316,9 +4316,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-update"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8541e6d12f53073a0ade2a481780ee7d4b06f1c035df1fc6a329d01cfc174860"
+checksum = "8b28e962d7e4dd690420f3e609af7d2c98e34e1eb3a8bf64f76be5d77a91d060"
 dependencies = [
  "serde",
  "serde_json",
@@ -4327,9 +4327,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-watch"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9791f4e57009d0466b2c2e78e061e7d50952868827174b1359ec921143d6db3a"
+checksum = "b7dc5c35a6c5eddcc89dc30e0d3385a856564e9092df3c7998795a286132ba31"
 dependencies = [
  "notify",
  "tauri-kit-fs",
@@ -4337,9 +4337,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-webview"
-version = "0.31.0"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "115bb3258bd16d7df3013522bc04f72df4a00efa9c3e1e868c25b4c15a3e6faa"
+checksum = "a6b0b847b2f7260d7698350b5ea98430825255c6ab3ba301fa7602014652e309"
 dependencies = [
  "block2",
  "objc2",
