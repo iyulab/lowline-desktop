@@ -654,7 +654,7 @@
         },
         {
           "id": "gguf:qwen3-balanced",
-          "name": "Qwen3 8B Instruct",
+          "name": "Qwen 3.5 9B Instruct",
           "sizeBytes": 0,
           "downloaded": false,
           "recommended": false
@@ -680,7 +680,7 @@
         },
         {
           "id": "gguf:qwen3-balanced",
-          "name": "Qwen3 8B Instruct",
+          "name": "Qwen 3.5 9B Instruct",
           "sizeBytes": 0,
           "downloaded": false,
           "recommended": false
@@ -706,7 +706,7 @@
         },
         {
           "id": "gguf:qwen3-balanced",
-          "name": "Qwen3 8B Instruct",
+          "name": "Qwen 3.5 9B Instruct",
           "sizeBytes": 0,
           "downloaded": true,
           "recommended": false
@@ -732,7 +732,7 @@
         },
         {
           "id": "gguf:qwen3-balanced",
-          "name": "Qwen3 8B Instruct",
+          "name": "Qwen 3.5 9B Instruct",
           "sizeBytes": 0,
           "downloaded": true,
           "recommended": false

@@ -109,8 +109,8 @@
     "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/2a9d172558cf4461391bce9fd1a3e6668e51d4c6/LICENSE",
     "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
   },
-  "System.ClientModel@1.16.0": {
-    "source": "https://raw.githubusercontent.com/Azure/azure-sdk-for-net/dcd5b3aadd7fe3ebc73a22408cb514bd18ec3e6f/LICENSE.txt",
+  "System.ClientModel@1.17.0": {
+    "source": "https://raw.githubusercontent.com/Azure/azure-sdk-for-net/589eb9e6a05aec55b5fed98d9465e28b1e85739d/LICENSE.txt",
     "sha256": "9b45236978bb5cd5de992021769e1eeaa79f0116d3b02cf8ba065a1ed603d5fa"
   },
   "System.Memory.Data@10.0.10": {
