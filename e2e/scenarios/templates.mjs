@@ -89,6 +89,8 @@ export default {
     await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('id: bug-report')`, 'the template source')
     await app.click('dc-checkbox', '심각도')
     await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('suggest:role="judged"')`, 'the choice written on the field')
+    // The template's other fields tell it apart, so nothing says it has nothing to go on.
+    assert.equal(await app.cdp.evaluate(`__e2e.all('p.no-clues').length`), 0, 'no "nothing to tell it apart" note')
     await app.click('dc-button', '저장')
     await app.status('저장했습니다')
     const on = parseFormdown(await readFile(path, 'utf8'))

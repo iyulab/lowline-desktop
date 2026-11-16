@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellText, documentSnapshot, referenceTargets, templateSnapshot } from '../projection.js'
+import { cellText, documentSnapshot, judgedWithoutClues, referenceTargets, templateSnapshot } from '../projection.js'
 import { newDocument } from '../documents.js'
 
 const template = `---
@@ -169,5 +169,25 @@ describe('referenceTargets', () => {
 
   it('has none without a field that refers to a template', () => {
     expect([...referenceTargets([customer])]).toEqual([])
+  })
+})
+
+describe('judgedWithoutClues', () => {
+  const template = (fields: string) => ['---', 'id: intake', 'version: 1', '---', '# 접수', '', fields, ''].join('\n')
+
+  it('names a judgment field no other field can tell apart', () => {
+    // Alone in its template: nothing beside it to go on.
+    expect(judgedWithoutClues(template('@담당: [select options="장비,총무" suggest:role=judged]'))).toEqual(['담당'])
+    // The only other field is kept out of the clues.
+    const keptOut = template('@요청: [textarea suggest:evidence=false]\n\n@담당: [select options="장비,총무" suggest:role=judged]')
+    expect(judgedWithoutClues(keptOut)).toEqual(['담당'])
+  })
+
+  it('names none while another field is a clue — another judgment field included', () => {
+    expect(judgedWithoutClues(template('@부서: [select options="영업,개발"]\n\n@담당: [select options="장비,총무" suggest:role=judged]'))).toEqual([])
+    const twoJudged = template('@부서: [select options="영업,개발" suggest:role=judged]\n\n@담당: [select options="장비,총무" suggest:role=judged]')
+    expect(judgedWithoutClues(twoJudged)).toEqual([])
+    expect(judgedWithoutClues(template('@부서: [select options="영업,개발"]'))).toEqual([])
+    expect(judgedWithoutClues('not ] a [ template')).toEqual([])
   })
 })

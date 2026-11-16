@@ -193,6 +193,22 @@ export function judgedFields(source: string): string[] {
   }
 }
 
+/**
+ * The judgment fields of `source` that no other field can tell apart: every other field is kept out of the clues
+ * (`suggest:evidence=false`), or there is no other field. The engine settles a field by the values its documents hold
+ * beside it, so for such a field it has nothing to go on before a person types into it.
+ */
+export function judgedWithoutClues(source: string): string[] {
+  try {
+    const parsed = parseFormdown(source)
+    const forms = parsed.forms.filter((f, i, all) => all.findIndex((g) => g.name === f.name) === i)
+    const clues = forms.filter((f) => f.suggest?.evidence !== false).map((f) => f.name)
+    return judgedFields(source).filter((field) => !clues.some((clue) => clue !== field))
+  } catch {
+    return []
+  }
+}
+
 /** What each field says of suggesting its value, by name, as Formdown read its `suggest:*` attributes. */
 function saidOf(forms: readonly { name: string; suggest?: FieldSuggest }[]): Map<string, FieldSuggest> {
   return new Map(forms.flatMap((f) => (f.suggest ? [[f.name, f.suggest] as const] : [])))

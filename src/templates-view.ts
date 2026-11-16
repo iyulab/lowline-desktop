@@ -17,7 +17,7 @@ import {
   type SourceFix,
 } from './documents.js'
 import { readVault, onVaultChanged } from './vault-snapshot.js'
-import { judgedFields, type DocumentSnapshot } from './projection.js'
+import { judgedFields, judgedWithoutClues, type DocumentSnapshot } from './projection.js'
 import type { TemplateItem } from './template-scope.js'
 import './rename-control.js'
 import './delete-control.js'
@@ -339,15 +339,17 @@ export class LlTemplates extends LitElement {
    * The source's fields: whether each is a judgment field, and a choice field's options (a select, or
    * a radio or checkbox group). Nothing while the source does not parse.
    */
-  private fields(): { name: string; label: string; judgment: boolean; options?: string }[] {
+  private fields(): { name: string; label: string; judgment: boolean; noClues: boolean; options?: string }[] {
     try {
       const on = new Set(judgedFields(this.source))
+      const noClues = new Set(judgedWithoutClues(this.source))
       // A name used twice is one field to the documents: listed once (the problem is said above the source).
       const forms = parseFormdown(this.source).forms.filter((f, i, all) => all.findIndex((g) => g.name === f.name) === i)
       return forms.map((f) => ({
         name: f.name,
         label: f.label ?? f.name,
         judgment: on.has(f.name),
+        noClues: noClues.has(f.name),
         options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options?.length ? optionsText(f.options) : undefined,
       }))
     } catch {
@@ -640,7 +642,8 @@ export class LlTemplates extends LitElement {
                       if (e.key === 'Enter') commit(f.name)(e)
                     }}
                   ></dc-input>`
-                : html`<span></span>`}`,
+                : html`<span></span>`}
+              ${f.noClues ? html`<p class="message no-clues">${strings.fieldNoClues}</p>` : nothing}`,
           )}
     </div>`
   }
