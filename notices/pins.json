@@ -81,10 +81,6 @@
       "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9"
     }
   ],
-  "OpenAI@2.14.0": {
-    "source": "https://raw.githubusercontent.com/openai/openai-dotnet/2e77b08828145f658ec04e49aec87abb1543c553/LICENSE",
-    "sha256": "5b1ac9960dc46756e316a2962c77fb8cbdee8fa87c9ab1825671235fac6a1f96"
-  },
   "Tiktoken.Core@3.1.5": {
     "source": "https://raw.githubusercontent.com/tryAGI/Tiktoken/871d38c16d8478faeb6d53f4fdf8a5e76c382854/LICENSE.txt",
     "sha256": "0789f2ac922216b2f1e8b4b16135b32449771d512909a492f383c54aa477f3a0"
@@ -97,14 +93,6 @@
     "source": "https://raw.githubusercontent.com/tryAGI/Tiktoken/871d38c16d8478faeb6d53f4fdf8a5e76c382854/LICENSE.txt",
     "sha256": "0789f2ac922216b2f1e8b4b16135b32449771d512909a492f383c54aa477f3a0"
   },
-  "Microsoft.Data.Sqlite.Core@10.0.14": {
-    "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/efcore/LICENSE.txt",
-    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
-  },
-  "Google.GenAI@1.27.0": {
-    "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/2a9d172558cf4461391bce9fd1a3e6668e51d4c6/LICENSE",
-    "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
-  },
   "System.ClientModel@1.17.0": {
     "source": "https://raw.githubusercontent.com/Azure/azure-sdk-for-net/589eb9e6a05aec55b5fed98d9465e28b1e85739d/LICENSE.txt",
     "sha256": "9b45236978bb5cd5de992021769e1eeaa79f0116d3b02cf8ba065a1ed603d5fa"
@@ -116,5 +104,21 @@
   "DesktopHost.Files@0.7.0": {
     "source": "https://raw.githubusercontent.com/iyulab/desktop-host/6ab320978d6665bc3586f49864f5b3ad8964c4bf/LICENSE",
     "sha256": "16d5280c46463f25ada2a292bf61eff7e53bb6d140501d4bb5a8af51fbc07e03"
+  },
+  "OpenAI@2.15.0": {
+    "source": "https://raw.githubusercontent.com/openai/openai-dotnet/df2ac26b0f466aa022d5418833cdf70d86cfd40a/LICENSE",
+    "sha256": "5b1ac9960dc46756e316a2962c77fb8cbdee8fa87c9ab1825671235fac6a1f96"
+  },
+  "Microsoft.Data.Sqlite.Core@11.0.0": {
+    "source": "https://raw.githubusercontent.com/dotnet/dotnet/297acf930fb0f5c07fd4e51d78e521b4ad2e5d1f/src/efcore/LICENSE.txt",
+    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "Microsoft.Extensions.DependencyInjection.Abstractions@11.0.0": {
+    "source": "https://raw.githubusercontent.com/dotnet/dotnet/297acf930fb0f5c07fd4e51d78e521b4ad2e5d1f/src/runtime/LICENSE.TXT",
+    "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310"
+  },
+  "Google.GenAI@2.0.0": {
+    "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/f72b7e6a218363abc383a58dc7b97e60235ca04b/LICENSE",
+    "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
   }
 }

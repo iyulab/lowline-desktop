@@ -22,22 +22,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Formbase.Core" Version="0.34.0" />
-    <PackageReference Include="Formbase.Sqlite" Version="0.34.0" />
-    <PackageReference Include="Formbase.DependencyInjection" Version="0.34.0" />
-    <PackageReference Include="Formbase.Formdown" Version="0.34.0" />
-    <PackageReference Include="Lowline" Version="0.12.1" />
-    <PackageReference Include="IronProw.Core" Version="0.19.0" />
-    <PackageReference Include="IronProw.IronHive" Version="0.19.0" />
-    <PackageReference Include="IronProw.LMSupply" Version="0.19.0" />
-    <PackageReference Include="LMSupply.Generator" Version="0.140.0" />
-    <PackageReference Include="FluxIndex.SDK" Version="0.106.0" />
-    <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.106.0" />
-    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.32.0" />
+    <PackageReference Include="Formbase.Core" Version="0.36.0" />
+    <PackageReference Include="Formbase.Sqlite" Version="0.36.0" />
+    <PackageReference Include="Formbase.DependencyInjection" Version="0.36.0" />
+    <PackageReference Include="Formbase.Formdown" Version="0.36.0" />
+    <PackageReference Include="Lowline" Version="0.12.2" />
+    <PackageReference Include="IronProw.Core" Version="0.20.0" />
+    <PackageReference Include="IronProw.IronHive" Version="0.20.0" />
+    <PackageReference Include="IronProw.LMSupply" Version="0.20.0" />
+    <PackageReference Include="LMSupply.Generator" Version="0.143.0" />
+    <PackageReference Include="FluxIndex.SDK" Version="0.107.0" />
+    <PackageReference Include="FluxIndex.Storage.SQLite" Version="0.107.0" />
+    <PackageReference Include="TauriKit.Sidecar.Loopback.AspNetCore" Version="0.32.1" />
     <PackageReference Include="DesktopHost.Files" Version="0.7.0" />
-    <PackageReference Include="Undoc" Version="0.27.3" />
-    <PackageReference Include="Unhwp" Version="0.23.1" />
-    <PackageReference Include="Unpdf" Version="0.54.0" />
+    <PackageReference Include="Undoc" Version="0.28.0" />
+    <PackageReference Include="Unhwp" Version="0.24.0" />
+    <PackageReference Include="Unpdf" Version="0.55.0" />
   </ItemGroup>
 
 </Project>
