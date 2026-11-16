@@ -2344,6 +2344,7 @@ dependencies = [
  "tauri-build",
  "tauri-kit-credentials",
  "tauri-kit-diagnostics",
+ "tauri-kit-dialog",
  "tauri-kit-fs",
  "tauri-kit-sidecar",
  "tauri-kit-state",
@@ -4418,6 +4419,17 @@ dependencies = [
  "tauri-kit-state",
  "ureq",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tauri-kit-dialog"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65de8ca85166b1dbece7d8f2aca9d1885afca78e33ce7d27ff50f54a403783d6"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri-kit-fs",
 ]
 
 [[package]]

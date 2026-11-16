@@ -23,6 +23,8 @@ serde_json = "1"
 # The device id's random bytes.
 getrandom = "0.4"
 # Error reports that carry no content, sent to Application Insights by a release build.
+# Every open and save dialog goes through one route, which an end-to-end build answers from the test.
+tauri-kit-dialog = "0.32.1"
 tauri-kit-credentials = "0.32.1"
 tauri-kit-diagnostics = { version = "0.32.1", features = ["appinsights"] }
 tauri-kit-fs = "0.32.1"
@@ -51,3 +53,8 @@ keyring-core = "1"
 # Canonical paths without the `\\?\` prefix on Windows, to compare with what the trash reports.
 dunce = "1"
 tempfile = "3"
+
+[features]
+# The end-to-end build (`npm run build:e2e`): dialogs take the answers the scenarios write. A release
+# build never holds that code.
+e2e = ["tauri-kit-dialog/test-answers"]

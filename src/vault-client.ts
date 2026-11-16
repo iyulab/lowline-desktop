@@ -131,6 +131,11 @@ export const vault = {
    */
   exportFile: (name: string, content: string, filter: string, extension: string) =>
     invoke<string | null>('export_file', { name, content, filter, extension }),
+  /** The folder the person picks in the folder dialog the shell opens, or null when it was closed. */
+  pickFolder: (title: string) => invoke<string | null>('pick_folder', { title }),
+  /** The file the person picks in the open dialog the shell opens, offering `filter`; null when it was closed. */
+  pickFile: (title: string, filter: string, extensions: string[]) =>
+    invoke<string | null>('pick_file', { title, filter, extensions }),
 }
 
 /** What changed in the vault outside the app. Paths are relative to the vault, `/`-separated. */

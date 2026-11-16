@@ -56,12 +56,12 @@ export const q = (s) => JSON.stringify(s)
 /** The window is ready once the app element is there. */
 const READY = `customElements.get('ll-app') && !!document.querySelector('ll-app')`
 
-/** How the e2e build is started: its own debugging port, its own profile, exports to a folder. */
+/** How the e2e build is started: its own debugging port, its own profile. Its dialogs take the answers a scenario gives (`answerDialogs`). */
 const LAUNCH = {
   exe,
   port: PORT,
   ready: READY,
-  env: { LOWLINE_EXPORT_TO: EXPORTS, LOWLINE_UPDATE_ENDPOINT: UPDATE_ENDPOINT },
+  env: { LOWLINE_UPDATE_ENDPOINT: UPDATE_ENDPOINT },
   debugPortFromEnv: false,
   // A launch that joins a WebView2 browser still shutting down on this profile never opens the port.
   webviewProfile: IDENTIFIER,

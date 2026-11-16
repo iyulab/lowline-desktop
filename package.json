@@ -16,7 +16,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && desktop-compact-check-tokens --defined node_modules/@iyulab/desktop-patterns/tokens.css --defined src/styles.css src",
-    "build:e2e": "tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json",
+    "build:e2e": "tauri build --debug --no-bundle --features e2e --config src-tauri/tauri.e2e.conf.json",
     "test:e2e": "node e2e/run.mjs",
     "check:installer": "node scripts/check-installer.mjs",
     "walk-update": "node scripts/walk-update.mjs",
@@ -40,12 +40,11 @@
     "@iyulab/desktop-compact": "^0.16.0",
     "@iyulab/desktop-patterns": "^0.13.0",
     "@tauri-apps/api": "^2.12.4",
-    "@tauri-apps/plugin-dialog": "^2.8.4",
     "lit": "^3.3.3"
   },
   "devDependencies": {
     "@fontsource/instrument-sans": "5.3.0",
-    "@iyulab/tauri-kit-dev": "^0.13.0",
+    "@iyulab/tauri-kit-dev": "^0.14.0",
     "@resvg/resvg-js": "2.6.2",
     "@tauri-apps/cli": "^2.12.4",
     "opentype.js": "2.0.0",

@@ -10,7 +10,6 @@ import { draftProblems, draftsOf, fieldChanges, leftoverFields, retryMessage, ro
 import { planChecked, planWords, queryPlan, type ReadPlan } from './chat-query.js'
 import { fileName, fileNameFor } from './documents.js'
 import { cellText, countColumns, referringTemplates, templateSnapshot, type AggregateAnswer, type CountColumn, type TemplateField, type TemplateSnapshot } from './projection.js'
-import { open } from '@tauri-apps/plugin-dialog'
 import { host, model as models, vault, type ChatSource, type ChatTurn } from './vault-client.js'
 import { SidecarUnavailable, readVault, readVaultAgain, syncVault, type ReadVault } from './vault-snapshot.js'
 import { documentNames, type DocumentNames } from './references.js'
@@ -314,8 +313,8 @@ export class LlChatPanel extends LitElement {
 
   /** A blank form file the person picks, for the chat to draft the template from. */
   private async pickFile() {
-    const path = await open({ title: strings.chatFromFileTitle, filters: [{ name: strings.chatFromFileKinds, extensions: ['hwp', 'hwpx', 'pdf', 'docx', 'xlsx'] }] })
-    if (typeof path === 'string') await this.fromFile(path)
+    const path = await vault.pickFile(strings.chatFromFileTitle, strings.chatFromFileKinds, ['hwp', 'hwpx', 'pdf', 'docx', 'xlsx'])
+    if (path !== null) await this.fromFile(path)
   }
 
   /** The blank form at `path`, read on this computer and handed to the chat with a request to draft the template from it. */

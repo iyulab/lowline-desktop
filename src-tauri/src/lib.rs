@@ -320,14 +320,98 @@ fn trash_file(path: String, state: State<AppState>) -> CommandResult<()> {
     with_vault(&state, |v| v.trash(&path))
 }
 
-/// In a debug build, `LOWLINE_EXPORT_TO` names a folder exports go to without the save dialog —
-/// the end-to-end scenarios cannot answer a system dialog. Release builds always ask.
-fn export_folder_for_tests() -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        std::env::var_os("LOWLINE_EXPORT_TO").map(PathBuf::from)
-    } else {
-        None
+/// Asks through the system dialog `show` opens — or, in the end-to-end build, takes the scenario's
+/// answer (`tauri-kit-dialog`). Returns the paths picked, or `None` when the dialog was closed.
+fn ask_dialog(
+    ask: &tauri_kit_dialog::Ask<'_>,
+    show: impl FnOnce() -> Option<Vec<tauri_plugin_dialog::FilePath>>,
+) -> CommandResult<Option<Vec<PathBuf>>> {
+    let failed = |message: String| CommandError {
+        kind: "dialog-failed",
+        message,
+    };
+    let mut unreadable = None;
+    let answer = tauri_kit_dialog::answer_or(ask, || match show() {
+        None => tauri_kit_dialog::Answer::Cancelled,
+        Some(picked) => tauri_kit_dialog::Answer::Paths(
+            picked
+                .into_iter()
+                .filter_map(|p| match p.into_path() {
+                    Ok(path) => Some(path),
+                    Err(e) => {
+                        unreadable = Some(e.to_string());
+                        None
+                    }
+                })
+                .collect(),
+        ),
+    })
+    .map_err(|e| failed(e.to_string()))?;
+    if let Some(message) = unreadable {
+        return Err(failed(message));
     }
+    Ok(match answer {
+        tauri_kit_dialog::Answer::Paths(paths) => Some(paths),
+        tauri_kit_dialog::Answer::Cancelled => None,
+    })
+}
+
+fn path_text(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+/// The folder the person picks in the system's folder dialog, titled `title`; `None` when it was
+/// closed. Opening and making a vault both start here.
+#[tauri::command]
+async fn pick_folder(title: String, app: AppHandle) -> CommandResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let ask = tauri_kit_dialog::Ask {
+        kind: tauri_kit_dialog::Kind::Folder,
+        title: &title,
+        default_path: None,
+        filters: &[],
+    };
+    // An async command runs off the main thread, where the blocking dialog may wait.
+    let picked = ask_dialog(&ask, || {
+        app.dialog()
+            .file()
+            .set_title(&title)
+            .blocking_pick_folder()
+            .map(|p| vec![p])
+    })?;
+    Ok(picked.and_then(|p| p.first().map(|p| path_text(p))))
+}
+
+/// The file the person picks in the system's open dialog, titled `title` and offering `filter`
+/// (`extensions` without the dot); `None` when it was closed.
+#[tauri::command]
+async fn pick_file(
+    title: String,
+    filter: String,
+    extensions: Vec<String>,
+    app: AppHandle,
+) -> CommandResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let extensions: Vec<&str> = extensions.iter().map(String::as_str).collect();
+    let filters = [tauri_kit_dialog::Filter {
+        name: &filter,
+        extensions: &extensions,
+    }];
+    let ask = tauri_kit_dialog::Ask {
+        kind: tauri_kit_dialog::Kind::Open,
+        title: &title,
+        default_path: None,
+        filters: &filters,
+    };
+    let picked = ask_dialog(&ask, || {
+        app.dialog()
+            .file()
+            .set_title(&title)
+            .add_filter(&filter, &extensions)
+            .blocking_pick_file()
+            .map(|p| vec![p])
+    })?;
+    Ok(picked.and_then(|p| p.first().map(|p| path_text(p))))
 }
 
 /// Saves `content` (an export — a table as CSV) where the person picks, offering `name` in the
@@ -342,24 +426,27 @@ async fn export_file(
     app: AppHandle,
 ) -> CommandResult<Option<String>> {
     use tauri_plugin_dialog::DialogExt;
-    let path = match export_folder_for_tests() {
-        Some(folder) => folder.join(&name),
-        None => {
-            // An async command runs off the main thread, where the blocking dialog may wait.
-            let Some(chosen) = app
-                .dialog()
-                .file()
-                .set_file_name(&name)
-                .add_filter(&filter, &[extension.as_str()])
-                .blocking_save_file()
-            else {
-                return Ok(None);
-            };
-            chosen.into_path().map_err(|e| CommandError {
-                kind: "export-failed",
-                message: e.to_string(),
-            })?
-        }
+    let extensions = [extension.as_str()];
+    let filters = [tauri_kit_dialog::Filter {
+        name: &filter,
+        extensions: &extensions,
+    }];
+    let ask = tauri_kit_dialog::Ask {
+        kind: tauri_kit_dialog::Kind::Save,
+        title: "",
+        default_path: Some(Path::new(&name)),
+        filters: &filters,
+    };
+    let picked = ask_dialog(&ask, || {
+        app.dialog()
+            .file()
+            .set_file_name(&name)
+            .add_filter(&filter, &extensions)
+            .blocking_save_file()
+            .map(|p| vec![p])
+    })?;
+    let Some(path) = picked.and_then(|p| p.into_iter().next()) else {
+        return Ok(None);
     };
     tauri_kit_fs::write_atomic(&path, content.as_bytes()).map_err(|e| CommandError {
         kind: "export-failed",
@@ -1098,6 +1185,8 @@ pub fn run() {
             trash_file,
             remove_file,
             export_file,
+            pick_folder,
+            pick_file,
             host_status,
             host_ingest,
             host_projection,

@@ -194,11 +194,17 @@ export default {
     assert.equal(row.재현됨, values.재현됨 === undefined ? '' : values.재현됨 ? '✓' : '✗')
     assert.equal(row.환경, values.환경)
 
-    // Exporting writes the table as CSV where the person picks; the debug shell saves it in EXPORTS.
+    // Exporting writes the table as CSV where the person picks in the save dialog — here the scenario's answer.
     await rm(EXPORTS, { recursive: true, force: true })
     await mkdir(EXPORTS, { recursive: true })
+    app.answerDialogs([{ kind: 'save', path: join(EXPORTS, '버그 리포트.csv') }])
     await app.click('dc-button', 'CSV로 내보내기')
     await app.status('버그 리포트.csv(으)로 내보냈습니다')
+    assert.deepEqual(
+      app.askedDialogs().at(-1),
+      { kind: 'save', title: '', defaultPath: '버그 리포트.csv', filters: [{ name: 'CSV (쉼표로 구분)', extensions: ['csv'] }] },
+      'the save dialog offers the template\'s name and CSV',
+    )
     const lines = (await readFile(join(EXPORTS, '버그 리포트.csv'), 'utf8')).split('\r\n')
     assert.equal(lines[0], '\uFEFF문서,제목,심각도,재현 절차,재현됨,환경,메모', 'labels as the table shows them, after the document')
     assert.equal(lines.filter(Boolean).length, 2, 'the heading and one line per document')

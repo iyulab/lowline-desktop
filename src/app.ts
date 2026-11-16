@@ -1,7 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit'
 import { customElement, queryAll, state } from 'lit/decorators.js'
 import { live } from 'lit/directives/live.js'
-import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { DpSidebarActionEvent, DpSidebarActivateEvent, DpSidebarSelectEvent } from '@iyulab/desktop-patterns/sidebar'
 import { desktopMinWidth } from '@iyulab/desktop-patterns/breakpoints'
@@ -460,9 +459,9 @@ export class LlApp extends LitElement {
 
   private async openVault() {
     if (!(await confirmDiscard())) return
-    const path = await open({ directory: true, title: strings.openVaultTitle })
-    if (typeof path !== 'string') return
     try {
+      const path = await vault.pickFolder(strings.openVaultTitle)
+      if (path === null) return
       this.vaultInfo = await openVault(path)
       this.error = ''
     } catch (e) {
@@ -472,8 +471,14 @@ export class LlApp extends LitElement {
 
   private async newVault() {
     if (!(await confirmDiscard())) return
-    const path = await open({ directory: true, title: strings.newVaultTitle })
-    if (typeof path === 'string') await this.makeVault(path)
+    let path: string | null
+    try {
+      path = await vault.pickFolder(strings.newVaultTitle)
+    } catch (e) {
+      this.error = describeError(e)
+      return
+    }
+    if (path !== null) await this.makeVault(path)
   }
 
   /**
