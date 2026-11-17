@@ -22,10 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Formbase.Core" Version="0.36.0" />
-    <PackageReference Include="Formbase.Sqlite" Version="0.36.0" />
-    <PackageReference Include="Formbase.DependencyInjection" Version="0.36.0" />
-    <PackageReference Include="Formbase.Formdown" Version="0.36.0" />
+    <PackageReference Include="Formbase.Core" Version="0.37.0" />
+    <PackageReference Include="Formbase.Sqlite" Version="0.37.0" />
+    <PackageReference Include="Formbase.DependencyInjection" Version="0.37.0" />
+    <PackageReference Include="Formbase.Formdown" Version="0.37.0" />
     <PackageReference Include="Lowline" Version="0.12.2" />
     <PackageReference Include="IronProw.Core" Version="0.20.0" />
     <PackageReference Include="IronProw.IronHive" Version="0.20.0" />
