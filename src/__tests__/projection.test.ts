@@ -90,6 +90,14 @@ describe('templateSnapshot', () => {
     expect(attributed('@재현_절차: [textarea]', '@재현_절차: [textarea suggest:role=judged]', template).suggest).toEqual(['심각도', '재현_절차'])
   })
 
+  it('carries the fields the front matter names as describing a document, in its order, once, and only its own', () => {
+    const named = (list: string) => templateSnapshot(template.replace('suggest: [심각도, 없는칸]', `suggest: [심각도]\n  describe: ${list}`)).describe
+    expect(named('[재현_절차, 심각도, 재현_절차, 없는칸]')).toEqual(['재현_절차', '심각도'])
+    expect(named('재현_절차')).toEqual(['재현_절차'])
+    expect(named('[없는칸]')).toBeUndefined()
+    expect(templateSnapshot(template)).not.toHaveProperty('describe')
+  })
+
   it("carries a judgment field's class length as the field says it, before the front matter", () => {
     const own = template.replace('[select options="낮음,높음"]', '[select options="낮음,높음" suggest:coarse=2]')
     expect(templateSnapshot(own).coarse).toEqual({ 심각도: 2 })

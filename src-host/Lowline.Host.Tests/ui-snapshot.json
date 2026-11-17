@@ -71,6 +71,9 @@
       "coarse": {
         "담당": 1
       },
+      "describe": [
+        "요청"
+      ],
       "schema": {
         "요청": {
           "type": "textarea",

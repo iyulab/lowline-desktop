@@ -47,10 +47,28 @@ export function documentNames(documents: readonly DocumentSnapshot[]): DocumentN
   }
 }
 
-/** A value a reference field can take: a document's id, shown by its name. */
+/**
+ * A value a reference field can take: a document's id, shown by its name — and, when the template it refers to names
+ * the fields that say what a document means (`lowline.describe`), what those say.
+ */
 export interface ReferenceChoice {
   value: string
   label: string
+  description?: string
+}
+
+/**
+ * What a document's describing fields say, as one line: a field's value alone when the template names one, each as
+ * `label: value` joined by ` · ` when it names more; fields left blank are left out. Undefined when none says anything.
+ */
+function described(document: DocumentSnapshot, template: TemplateSnapshot | undefined): string | undefined {
+  const fields = (template?.describe ?? []).flatMap((name) => {
+    const text = cellText(document.values[name]).trim()
+    const field = template!.fields.find((f) => f.name === name)
+    return text ? [{ label: field?.label ?? name, text }] : []
+  })
+  if (fields.length === 0) return undefined
+  return (template!.describe!.length === 1 ? fields.map((f) => f.text) : fields.map((f) => `${f.label}: ${f.text}`)).join(' · ')
 }
 
 /**
@@ -70,13 +88,17 @@ export function referenceChoices(
   for (const field of template?.fields ?? []) {
     const target = field.reference
     if (!target) continue
-    const listed = documents
+    const targetTemplate = templates.find((t) => templateId(t.ref) === target)
+    const listed: ReferenceChoice[] = documents
       .filter((d) => templateId(d.template) === target && d.id !== self)
-      .map((d) => ({ value: d.id, label: fileName(d.path, '.md') }))
+      .map((d) => {
+        const description = described(d, targetTemplate)
+        return { value: d.id, label: fileName(d.path, '.md'), ...(description ? { description } : {}) }
+      })
       .sort((a, b) => a.label.localeCompare(b.label, 'ko'))
     const value = values[field.name]
     if (typeof value === 'string' && value && !listed.some((c) => c.value === value)) {
-      const ref = templates.find((t) => templateId(t.ref) === target)?.ref
+      const ref = targetTemplate?.ref
       listed.push({ value, label: strings.missingReference((ref && names.get(ref)) || target, value) })
     }
     choices[field.name] = listed

@@ -124,3 +124,24 @@ describe('namedEvidence', () => {
     expect(namedEvidence('문서/문의 1.md', inquiry, [customer, inquiry], documents, names)).toBe('문서/문의 1.md')
   })
 })
+
+describe('referenceChoices with a template that says which fields describe its documents', () => {
+  const text = (name: string, label = name) => ({ name, label, type: 'textarea', multiple: false, options: [] })
+  const kind = (describe: string[]): TemplateSnapshot => ({ ref: 'kind@1', fields: [text('정의'), text('제외', '쓰지 않을 때')], suggest: [], describe, schema: {} })
+  const record: TemplateSnapshot = { ref: 'record@1', fields: [field('분류', 'kind')], suggest: [], schema: {} }
+  const kinds: DocumentSnapshot[] = [
+    { path: '문서/01 가.md', id: 'k-1', template: 'kind@1', values: { 정의: '살아 있는 것', 제외: '가공한 것' } },
+    { path: '문서/02 나.md', id: 'k-2', template: 'kind@1', values: { 정의: '  ' } },
+  ]
+
+  it('gives a choice what its one describing field says', () => {
+    const choices = referenceChoices(record, [kind(['정의']), record], kinds, names, {})
+    expect(choices['분류']).toEqual([{ value: 'k-1', label: '01 가', description: '살아 있는 것' }, { value: 'k-2', label: '02 나' }])
+  })
+
+  it('names each field when there are more, leaving out the blank ones', () => {
+    const choices = referenceChoices(record, [kind(['정의', '제외']), record], kinds, names, {})
+    expect(choices['분류'][0].description).toBe('정의: 살아 있는 것 · 쓰지 않을 때: 가공한 것')
+    expect(choices['분류'][1]).toEqual({ value: 'k-2', label: '02 나' })
+  })
+})

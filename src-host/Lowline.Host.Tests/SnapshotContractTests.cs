@@ -15,6 +15,10 @@ public sealed class SnapshotContractTests
     /// <summary>What the UI sends that the sidecar has no use for, by the kind of object it is in.</summary>
     private static readonly Dictionary<Type, Dictionary<string, string>> LeftOut = new()
     {
+        [typeof(TemplateSnapshot)] = new()
+        {
+            ["describe"] = "which fields say what a document means, shown beside it where a reference field offers it; not learned from",
+        },
         [typeof(TemplateField)] = new()
         {
             ["label"] = "what the form shows; the table and suggestions go by the field's name",

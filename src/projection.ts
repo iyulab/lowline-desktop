@@ -67,6 +67,12 @@ export interface TemplateSnapshot {
    */
   coarse?: Record<string, number>
   /**
+   * The fields that say what one of the template's documents means (front matter `lowline.describe`, in the order
+   * listed) — shown beside the document where a reference field offers it, as a code list's definition is read beside
+   * its code. Absent when the template names none of its fields.
+   */
+  describe?: string[]
+  /**
    * formdown's schema of exactly `fields`, in their order (`getSchema`): what the sidecar declares the template's columns
    * from — their types and headings — through Formbase's formdown adapter, so formdown's types have one reading.
    */
@@ -131,8 +137,9 @@ export function templateSnapshot(source: string): TemplateSnapshot {
   const said = saidOf(unique)
   const suggest = suggestFields(parsed.frontMatter?.data, fields, said)
   const coarse = coarseFields(parsed.frontMatter?.data, fields, suggest, said)
+  const describe = describeFields(parsed.frontMatter?.data, fields)
   const schema = getSchema({ ...parsed, forms: unique })
-  return { ref, fields, suggest, ...(coarse ? { coarse } : {}), schema }
+  return { ref, fields, suggest, ...(coarse ? { coarse } : {}), ...(describe ? { describe } : {}), schema }
 }
 
 /**
@@ -264,6 +271,18 @@ function coarseFields(
       return counts(n) ? [[f.name, n] as const] : []
     })
   return coarse.length > 0 ? Object.fromEntries(coarse) : undefined
+}
+
+/**
+ * The fields the template's front matter names under `lowline.describe` as saying what a document means, in that order,
+ * each once — or undefined when it names none of its fields. A name that is not one of its fields is ignored.
+ */
+function describeFields(data: Record<string, unknown> | undefined, fields: TemplateField[]): string[] | undefined {
+  const lowline = data?.lowline
+  const named = typeof lowline === 'object' && lowline !== null ? (lowline as { describe?: unknown }).describe : undefined
+  const listed = typeof named === 'string' ? [named] : Array.isArray(named) ? named : []
+  const describe = [...new Set(listed.filter((n): n is string => typeof n === 'string' && fields.some((f) => f.name === n)))]
+  return describe.length > 0 ? describe : undefined
 }
 
 /** A document's template and values, or undefined when it names no template. */

@@ -22,6 +22,7 @@ version: 2
 lowline:
   suggest: [담당]
   coarse: { 담당: 1 }
+  describe: [요청]
 ---
 # 접수
 
