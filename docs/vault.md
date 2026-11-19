@@ -92,6 +92,17 @@ template: inquiry@1
 ---
 ```
 
+The template a field names can say which of its fields tell what one of its documents means — a code list's definition beside its code — under `lowline.describe` in its front matter. Each document the field offers is then shown with what those fields hold, read out with it by a screen reader too:
+
+```yaml
+---
+id: chapter
+version: 1
+lowline:
+  describe: [이름]
+---
+```
+
 A value naming a document the vault does not have is kept as it is, and shown as missing with the start of its id. A document that others name — a customer named by inquiries, a requisition named by its items — lists them under it as a table for each template that can name it, the latest first: each by its name, then that template's fields but the one naming it. A row opens its document in its own template's place, and **New** beside the table starts one there naming this document — the rows of a paper form's table, each a document of its own. The templates fields refer to lead the sidebar, in a group of their own; nothing else marks them.
 
 ## Tables, finding and importing
