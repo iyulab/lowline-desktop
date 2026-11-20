@@ -163,9 +163,6 @@ export class LlChatPanel extends LitElement {
       border-bottom: 1px solid var(--dc-color-border);
       text-align: left;
       vertical-align: top;
-      /* A value breaks only where it is longer than the panel is wide, so a short one keeps its width. */
-      overflow-wrap: break-word;
-      word-break: keep-all;
     }
     th {
       font-weight: normal;
