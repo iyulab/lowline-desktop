@@ -525,6 +525,14 @@ export class LlApp extends LitElement {
     return !!this.vaultInfo && (place?.kind === 'orphans' || (place?.kind === 'template' && this.tab === 'documents'))
   }
 
+  /**
+   * Whether the page holds still and the place inside divides its own scrolling: the three columns of documents, and a
+   * template's source beside its preview and the chat — each scrolls on its own, so the chat's input stays in view.
+   */
+  private fillsPage(): boolean {
+    return this.showsDocuments() || (!!this.vaultInfo && this.place?.kind === 'template' && this.tab === 'template')
+  }
+
   /** How wide the page may grow: a template's documents and its source are workspaces of columns, the rest is read. */
   private pageWidth(): 'full' | 'xl' | 'md' {
     if (this.showsDocuments()) return 'full'
@@ -622,7 +630,7 @@ export class LlApp extends LitElement {
         >
           <dc-button slot="actions" variant="secondary" size="sm" @click=${this.openVault}>${strings.openVault}</dc-button>
         </dp-toolbar>
-        <dp-page ?fill=${this.showsDocuments()} max-width=${this.pageWidth()}>
+        <dp-page ?fill=${this.fillsPage()} max-width=${this.pageWidth()}>
           ${this.settings && !this.settings.outboundToldOnce
             ? html`<p class="notice-bar outbound-once" role="status">
                 ${strings.outboundOnce}

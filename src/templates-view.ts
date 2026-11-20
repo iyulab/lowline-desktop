@@ -57,14 +57,14 @@ export class LlTemplates extends LitElement {
     .page.chatting {
       grid-template-columns: 1fr 1fr minmax(16rem, 22rem);
     }
-    /* The chat keeps its input in view however long the preview beside it grows: as tall as the window below the
-       page's heading and tabs, held there while the page scrolls. */
+    /* The page holds still (the app fills it) and each column scrolls on its own: the chat is as tall as the row,
+       so its input stays in view however long the preview beside it grows. */
     ll-chat-panel {
-      position: sticky;
-      top: 0;
-      align-self: start;
-      height: max(20rem, calc(100vh - 9rem));
+      min-height: 0;
       box-sizing: border-box;
+    }
+    .side {
+      overflow-y: auto;
     }
     /* Too narrow for three — the source and the preview at least 20rem each beside the chat: the chat takes the place
        of the fields and the preview while it is open. */
@@ -84,9 +84,10 @@ export class LlTemplates extends LitElement {
     }
     /* The source is written here, so it is a plain text area (caret, selection, typing that undoes
        as one) drawn in the design system's colors, like its fields. */
+    /* Short enough to fit the smallest window below the heading, the tabs and the bar. */
     textarea {
       flex: 1;
-      min-height: 20rem;
+      min-height: 10rem;
       box-sizing: border-box;
       font-family: var(--dc-font-mono);
       font-size: 13px;
@@ -102,8 +103,7 @@ export class LlTemplates extends LitElement {
       outline-offset: 1px;
     }
     .preview {
-      flex: 1;
-      overflow: auto;
+      flex: 1 0 auto;
       border: 1px solid var(--dc-color-border);
       border-radius: var(--dc-radius-md);
       padding: var(--dc-space-3);

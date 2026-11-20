@@ -457,9 +457,21 @@ export default {
       try {
         await app.cdp.send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 900, deviceScaleFactor: 1, mobile: false })
         await app.cdp.waitFor(`innerWidth === 1600 && ${side} !== 'none'`, 'all three in a wide window')
+        // The page holds still and each column scrolls on its own: no scrollbar for the page, the chat's input in the window.
+        const still = async (size) => {
+          await app.cdp.waitFor(`(() => { const p = __e2e.all('dp-page')[0]; return p.scrollHeight <= p.clientHeight })()`, `the page holding still in ${size}`)
+          assert.ok(await app.cdp.evaluate(`${chat}.querySelector('u-prompt').getBoundingClientRect().bottom <= innerHeight`), `the chat's input in the window in ${size}`)
+        }
+        await still('a wide window')
         await app.cdp.send('Emulation.setDeviceMetricsOverride', { width: 800, height: 560, deviceScaleFactor: 1, mobile: false })
         await app.cdp.waitFor(`innerWidth === 800 && ${side} === 'none'`, 'the chat in the place of the preview')
         assert.ok(await app.cdp.evaluate(`__e2e.all('ll-chat-panel')[0].getBoundingClientRect().width >= 256`), 'the chat as wide as it needs')
+        await still('a narrow window')
+        await app.cdp.send('Emulation.setDeviceMetricsOverride', { width: 720, height: 450, deviceScaleFactor: 1, mobile: false })
+        await app.cdp.waitFor('innerHeight === 450', 'the smallest window')
+        await still('the smallest window')
+        await app.cdp.send('Emulation.setDeviceMetricsOverride', { width: 800, height: 560, deviceScaleFactor: 1, mobile: false })
+        await app.cdp.waitFor('innerHeight === 560', 'the narrow window again')
         // A long line in the box folds at its width rather than running past it.
         const box = `(() => { const find = (root) => root.querySelector('textarea') ?? [...root.querySelectorAll('*')].map((el) => el.shadowRoot && find(el.shadowRoot)).find(Boolean); return find(${chat}) })()`
         const oneLine = await app.cdp.evaluate(`${box}.clientHeight`)
