@@ -469,7 +469,7 @@ checksum = "82f4b26e751e711a5302649417f2da046dce6391b2ea30a4820f37462314f0b9"
 dependencies = [
  "semver",
  "serde",
- "toml 1.2.1+spec-1.1.0",
+ "toml 1.2.2+spec-1.1.0",
 ]
 
 [[package]]
@@ -1022,7 +1022,7 @@ dependencies = [
  "cc",
  "memchr",
  "rustc_version",
- "toml 1.2.1+spec-1.1.0",
+ "toml 1.2.2+spec-1.1.0",
  "vswhom",
  "winreg",
 ]
@@ -3314,7 +3314,7 @@ version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
 dependencies = [
- "toml_edit 0.25.19+spec-1.1.0",
+ "toml_edit 0.25.20+spec-1.1.0",
 ]
 
 [[package]]
@@ -4448,9 +4448,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-credentials"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f807cee01b820df9cba7465e0f560340dfcd012fff05e4e6b901d55c0ae489a2"
+checksum = "2410102269ea57200ab784d317cfa662b3699d634c19d7ced3fbce8aa8242282"
 dependencies = [
  "apple-native-keyring-store",
  "keyring-core",
@@ -4460,9 +4460,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-diagnostics"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b544b5981740cc088f293a3d19cdb483cedd9c28ec8b4c3ca0443452ed1663f5"
+checksum = "2534643283aabcd0e1c5d0d5a08e978ddac1422acad4bda24967efc7045616de"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -4476,9 +4476,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-dialog"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f84aeb25094cd40f62c691454bc32954c8d27df8c6775e9859ebda0afc2871a"
+checksum = "0657ada70097dc4a38253058a12181f46eca2e3d0b696e3dc2ea598189e988b3"
 dependencies = [
  "serde",
  "serde_json",
@@ -4487,9 +4487,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-fs"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "445a46255af1ba8a5b5efb8298575d6a8df6290d122631f069632320b72b5b46"
+checksum = "48b9eab7c913d5fd02fc41bd07aa45038402906c43299a55ee35c9bb956c15c4"
 dependencies = [
  "dunce",
  "libc",
@@ -4499,9 +4499,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-sidecar"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33e670139057112f2964084e4c5a91b7e9bc8898e1fab4006309a603ebbffd57"
+checksum = "f7b5a0fe9f5dc0f7af419acf04536a7930ecbc396c48e8fd1bd70ad04f28f851"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -4513,9 +4513,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-state"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "825ab987e444ddede38009418160c0676643776ccee2d4efc43c8123391c09b8"
+checksum = "fb6f4f8c372a871a7e7dc9d58f1d1914808296bbdc9608f1b1f4355df180e039"
 dependencies = [
  "getrandom 0.4.3",
  "serde",
@@ -4525,9 +4525,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-update"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabae6528e8df48b4a213b79e16c41b54ee4d201cfc57107df831d1285d8333a"
+checksum = "69eadbc84d9654b671c79b624ae76639b40589173e89d76d1350330be1352f8c"
 dependencies = [
  "serde",
  "serde_json",
@@ -4536,9 +4536,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-watch"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "452d771bcfc1cd854971c83c21fd08c8813e71be1567116d2739675e19879e50"
+checksum = "e3ee60800e3ac0ede71967e537370a8f2bc2f553e5da8a68c72751842e7ab4bf"
 dependencies = [
  "notify",
  "tauri-kit-fs",
@@ -4546,9 +4546,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-kit-webview"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ceccc467d0d07b8b59318c893ad1ead56e1164cb0f9e8b8be8a32cfc6b0f8a4"
+checksum = "73b67ebc891abcc3e905106d19d6249be5b18b65670a3c9580a66af3ca936458"
 dependencies = [
  "block2",
  "objc2",
@@ -4630,7 +4630,7 @@ dependencies = [
  "tauri-plugin",
  "tauri-utils",
  "thiserror 2.0.21",
- "toml 1.2.1+spec-1.1.0",
+ "toml 1.2.2+spec-1.1.0",
  "url",
 ]
 
@@ -4771,7 +4771,7 @@ dependencies = [
  "serde_with",
  "swift-rs",
  "thiserror 2.0.21",
- "toml 1.2.1+spec-1.1.0",
+ "toml 1.2.2+spec-1.1.0",
  "url",
  "urlpattern",
  "uuid",
@@ -4786,7 +4786,7 @@ checksum = "c52bb6904475a6ca662f15ef787f18ade61d5740a1ee12c45d3b748efdb6f796"
 dependencies = [
  "dunce",
  "embed-resource",
- "toml 1.2.1+spec-1.1.0",
+ "toml 1.2.2+spec-1.1.0",
 ]
 
 [[package]]
@@ -4948,9 +4948,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.2.1+spec-1.1.0"
+version = "1.2.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5755c51863cdac711f1956baf8eb9588e060755f7d3c4c979e70ea1e1f32cd7"
+checksum = "5426cb1b964690d913f6c5c1a1ae0b42f428ec506bb4d452876d7a209c9bca3b"
 dependencies = [
  "indexmap 2.14.2",
  "serde_core",
@@ -5005,9 +5005,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.25.19+spec-1.1.0"
+version = "0.25.20+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd43688c4858d7264ae1cf9a9f874a67c3feb74a883b1cd7bebd6a4ea8307218"
+checksum = "e76360e201d6dbd6583e17795ba71a88f47365a9139c8450a7979c32303b8e73"
 dependencies = [
  "indexmap 2.14.2",
  "toml_datetime 1.1.3+spec-1.1.0",
@@ -5017,9 +5017,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.1.5+spec-1.1.0"
+version = "1.1.6+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
+checksum = "e6769c452d71ba30696c6b37770c439a9cc9110f47f7d5cdbeda79840ef5ea31"
 dependencies = [
  "winnow 1.0.5",
 ]
@@ -5334,9 +5334,9 @@ dependencies = [
 
 [[package]]
 name = "walkdir"
-version = "2.5.0"
+version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
+checksum = "b42e295b7452c4604982280d8586001fcad9b8b201cac67bca9771e7a7475403"
 dependencies = [
  "same-file",
  "winapi-util",
