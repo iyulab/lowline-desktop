@@ -113,8 +113,8 @@
     "source": "https://raw.githubusercontent.com/dotnet/dotnet/297acf930fb0f5c07fd4e51d78e521b4ad2e5d1f/src/runtime/LICENSE.TXT",
     "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310"
   },
-  "Google.GenAI@2.0.0": {
-    "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/f72b7e6a218363abc383a58dc7b97e60235ca04b/LICENSE",
+  "Google.GenAI@2.2.0": {
+    "source": "https://raw.githubusercontent.com/googleapis/dotnet-genai/d388e083a6a4a7a9e4bcfa69a07090e66ed8e3bb/LICENSE",
     "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
   }
 }
