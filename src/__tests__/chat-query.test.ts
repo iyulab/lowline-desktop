@@ -45,6 +45,29 @@ describe('what a reply asks to count', () => {
     expect(queryPlan('{"filters": [{"field": "지역", "op": "contains", "value": " "}]}', fields)).toEqual({ problem: 'bad-filter', field: '지역' })
   })
 
+  it('asks a choice of the one choice field that has it, when the reply put it on another — and refuses when two have it', () => {
+    const visits = templateSnapshot(`---
+id: inspection
+version: 1
+---
+@유형: [select options="정기,민원"]
+@위험도: [select options="높음,낮음"]
+@결과: [select options="적합,부적합,낮음"]
+`).fields
+    const question = '위험도 높음 검사는 결과별로 몇 건?'
+    expect(queryPlan('{"groupBy": ["결과"], "filters": [{"field": "유형", "op": "equal", "value": "높음"}]}', visits, new Date(), undefined, [], question)).toEqual({
+      plan: { groupBy: ['결과'], filters: [{ column: '위험도', op: 'equal', value: '높음' }] },
+    })
+    // Moved, a choice the question never names is still left out.
+    expect(queryPlan('{"groupBy": ["결과"], "filters": [{"field": "유형", "op": "equal", "value": "높음"}]}', visits, new Date(), undefined, [], '결과별로 몇 건?')).toEqual({
+      plan: { groupBy: ['결과'], filters: [] },
+    })
+    // Two fields have the choice: which one was meant is not known.
+    expect(queryPlan('{"filters": [{"field": "유형", "op": "equal", "value": "낮음"}]}', visits)).toEqual({ problem: 'bad-filter', field: '유형' })
+    // A value no choice field has stays refused.
+    expect(queryPlan('{"filters": [{"field": "유형", "op": "equal", "value": "긴급"}]}', visits)).toEqual({ problem: 'bad-filter', field: '유형' })
+  })
+
   it('keeps a condition that a field is blank only when the question speaks of something blank', () => {
     const reply = '{"groupBy": ["원인"], "filters": [{"field": "지역", "op": "empty"}]}'
     expect(queryPlan(reply, fields, new Date(), undefined, [], '원인별로 몇 건?')).toEqual({ plan: { groupBy: ['원인'], filters: [] } })

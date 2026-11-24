@@ -151,7 +151,7 @@ function objectOf(reply: string): Record<string, unknown> | null {
  * `question`, a condition that a field is empty is kept only when the question speaks of something blank, and one that a
  * choice field holds a choice only when the question names that choice. A `sum` names a number field of those columns;
  * one of another kind — a model adding up a date where the question asked how many — is left out, and what was counted
- * says so by saying no sum.
+ * says so by saying no sum. A choice put on a choice field that does not have it is asked of the one field that does.
  */
 export function queryPlan(
   reply: string,
@@ -201,7 +201,7 @@ export function queryPlan(
   const filters: ColumnFilter[] = []
   for (const condition of Array.isArray(asked.filters) ? asked.filters : []) {
     const { field: name, op, value } = (condition ?? {}) as Record<string, unknown>
-    const field = named(name)
+    let field = named(name)
     if (!field) return { problem: 'unknown-field', field: String(name) }
     if (typeof op !== 'string' || !OPS.has(op)) return { problem: 'bad-filter', field: field.name }
     if (op === 'empty') {
@@ -218,6 +218,12 @@ export function queryPlan(
       filters.push({ column: field.name, op: 'atLeast', value: timed ? `${from}T00:00` : from })
       filters.push({ column: field.name, op: 'atMost', value: timed ? `${to}T23:59:59` : to })
       continue
+    }
+    // A choice put on a choice field that does not have it ("Risk 1 (High)" on the inspection's kind) is asked of the one
+    // field that does — when only one does; when two do, which was meant is not known and it stays refused.
+    if (op === 'equal' && field.options.length > 0 && !field.options.includes(text)) {
+      const owners = fields.filter((f) => f.options.includes(text))
+      if (owners.length === 1) field = owners[0]
     }
     // A choice the question never names is the model's own addition ("accidents per aircraft kind" counted only where the
     // damage was substantial): left out, as an unasked blank is.
