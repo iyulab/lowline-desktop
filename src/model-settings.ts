@@ -62,9 +62,24 @@ export function failureText(failure: ModelFailure | null, statusCode: number | n
 /** Bytes as gigabytes, to a tenth. */
 export const gigabytes = (bytes: number) => (bytes / 1e9).toFixed(1)
 
+/**
+ * The tier a model Lowline runs on this computer is offered as, under the name it has had and the one LMSupply gives
+ * it from its next release on (`qwen3-default` → `basic`): the tier stays when the model behind it changes, and the
+ * picker already says which model that is. An id of no known tier is shown without LMSupply's prefix.
+ */
+const LOCAL_TIERS: Readonly<Record<string, string>> = {
+  'gguf:qwen3-default': strings.modelLocalTierBasic,
+  'gguf:basic': strings.modelLocalTierBasic,
+  'gguf:qwen3-balanced': strings.modelLocalTierBalanced,
+  'gguf:balanced': strings.modelLocalTierBalanced,
+}
+
+/** How a model on this computer is named outside its picker: by its tier. */
+export const localModelLabel = (id: string) => LOCAL_TIERS[id] ?? id.replace(/^gguf:/, '')
+
 /** How a model set up is named in the chat: by where it runs, and which. */
 export function modelLabel(setting: ModelSettings): string {
-  if (setting.preset === LOCAL_PRESET) return `${strings.modelLocalShort} · ${setting.model.replace(/^gguf:/, '')}`
+  if (setting.preset === LOCAL_PRESET) return `${strings.modelLocalShort} · ${localModelLabel(setting.model)}`
   return `${presetOf(setting.preset)?.label ?? setting.preset} · ${setting.model}`
 }
 

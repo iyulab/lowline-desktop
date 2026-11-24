@@ -4,6 +4,7 @@ import {
   MODEL_PRESETS,
   destinationText,
   failureText,
+  localModelLabel,
   localProgressText,
   modelLabel,
   presetOf,
@@ -46,8 +47,11 @@ describe('model settings', () => {
     expect(failureText('http-status', null)).not.toContain('HTTP')
   })
 
-  it('name a model on this computer by where it runs and which, without LMSupply’s prefix', () => {
-    expect(modelLabel({ preset: LOCAL_PRESET, baseUrl: null, model: 'gguf:qwen3-default' })).toBe('이 컴퓨터 · qwen3-default')
+  it('name a model on this computer by where it runs and its tier, under its old id and its new one alike', () => {
+    expect(modelLabel({ preset: LOCAL_PRESET, baseUrl: null, model: 'gguf:qwen3-default' })).toBe('이 컴퓨터 · 기본 모델')
+    expect(modelLabel({ preset: LOCAL_PRESET, baseUrl: null, model: 'gguf:basic' })).toBe('이 컴퓨터 · 기본 모델')
+    expect(localModelLabel('gguf:qwen3-balanced')).toBe(localModelLabel('gguf:balanced'))
+    expect(localModelLabel('gguf:qwen3-fast')).toBe('qwen3-fast')
     expect(modelLabel({ preset: 'custom', baseUrl: 'http://x/v1', model: 'large-8b' })).toBe('다른 주소(OpenAI 호환) · large-8b')
   })
 

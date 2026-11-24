@@ -5,7 +5,7 @@ import { documentTitle, newDocument } from './documents.js'
 import { newDocumentId } from './identity.js'
 import { describeError } from './errors.js'
 import { importFields, planImport, recordsFromReply, rowsFromRecords, textPieces, type ColumnUse, type ImportField, type ImportPlan } from './import.js'
-import { failureText } from './model-settings.js'
+import { LOCAL_PRESET, failureText, localModelLabel } from './model-settings.js'
 import { templateSnapshot } from './projection.js'
 import { documentNames, type DocumentNames } from './references.js'
 import type { ModelSettings } from './settings.js'
@@ -208,7 +208,7 @@ export class LlImport extends LitElement {
     }
     if (this.read.done < pieces.length) this.partial = strings.importTextPartial(this.read.done, pieces.length)
     this.rows = rowsFromRecords(records, this.fields)
-    this.proposedBy = strings.importProposedBy(model.model.replace(/^gguf:/, ''))
+    this.proposedBy = strings.importProposedBy(model.preset === LOCAL_PRESET ? localModelLabel(model.model) : model.model)
     this.plan = planImport(this.rows, this.fields, this.fields.map(() => undefined), this.names)
   }
 

@@ -484,6 +484,8 @@ export const strings = {
   modelPreset: '어디에 있는 모델인가요',
   modelPresetLocal: '이 컴퓨터에서(Lowline이 받아 돌림)',
   modelLocalShort: '이 컴퓨터',
+  modelLocalTierBasic: '기본 모델',
+  modelLocalTierBalanced: '균형 모델',
   modelPresetOllama: '내 컴퓨터의 Ollama',
   modelPresetGpustack: 'GPUStack 서버',
   modelPresetCustom: '다른 주소(OpenAI 호환)',
