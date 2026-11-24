@@ -104,8 +104,18 @@ public static class ChatQuery
             {{string.Join("\n", referring.Select(t => $"- `{t.Name}` — {string.Join(", ", t.Via.Select(v => $"`{v}`"))} 칸이 이 서식의 문서를 가리킵니다. 셀 수 있는 칸: {string.Join(", ", t.Columns.Select(Column))}"))}}
             이 서식의 문서마다 그것을 가리키는 기록을 세려면(「{{referring[0].Name}} 기록이 많은 것」) 가리키는 칸으로 묶습니다: `{"of": "{{referring[0].Name}}", "groupBy": ["{{referring[0].Via[0]}}"]}`.
             세는 것이 그 서식의 기록이면 `of`를 쓰고, 이 서식의 문서 자체이면 쓰지 않습니다: 「{{referring[0].Name}} 기록이 가장 많은 3개」는 `{"of": "{{referring[0].Name}}", "groupBy": ["{{referring[0].Via[0]}}"], "top": 3}`, 이 서식의 문서가 칸 값마다 몇 개인지는 `of` 없이 이 서식의 칸으로 묶습니다.
-            {{ReferringByField(referring[0])}}{{OwnCount(referring[0], template)}}{{ReferringSum(referring[0])}}
+            {{PerDocument(referring[0])}}{{ReferringByField(referring[0])}}{{OwnCount(referring[0], template)}}{{ReferringSum(referring[0])}}
             """;
+
+    /// <summary>
+    /// That counting per document of this template is by the field naming it, not by a field of the document it names —
+    /// a value two documents share would count them as one. Said with the first field the reference brings; nothing
+    /// when it brings none.
+    /// </summary>
+    private static string PerDocument(ReferringTemplate referring) =>
+        referring.Columns.FirstOrDefault(c => c.Name.StartsWith(referring.Via[0] + ".", StringComparison.Ordinal)) is { } column
+            ? $$"""이 서식의 문서 하나하나로 묶을 때(「~마다」「~별」「가장 많은 ~」가 이 서식의 문서를 말할 때)는 가리키는 칸 `{{referring.Via[0]}}` 그 자체로 묶습니다. `{{column.Name}}`처럼 그 문서의 칸으로 묶으면 값이 같은 문서들이 하나로 합쳐집니다.""" + " "
+            : "";
 
     /// <summary>
     /// How to count the template's own documents by one of its choice fields — "requisitions per department" counts the
