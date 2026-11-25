@@ -350,6 +350,9 @@ export class JudgmentController implements ReactiveController {
     const abstained = new Map<string, Abstention | null | 'unavailable'>()
     const typedWhenAsked = new Map<string, number>()
     const drawn = new Map<string, Suggestion>()
+    // Fields asked about, not being typed into, that are now shown no value: what was offered in them before is gone
+    // from view, and a value the person enters there next was entered with nothing in view.
+    const withdrawn = new Set<string>()
     for (const field of template.suggest) {
       // Drawn to check it: its value stays held back while the draft is open.
       if (this.checks.has(field)) continue
@@ -370,22 +373,28 @@ export class JudgmentController implements ReactiveController {
         if (this.rejected.has(field) || suggestion.mode === 'rejected') continue
         if (suggestion.mode === 'check') {
           drawn.set(field, suggestion)
+          if (typed === undefined) withdrawn.add(field)
           continue
         }
         // While typing, only a value that adds to the text is worth showing, and no reason is given for there being none.
         if (typed !== undefined) {
           if (suggestion.value !== null && suggestion.value !== typed) next.set(field, suggestion)
         } else if (suggestion.value !== null) next.set(field, suggestion)
-        else abstained.set(field, suggestion.reason ?? null)
+        else {
+          abstained.set(field, suggestion.reason ?? null)
+          withdrawn.add(field)
+        }
         typedWhenAsked.set(field, charactersTyped(typed))
       } catch {
         abstained.set(field, 'unavailable')
+        if (typed === undefined) withdrawn.add(field)
       }
     }
     // Values may have changed (or another draft opened) while these were asked for.
     if (run !== this.suggestRun || this.template !== template) return
     this.suggestions = next
     this.abstained = abstained
+    for (const field of withdrawn) this.offered.delete(field)
     const filled = fillOrder(this.filled, values)
     for (const [field, { held, probability, promise }] of drawn) {
       if (typeof held === 'string' && typeof probability === 'number')

@@ -64,6 +64,20 @@ beforeEach(() => {
 })
 
 describe('a suggestion that leaves the screen', () => {
+  it('is not corrected by a value entered after asking again found none', async () => {
+    const { controller, ask, set } = setUp()
+    answers.set('kind', [suggestion('부품')])
+    await ask()
+    expect(controller.suggestions.get('kind')?.value).toBe('부품')
+    // Another field changes; asked again, the sidecar has nothing for it now.
+    set({ note: 'y' })
+    await ask()
+    expect(controller.suggestions.has('kind')).toBe(false)
+    set({ note: 'y', kind: '설정' })
+    await controller.saved('d1')
+    expect(recorded.events).toEqual([])
+  })
+
   it('is corrected when the person picks another value while it is shown', async () => {
     const { controller, ask, set } = setUp()
     answers.set('kind', [suggestion('부품')])
