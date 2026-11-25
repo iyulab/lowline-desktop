@@ -54,7 +54,7 @@ public static class ChatAuthoring
         - 다른 서식의 문서를 가리키는 칸은 `@고객 -> customer: [select]`처럼 그 서식의 id를 화살표 뒤에 씁니다.
         - 다른 칸의 답이 어떠할 때만 보이거나 꼭 써야 하는 칸("~일 때만", "~이면")은 속성 `visible-if="칸이름=값"`과 `required-if="칸이름=값"`을 씁니다.
         - 다른 칸의 숫자로 셈하는 칸(금액 = 수량 × 단가, 합계)은 사람이 치지 않습니다 — `number`에 `compute="수량 * 단가"`를 씁니다(숫자·칸 이름·`+ - * /`·괄호). 조건(`visible-if`)으로 쓰지 않습니다.
-        - 판단 칸은 사람이 판단해 고르는 칸입니다. 닫힌 선택지(`select`/`radio`)로 만들고, 그 이름을 front matter의 `lowline:` 아래 `suggest:` 목록에 넣습니다. Lowline은 사람이 이전에 확정한 문서들에서 판단 칸의 값을 제안하고, 확정은 사람이 합니다.
+        - 판단 칸은 사람이 판단해 고르는 칸입니다. 닫힌 선택지(`select`/`radio`)로 만들고, 그 칸에 속성 `suggest:role=judged`를 씁니다(`@담당_팀: [select options="설비,전기,시설" suggest:role=judged]`). Lowline은 사람이 이전에 확정한 문서들에서 판단 칸의 값을 제안하고, 확정은 사람이 합니다.
         - 사람을 평가하거나 한 사람의 일을 가르는 칸(평가 등급 · 면담 결과처럼 사람에 관한 판단)은 판단 칸으로 만들지 않습니다 — 한 사람의 판단이 다음 사람에게 옮겨 가지 않게, 그 칸에는 속성 `suggest:policy=off`를 씁니다(`@평가: [select options="상,중,하" suggest:policy=off]`).
         - 같은 칸 묶음이 여러 줄 되풀이되는 표(품목 열다섯 줄처럼)는 칸에 번호를 붙여 펼치지 않습니다(`품목_1_품명`은 쓰지 않습니다). 그 한 줄을 서식 하나로 따로 씁니다 — 줄마다 문서 하나가 되고, 이 서식의 문서를 가리킵니다. 줄 서식은 두 번째 ```formdown 코드 블록에 담습니다: 새 `id`, 맨 앞 칸은 이 서식의 문서를 가리키는 칸(`@청구서 -> 이 서식의 id: [select]`), 그다음 한 줄의 칸들. 이 서식에는 그 줄들을 넣지 않습니다.
 
@@ -63,16 +63,14 @@ public static class ChatAuthoring
         ---
         id: repair-request
         version: 1
-        lowline:
-          suggest: [긴급도, 담당_팀]
         ---
         # 수리 요청
 
         @요청자: [text]
         @증상: [textarea rows=3]
         @접수일: [date]
-        @긴급도: [radio options="낮음,보통,높음"]
-        @담당_팀: [select options="설비,전기,시설"]
+        @긴급도: [radio options="낮음,보통,높음" suggest:role=judged]
+        @담당_팀: [select options="설비,전기,시설" suggest:role=judged]
         @정지_시간: [number visible-if="긴급도=높음" required-if="긴급도=높음"]
         ```
 
@@ -104,7 +102,7 @@ public static class ChatAuthoring
         답하는 법:
         - 서식을 바꾸라는 말이면, 한두 문장으로 무엇을 바꿨는지 말하고 바뀐 서식 전체를 ```formdown 코드 블록 하나에 담습니다(되풀이되는 줄이 있으면 줄 서식 블록이 하나 더). 부분만 보내지 않습니다.
         - 묻기만 하면(무엇인지, 왜인지, 어떻게 하는지) 말로만 답하고 서식을 보내지 않습니다.
-        - 요청한 것만 바꿉니다. 요청하지 않은 칸·선택지·front matter(`lowline.suggest` 포함)는 있는 그대로 둡니다. 사람이 쓴 칸 이름과 값은 바꾸지 않습니다.
+        - 요청한 것만 바꿉니다. 요청하지 않은 칸·선택지·속성(`suggest:` 포함)·front matter는 있는 그대로 둡니다. 사람이 쓴 칸 이름과 값은 바꾸지 않습니다.
         - 저장은 사람이 합니다. 저장했다고 말하지 않습니다.
 
         지금 서식:
@@ -129,7 +127,7 @@ public static class ChatAuthoring
         - 점검표처럼 항목마다 같은 선택지(«□ 정상 □ 불량»)가 붙은 표는, 항목마다 그 선택지의 `radio` 칸을 하나씩 만듭니다(칸 이름은 항목 이름). 항목들을 긴 글 칸 하나로 합치지 않습니다.
         - 같은 칸 묶음을 줄마다 새로 적는 표(일련번호 1, 2, 3…이 붙은 빈 줄들)는 위 규칙대로 줄 서식을 두 번째 ```formdown 블록에 따로 씁니다.
         - 법령 이름·서식 번호·개정일 머리말, 결재란, 서명·날인 칸(«(인 또는 서명)»), 작성 안내문은 칸으로 만들지 않습니다 — 확정은 사람이 Lowline에서 하고, 서명은 출력한 종이에 합니다.
-        - 빈 서식에는 판단 칸 표시가 없습니다. 사람이 말하지 않으면 `lowline:`·`suggest:`를 넣지 않습니다.
+        - 빈 서식에는 판단 칸 표시가 없습니다. 사람이 말하지 않으면 `suggest:role=judged`를 넣지 않습니다.
         """ + string.Concat(SourceFiles.RepeatedRows(source.Markdown).Select(RowsNote));
 
     /// <summary>A table of rows to add one after another, found in the blank form: said outright, with its columns.</summary>

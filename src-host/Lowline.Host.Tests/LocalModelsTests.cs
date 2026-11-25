@@ -134,7 +134,7 @@ public sealed class LocalModelsTests
         Assert.All(lmsupply.Loaded, g => Assert.True(g.Disposed));
         Assert.Equal(0, lmsupply.Releases);
         var asked = lmsupply.Loaded[^1].Asked;
-        Assert.Contains("lowline:", asked[0].Content); // the rules and the template, before the conversation
+        Assert.Contains("suggest:role=judged", asked[0].Content); // the rules and the template, before the conversation
         Assert.Equal("처리 기한 칸을 넣어 줘", asked[^1].Content);
     }
 

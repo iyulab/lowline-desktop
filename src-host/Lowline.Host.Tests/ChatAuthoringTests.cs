@@ -49,7 +49,7 @@ public sealed class ChatAuthoringTests
         var messages = asked!.Value.GetProperty("messages").EnumerateArray().ToList();
         Assert.Equal(["system", "user"], messages.Select(m => m.GetProperty("role").GetString()));
         var system = messages[0].GetProperty("content").ToString();
-        Assert.Contains("lowline:", system);
+        Assert.Contains("suggest:role=judged", system); // a judgment field says so itself
         Assert.Contains("@요청: [textarea rows=3]", system); // the template as it stands in the editor
         Assert.Equal("small-4b", asked.Value.GetProperty("model").GetString());
     }
