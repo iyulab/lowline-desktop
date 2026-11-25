@@ -263,6 +263,8 @@ export const strings = {
   importTextNone: '글에서 기록을 찾지 못했습니다.',
   importTextFailed: (why: string) => `모델이 읽지 못했습니다: ${why}`,
   importRecords: '모델이 읽은 기록',
+  importJudgedNote: (fields: string) =>
+    `${fields}은(는) 판단 칸입니다. 붙여 넣은 값은 사람이 정한 값으로 들어가고, Lowline은 이 기록에서 그 칸의 판단을 배웁니다. 배우지 않을 열은 빼고 다시 복사해 붙여 넣으세요.`,
   importProposedBy: (model: string) => `채팅(${model})`,
   importProposedNote: (by: string) =>
     `*는 판단 칸입니다. 그 값은 ${by}의 제안으로 들어가고, 문서마다 사람이 정하기 전에는 배우지 않습니다. 다른 칸의 값은 가져오는 대로 문서의 값이 됩니다.`,

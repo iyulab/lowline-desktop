@@ -324,6 +324,15 @@ export class LlImport extends LitElement {
     ${this.partial ? html`<p class="message" role="status">${this.partial}</p>` : nothing}`
   }
 
+  /**
+   * Pasted values of a judgment field come in as the person's own decisions and are learned from — the person's own
+   * records are the first day's experience — so the preview says so before anything is written.
+   */
+  private renderJudgedNote(plan: ImportPlan) {
+    const judged = plan.columns.flatMap((c) => (c.field && this.judgment.includes(c.field) ? [this.label(c.field)] : []))
+    return judged.length ? html`<p class="message">${strings.importJudgedNote(judged.join(' · '))}</p>` : nothing
+  }
+
   /** Which field each pasted column fills — or, for one that fills none, what it is kept for. */
   private renderColumns(plan: ImportPlan) {
     return html`
@@ -362,6 +371,7 @@ export class LlImport extends LitElement {
     const problems = plan.problems
     return html`
       ${this.proposedBy ? this.renderRecords(plan) : this.renderColumns(plan)}
+      ${this.proposedBy ? nothing : this.renderJudgedNote(plan)}
       <p class="message" role="status">${strings.importSummary(plan.documents.length, plan.skipped)}</p>
       ${problems.length
         ? html`<p>${strings.importProblems(problems.length)}</p>

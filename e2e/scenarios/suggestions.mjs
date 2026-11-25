@@ -270,6 +270,10 @@ export default {
       await app.cdp.evaluate(`__e2e.all('li').some((li) => li.textContent.trim() === '3행 담당: 경비')`),
       'a value the field does not offer is shown',
     )
+    assert.ok(
+      await app.cdp.evaluate(`__e2e.all('p.message').some((p) => p.textContent.startsWith('담당은(는) 판단 칸입니다'))`),
+      'the preview says the pasted judgments are learned from before anything is written',
+    )
     // Columns that fill no field: the day each record was made, its code, and one left out.
     assert.deepEqual(
       await app.cdp.evaluate(`__e2e.all('td select').map((s) => s.value)`),
