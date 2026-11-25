@@ -9,7 +9,7 @@ export function describeError(e: unknown): string {
     return strings.errors[key] ?? strings.errors.unknown(e.message)
   }
   if (isVaultFailure(e)) {
-    return e.kind === 'already-exists' ? strings.errors['already-exists'] : strings.errors.unknown(e.message)
+    return strings.errors.shell[e.kind] ?? strings.errors.shell.io
   }
   return strings.errors.unknown(e instanceof Error ? e.message : String(e))
 }

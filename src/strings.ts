@@ -393,6 +393,17 @@ export const strings = {
     'reserved-field': '칸 이름으로 template과 lowline은 쓸 수 없습니다. 문서가 이 이름을 스스로 씁니다.',
     'template-not-found': (ref: string) => `이 문서의 서식(${ref})을 볼트에서 찾지 못했습니다.`,
     'already-exists': '같은 이름의 파일이 이미 있습니다.',
+    // A failed shell command, by the kind the shell names (`VAULT_FAILURE_KINDS`) — in the app's words, never the
+    // shell's own sentence, which can hold a path; the error report keeps the kind.
+    shell: {
+      'outside-vault': '볼트 밖의 파일은 다룰 수 없습니다.',
+      'already-exists': '같은 이름의 파일이 이미 있습니다.',
+      'not-found': '파일을 찾지 못했습니다 — 다른 곳에서 옮기거나 지웠을 수 있습니다.',
+      'not-trashed': '휴지통으로 옮기지 못했습니다.',
+      'changed-outside': '다른 곳에서 파일이 바뀌어 덮어쓰지 않았습니다 — 다시 연 뒤 저장해 주세요.',
+      io: '파일을 읽거나 쓰지 못했습니다 — 폴더 권한이나 남은 공간을 확인해 주세요.',
+      'no-vault': '열린 볼트가 없습니다.',
+    },
     unknown: (message: string) => `작업을 끝내지 못했습니다: ${message}`,
   },
   chat: '채팅',
