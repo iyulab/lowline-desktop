@@ -31,7 +31,8 @@ public static class SourceFileFailure
 
 /// <summary>
 /// Blank forms as they are handed out — HWP, HWPX, PDF, Word and Excel files — read into Markdown, so the chat that writes templates
-/// can draft one from the form's own fields, rows and choices. The file is read here and goes nowhere else.
+/// can draft one from the form's own fields, rows and choices. The file is read here; what is read from it, and its name, go
+/// with the chat's messages to the model the person chose — the file itself goes nowhere.
 /// </summary>
 public static class SourceFiles
 {
