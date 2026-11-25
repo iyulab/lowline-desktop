@@ -175,6 +175,9 @@ describe('weeklyCounts', () => {
       ['2026-10-05', 2, 1, 0, 1],
       ['2026-10-19', 1, 1, 1, 0],
     ])
+    // Counted from the oldest one held: a week before it says nothing of what was shown.
+    expect(withShown.presentedSince).toBe('2026-09-28')
+    expect(weeklyCounts([notes, intake, bug], documents, events).presentedSince).toBeUndefined()
   })
 
   it('counts what was shown and decided by the characters typed when it was first shown, leaving out what did not say', () => {

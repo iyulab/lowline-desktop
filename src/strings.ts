@@ -363,7 +363,7 @@ export const strings = {
   learningTable: '표로 보기',
   countsTitle: '주별 집계 (개수만)',
   countsHelp:
-    '제안이 나아지는지 연구하는 쪽에 직접 건넬 수 있는 집계입니다. 서식과 칸은 번호로만 적고, 문서 내용·값·이름·경로는 담지 않습니다. 보인 제안 수(presented)는 이 기기에서 보인 것만, 결정은 볼트를 함께 쓰는 모든 기기의 것을 셉니다.',
+    '제안이 나아지는지 연구하는 쪽에 직접 건넬 수 있는 집계입니다. 서식과 칸은 번호로만 적고, 문서 내용·값·이름·경로는 담지 않습니다. 보인 제안 수(presented)는 이 기기에서 보인 것만, 이 기기의 기록이 남아 있는 주(presentedSince)부터 셉니다. 결정은 볼트를 함께 쓰는 모든 기기의 것을 셉니다.',
   countsForm: (n: number, name: string, fields: string[]) => `서식 ${n} = ${name} (칸 ${fields.map((f, i) => `${i + 1} = ${f}`).join(', ')}) — 이 대응은 복사되지 않습니다`,
   countsCopy: '집계 복사',
   countsCopied: '복사했습니다',

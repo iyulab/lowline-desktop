@@ -108,6 +108,12 @@ export interface WeeklyCounts {
   forms: FormCounts[]
   /** See {@link DWELL_EDGES_SEC}; written so a reader need not know them. */
   dwellEdgesSec: number[]
+  /**
+   * The week of the oldest suggestion this device's record still holds as shown: `presented` counts from that week on,
+   * and a week before it says nothing of what was shown. Absent when the record holds none. Added within format 1 — a
+   * reader that does not know it can pass it by.
+   */
+  presentedSince?: string
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -178,7 +184,10 @@ export function weeklyCounts(
     return cell
   }
   const typedOf = (cell: WeekCounts, typed: number) => (cell.byTyped[typedSlot(typed)] ??= { presented: 0, decided: 0, accepted: 0 })
+  let oldestShown = Infinity
   for (const shown of presentations) {
+    const at = Date.parse(shown.at)
+    if (!Number.isNaN(at)) oldestShown = Math.min(oldestShown, at)
     const cell = cellOf(shown.template, shown.field, shown.at)
     if (!cell) continue
     cell.presented++
@@ -243,7 +252,13 @@ export function weeklyCounts(
   const counts = [...cells.values()].sort((a, b) =>
     a.week !== b.week ? (a.week < b.week ? -1 : 1) : a.form !== b.form ? a.form - b.form : a.field - b.field,
   )
-  return { format: WEEKLY_COUNTS_FORMAT, counts, forms: formCounts, dwellEdgesSec: [...DWELL_EDGES_SEC] }
+  return {
+    format: WEEKLY_COUNTS_FORMAT,
+    counts,
+    forms: formCounts,
+    dwellEdgesSec: [...DWELL_EDGES_SEC],
+    ...(oldestShown === Infinity ? {} : { presentedSince: weekOf(oldestShown) }),
+  }
 }
 
 function spansOf(): number[] {
