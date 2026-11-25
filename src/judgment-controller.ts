@@ -394,7 +394,10 @@ export class JudgmentController implements ReactiveController {
     if (run !== this.suggestRun || this.template !== template) return
     this.suggestions = next
     this.abstained = abstained
-    for (const field of withdrawn) this.offered.delete(field)
+    // Only while the field is still empty and not turned down: a value picked while the answer was on its way was
+    // picked with the earlier suggestion in view, and a rejection is still to be recorded.
+    const now = this.source.values()
+    for (const field of withdrawn) if (isEmpty(now[field]) && !this.rejected.has(field)) this.offered.delete(field)
     const filled = fillOrder(this.filled, values)
     for (const [field, { held, probability, promise }] of drawn) {
       if (typeof held === 'string' && typeof probability === 'number')

@@ -6,6 +6,8 @@ import type { Suggestion, TemplateSnapshot } from '../projection.js'
 
 /** The sidecar's answers, by field, in the order they are asked for; a field with none left abstains. */
 const answers = vi.hoisted(() => new Map<string, Suggestion[]>())
+/** An answer the test holds back until it says so, by field. */
+const held = vi.hoisted(() => new Map<string, Promise<Suggestion>>())
 /** Events recorded, and whether the next recording fails. */
 const recorded = vi.hoisted(() => ({ events: [] as { field: string; kind: string }[], failNext: false }))
 
@@ -27,7 +29,7 @@ vi.mock('../vault-client.js', async (importOriginal) => {
     host: {
       ...actual.host,
       suggest: async (_template: string, field: string) =>
-        answers.get(field)?.shift() ?? ({ value: null, mode: 'abstain', source: null, reason: null } satisfies Suggestion),
+        held.get(field) ?? answers.get(field)?.shift() ?? ({ value: null, mode: 'abstain', source: null, reason: null } satisfies Suggestion),
     },
   }
 })
@@ -59,6 +61,7 @@ function setUp() {
 
 beforeEach(() => {
   answers.clear()
+  held.clear()
   recorded.events = []
   recorded.failNext = false
 })
@@ -76,6 +79,34 @@ describe('a suggestion that leaves the screen', () => {
     set({ note: 'y', kind: '설정' })
     await controller.saved('d1')
     expect(recorded.events).toEqual([])
+  })
+
+  it('is corrected when the person picks another value while asking again is under way', async () => {
+    const { controller, ask, set } = setUp()
+    answers.set('kind', [suggestion('부품')])
+    await ask()
+    let answer!: (s: Suggestion) => void
+    held.set('kind', new Promise((resolve) => (answer = resolve)))
+    set({ note: 'y' })
+    const again = ask()
+    // Picked with '부품' still in view; the answer that now has none comes after.
+    set({ note: 'y', kind: '설정' })
+    answer({ value: null, mode: 'abstain', source: null, reason: null })
+    await again
+    await controller.saved('d1')
+    expect(recorded.events).toEqual([{ field: 'kind', kind: 'correct' }])
+  })
+
+  it('is still recorded as rejected when asking again fails', async () => {
+    const { controller, ask, set } = setUp()
+    answers.set('kind', [suggestion('부품')])
+    await ask()
+    controller.reject('kind')
+    held.set('kind', Promise.reject(new Error('sidecar gone')))
+    set({ note: 'y' })
+    await ask()
+    await controller.saved('d1')
+    expect(recorded.events).toEqual([{ field: 'kind', kind: 'reject' }])
   })
 
   it('is corrected when the person picks another value while it is shown', async () => {
