@@ -142,6 +142,37 @@ export default {
     await app.cdp.waitFor(`!__e2e.one('button.item:not(.group-toggle)', '이전 방식')`, 'the template gone from the sidebar', { timeoutMs: 30_000 })
   },
 
+  async 'turns suggestions on for a field about a person only once told what it undoes'(app, vault) {
+    const GUARDED = { name: '면담 기록', ref: 'interview@1', path: '서식/면담 기록.fd.md' }
+    const path = join(vault, GUARDED.path)
+    await writeFile(path, '---\nid: interview\nversion: 1\n---\n# 면담 기록\n\n@부서: [text]\n\n@평가: [select options="상,중,하" suggest:policy=off]\n')
+    await app.sidebar(GUARDED.name, { timeoutMs: 30_000 })
+    await app.templateOf(GUARDED)
+    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('id: interview')`, 'the template source')
+    await app.cdp.waitFor(`!!__e2e.one('p.guarded')`, 'the field said to be about a person')
+
+    // Ticked, it is asked about first: nothing is written yet, and the box stays clear.
+    await app.click('dc-checkbox', '평가')
+    await app.cdp.waitFor(`__e2e.one('p.guarded')?.textContent.includes('그래도 제안 켜기')`, 'what turning it on undoes')
+    assert.equal(await app.cdp.evaluate(`__e2e.one('dc-checkbox[name="평가"]')?.checked`), false, 'not on yet')
+    assert.equal(await app.cdp.evaluate(`__e2e.one('textarea')?.value.includes('suggest:role')`), false, 'nothing written yet')
+    await app.click('dc-button', '꺼 둔 채로')
+    assert.equal(await app.cdp.evaluate(`__e2e.one('textarea')?.value.includes('suggest:policy="off"') || __e2e.one('textarea')?.value.includes('suggest:policy=off')`), true, 'the guard kept')
+
+    await app.click('dc-checkbox', '평가')
+    await app.click('dc-button', '그래도 제안 켜기')
+    await app.cdp.waitFor(`__e2e.one('textarea')?.value.includes('suggest:role="judged"')`, 'the choice written on the field')
+    await app.click('dc-button', '저장')
+    await app.status('저장했습니다')
+    assert.deepEqual(parseFormdown(await readFile(path, 'utf8')).forms.find((f) => f.name === '평가')?.suggest, { role: 'judged' })
+    await app.noAlert()
+
+    // Leave the vault as the scenarios after this one expect it.
+    await app.learning()
+    await rm(path)
+    await app.cdp.waitFor(`!__e2e.one('button.item:not(.group-toggle)', '면담 기록')`, 'the template gone from the sidebar', { timeoutMs: 30_000 })
+  },
+
   async 'edits the options of a choice field from the template page, in its place in the source'(app, vault) {
     const path = join(vault, TEMPLATE)
     await app.templateOf(BUG)

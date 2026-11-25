@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
+import { live } from 'lit/directives/live.js'
 import { formdownTheme } from './formdown-theme.js'
 import { authoringCompletion, parseFormdown, setFieldAttribute } from '@formdown/core'
 import {
@@ -195,6 +196,11 @@ export class LlTemplates extends LitElement {
   @state() private originalUntrashable = false
   @state() private message = ''
   @state() private error = ''
+  /**
+   * A field whose author turned suggestions off (`suggest:policy=off` — a field about a person) that the person ticked
+   * to make a judgment field: it is turned on only once they say so, having been told what it undoes.
+   */
+  @state() private guardAsked?: string
   /** Whether the chat is open beside the template. */
   @state() private chatting = false
   /** A completion is being inserted: its own input is not completed again. */
@@ -339,7 +345,7 @@ export class LlTemplates extends LitElement {
    * The source's fields: whether each is a judgment field, and a choice field's options (a select, or
    * a radio or checkbox group). Nothing while the source does not parse.
    */
-  private fields(): { name: string; label: string; judgment: boolean; noClues: boolean; options?: string }[] {
+  private fields(): { name: string; label: string; judgment: boolean; guarded: boolean; noClues: boolean; options?: string }[] {
     try {
       const on = new Set(judgedFields(this.source))
       const noClues = new Set(judgedWithoutClues(this.source))
@@ -349,6 +355,7 @@ export class LlTemplates extends LitElement {
         name: f.name,
         label: f.label ?? f.name,
         judgment: on.has(f.name),
+        guarded: f.suggest?.policy === 'off',
         noClues: noClues.has(f.name),
         options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options?.length ? optionsText(f.options) : undefined,
       }))
@@ -357,7 +364,6 @@ export class LlTemplates extends LitElement {
     }
   }
 
-  /** Turns suggestions on or off for a field: an edit of the source like any other, kept by saving. */
   /** Moves the judgment fields a template written before named in its front matter onto the fields: an edit, kept by saving. */
   private moveToFields(moved: string) {
     this.source = moved
@@ -366,7 +372,16 @@ export class LlTemplates extends LitElement {
     this.error = ''
   }
 
-  private toggleJudgment(field: string, on: boolean) {
+  /**
+   * Turns suggestions on or off for a field: an edit of the source like any other, kept by saving. A field its author
+   * turned them off for is asked about first (`guardAsked`), unless `confirmed`.
+   */
+  private toggleJudgment(field: string, on: boolean, guarded = false, confirmed = false) {
+    this.guardAsked = undefined
+    if (on && guarded && !confirmed) {
+      this.guardAsked = field
+      return
+    }
     try {
       this.source = setSuggest(this.source, field, on)
       this.dirty = true
@@ -626,8 +641,8 @@ export class LlTemplates extends LitElement {
         : fields.map(
             (f) => html`<dc-checkbox
                 name=${f.name}
-                .checked=${f.judgment}
-                @change=${(e: Event) => this.toggleJudgment(f.name, (e.target as HTMLInputElement).checked)}
+                .checked=${live(f.judgment)}
+                @change=${(e: Event) => this.toggleJudgment(f.name, (e.target as HTMLInputElement).checked, f.guarded)}
                 >${f.label}</dc-checkbox
               >
               <span class="label-edit"
@@ -643,6 +658,15 @@ export class LlTemplates extends LitElement {
                     }}
                   ></dc-input>`
                 : html`<span></span>`}
+              ${f.guarded && !f.judgment
+                ? html`<p class="message guarded" role=${this.guardAsked === f.name ? 'alert' : nothing}>
+                    ${this.guardAsked === f.name ? strings.fieldGuardedAsk : strings.fieldGuarded}
+                    ${this.guardAsked === f.name
+                      ? html`<dc-button size="sm" @click=${() => this.toggleJudgment(f.name, true, true, true)}>${strings.fieldGuardedTurnOn}</dc-button>
+                          <dc-button size="sm" variant="ghost" @click=${() => (this.guardAsked = undefined)}>${strings.fieldGuardedKeep}</dc-button>`
+                      : nothing}
+                  </p>`
+                : nothing}
               ${f.noClues ? html`<p class="message no-clues">${strings.fieldNoClues}</p>` : nothing}`,
           )}
     </div>`

@@ -105,6 +105,13 @@ export const strings = {
   moveSuggestToFields: '칸으로 옮기기',
   fieldsHelp: '체크한 칸은 판단 칸 — 확정한 문서에서 배워 값을 제안받습니다(원문의 그 칸에 suggest:role=judged로 적힘). 선택지는 쉼표로 나눠 적으면 원문의 그 칸에 그대로 적힙니다 — "값=보이는 이름"으로 적으면 문서에는 값이 저장되고 화면에는 이름이 보여, 이름을 바꿔도 저장된 값과 배운 것이 이어집니다. "이름 바꾸기"는 칸이 보이는 이름(label)만 바꿉니다 — 문서의 값과 배운 것은 칸 이름에 붙어 있어 그대로 이어집니다.',
   fieldsNone: '이 서식에는 칸이 없습니다.',
+  // Beside a field its author turned suggestions off for (`suggest:policy=off`): a field about a person, where suggesting
+  // would carry one person's judgments of people over to the next.
+  fieldGuarded: '사람에 관한 칸이라 제안을 꺼 두었습니다(suggest:policy=off).',
+  fieldGuardedAsk:
+    '이 칸은 서식을 만든 사람이 사람에 관한 칸이라 제안을 꺼 두었습니다. 켜면 그 표시를 지우고, 확정한 문서에서 사람에 대한 판단을 배워 다음 문서에 제안합니다 — 한 사람의 판단이 다른 사람에게 옮겨 갈 수 있습니다.',
+  fieldGuardedTurnOn: '그래도 제안 켜기',
+  fieldGuardedKeep: '꺼 둔 채로',
   // Beside a judgment field no other field can tell apart (`judgedWithoutClues`): what the engine is sure of, and what changes it.
   fieldNoClues: '이 칸을 가를 다른 칸이 없어, 문서를 치기 전에는 제안이 나오지 않습니다 — 단서가 될 칸(고객 · 종류처럼 문서마다 달라지는 값)을 더하면 그 값으로 가릅니다.',
   templateProblemsTitle: '서식 원문의 문제',
