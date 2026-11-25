@@ -290,12 +290,20 @@ export class JudgmentController implements ReactiveController {
       const events = suggestionEvents(this.offered, this.rejected, values, id, at, this.template?.ref)
       const classes = suggestionEvents(this.classes, new Set(), values, id, at, this.template?.ref)
       const checks = checkEvents(this.checks, values, id, at, this.template?.ref)
-      for (const event of checks) this.checks.delete(event.field)
-      // Each event is recorded once; a rejection stays in force while the draft is open. A suggestion
-      // the save said nothing about is still the one showing, not a new presentation.
-      for (const event of events) this.offered.delete(event.field)
+      // Each event is recorded once, and what it records is forgotten only once it is: when recording fails, the next
+      // save makes it again rather than leaving the value to read as typed with nothing in view. A rejection stays in
+      // force while the draft is open; a suggestion the save said nothing about is still the one showing.
+      const recorded: [typeof classes, Map<string, unknown>][] = [
+        [classes, this.classes],
+        [events, this.offered],
+        [checks, this.checks],
+      ]
+      for (const [made, from] of recorded)
+        for (const event of made) {
+          await vault.recordEvent(event)
+          from.delete(event.field)
+        }
       this.classes = new Map()
-      for (const event of [...classes, ...events, ...checks]) await vault.recordEvent(event)
     }
     this.typing = new Set()
     // The file holds marks only on the values not yet decided.
