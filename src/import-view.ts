@@ -5,7 +5,7 @@ import { documentTitle, newDocument } from './documents.js'
 import { newDocumentId } from './identity.js'
 import { describeError } from './errors.js'
 import { importFields, planImport, recordsFromReply, rowsFromRecords, textPieces, type ColumnUse, type ImportField, type ImportPlan } from './import.js'
-import { LOCAL_PRESET, failureText, localModelLabel } from './model-settings.js'
+import { LOCAL_PRESET, failureText, localModelLabel, outsideOf } from './model-settings.js'
 import { templateSnapshot } from './projection.js'
 import { documentNames, type DocumentNames } from './references.js'
 import type { ModelSettings } from './settings.js'
@@ -278,6 +278,7 @@ export class LlImport extends LitElement {
   private renderText() {
     if (!this.model) return html`<h3>${strings.importTextTitle}</h3><p class="message">${strings.importTextNoModel}</p>`
     const over = this.text.length > TEXT_LIMIT
+    const outside = outsideOf(this.model)
     return html`
       <h3>${strings.importTextTitle}</h3>
       <p class="message">${strings.importTextHint(TEXT_LIMIT)}</p>
@@ -292,6 +293,7 @@ export class LlImport extends LitElement {
           >${strings.importTextRead}</dc-button
         >
         <span class=${over ? 'error' : 'message'}>${strings.importTextCount(this.text.length, TEXT_LIMIT)}</span>
+        ${outside ? html`<span class="message outside">${strings.importTextGoesOutside(outside)}</span>` : nothing}
         ${this.reading
           ? html`<span class="message" role="status">${strings.importTextReading(this.read.done, this.read.of, this.read.found)}</span>
               <dc-button size="sm" variant="ghost" ?disabled=${this.stopReading} @click=${() => (this.stopReading = true)}

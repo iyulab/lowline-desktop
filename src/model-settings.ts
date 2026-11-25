@@ -33,6 +33,9 @@ export const MODEL_PRESETS: readonly ModelPreset[] = [
 
 export const presetOf = (id: string) => MODEL_PRESETS.find((p) => p.id === id)
 
+/** The company what is sent to `model` goes to, or none when it stays on the person's own computers. */
+export const outsideOf = (model: ModelSettings | null): string | null => (model ? presetOf(model.preset)?.outside ?? null : null)
+
 /** Why an endpoint did not answer, in the app's words — never the endpoint's own. */
 export function failureText(failure: ModelFailure | null, statusCode: number | null): string {
   switch (failure) {

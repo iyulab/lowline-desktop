@@ -5,7 +5,7 @@ import '@iyulab/chat-components/dist/components/message/UMessage.js'
 import '@iyulab/chat-components/dist/components/prompt/UPrompt.js'
 import '@iyulab/chat-components/dist/components/blocks/UMarkedBlock.js'
 import { strings } from './strings.js'
-import { failureText, modelLabel } from './model-settings.js'
+import { failureText, modelLabel, outsideOf } from './model-settings.js'
 import { draftProblems, draftsOf, fieldChanges, leftoverFields, retryMessage, rowProblems, sourceId, spreadRows, tidyDraft, wordsOf } from './chat-authoring.js'
 import { planChecked, planWords, queryPlan, type ReadPlan } from './chat-query.js'
 import { fileName, fileNameFor } from './documents.js'
@@ -124,6 +124,7 @@ export class LlChatPanel extends LitElement {
       flex-direction: column;
       gap: var(--dc-space-2);
     }
+    .outside,
     .empty,
     .note {
       margin: 0;
@@ -538,6 +539,7 @@ export class LlChatPanel extends LitElement {
     if (!this.model || this.settingUp) {
       return html`<ll-model-settings .current=${this.model} @ll-model=${() => (this.settingUp = false)}></ll-model-settings>`
     }
+    const outside = outsideOf(this.model)
     return html`
       <div class="model">
         <span>${modelLabel(this.model)}</span>
@@ -546,6 +548,9 @@ export class LlChatPanel extends LitElement {
           ? html`<dc-button size="sm" variant="ghost" ?disabled=${this.writing} @click=${() => void this.pickFile()}>${strings.chatFromFile}</dc-button>`
           : nothing}
       </div>
+      ${outside
+        ? html`<p class="outside">${this.mode === 'ask' ? strings.chatAskGoesOutside(outside) : strings.chatAuthorGoesOutside(outside)}</p>`
+        : nothing}
       <dc-segmented-control
         size="sm"
         aria-label=${strings.chatModes}

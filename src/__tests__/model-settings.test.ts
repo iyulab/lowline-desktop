@@ -7,6 +7,7 @@ import {
   localModelLabel,
   localProgressText,
   modelLabel,
+  outsideOf,
   presetOf,
 } from '../model-settings.ts'
 import type { LocalModelProgress, ModelFailure } from '../vault-client.ts'
@@ -19,6 +20,13 @@ describe('model settings', () => {
     expect(destinationText(presetOf('anthropic')!)).toContain('Anthropic')
     expect(destinationText(presetOf('ollama')!)).not.toContain('Anthropic')
     expect(destinationText(presetOf(LOCAL_PRESET)!)).toContain('밖으로 나가지 않습니다')
+  })
+
+  it('name the company a chosen model sends to — the one said beside each send — and none for the person’s own computers', () => {
+    expect(outsideOf({ preset: 'openai', baseUrl: null, model: 'm' })).toBe('OpenAI')
+    expect(outsideOf({ preset: 'custom', baseUrl: 'http://x', model: 'm' })).toBeNull()
+    expect(outsideOf({ preset: LOCAL_PRESET, baseUrl: null, model: 'm' })).toBeNull()
+    expect(outsideOf(null)).toBeNull()
   })
 
   it('ask a company’s service for a key, a server of the person’s own for an address when it has no default, and this computer for neither', () => {
