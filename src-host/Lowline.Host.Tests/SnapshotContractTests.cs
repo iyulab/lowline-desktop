@@ -38,6 +38,7 @@ public sealed class SnapshotContractTests
         ["host_search"] = typeof(CaseQuery),
         ["host_similar"] = typeof(SimilarQuery),
         ["host_projection"] = typeof(ProjectionQuery),
+        ["host_weekly_counts"] = typeof(WeeklyCountsQuery),
     };
 
     private static JsonObject Read(string file) =>

@@ -29,5 +29,16 @@
         "value": "sales"
       }
     ]
+  },
+  "host_weekly_counts": {
+    "presentations": [
+      {
+        "at": "2026-10-03T00:00:00.000Z",
+        "template": "intake@2",
+        "field": "담당",
+        "source": "key",
+        "typed": 0
+      }
+    ]
   }
 }

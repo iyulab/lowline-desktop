@@ -8,7 +8,7 @@ import { parsePresentations } from './events.js'
 import { currentRefs, revisedRef } from './template-revision.js'
 import { host, vault, type VaultChanged, type VaultInfo } from './vault-client.js'
 import { SidecarUnavailable, syncVault, onVaultChanged } from './vault-snapshot.js'
-import { numberedForms, weeklyCounts, type WeeklyCounts } from './weekly-counts.js'
+import type { WeeklyCountsReport } from './weekly-counts.js'
 
 /** The decisions each rate is taken over — the sidecar's window. */
 const WINDOW = 10
@@ -140,7 +140,7 @@ export class LlLearning extends LitElement {
   @state() private templates: TemplateSnapshot[] = []
   @state() private names = new Map<string, string>()
   @state() private waiting = true
-  @state() private counts?: WeeklyCounts
+  @state() private counts?: WeeklyCountsReport
   @state() private copied: 'no' | 'yes' | 'failed' = 'no'
   @state() private error = ''
 
@@ -168,9 +168,10 @@ export class LlLearning extends LitElement {
       const shown = parsePresentations(await vault.readPresentations().catch(() => '')).map((p) => ({ ...p, template: revisedRef(p.template, current) }))
       // The counts number the forms of these templates: both change together, or a render between would read one
       // against the other's numbering.
+      const counts = await host.weeklyCounts(shown)
       this.templates = synced.templates
       this.names = synced.names
-      this.counts = weeklyCounts(synced.templates, synced.documents, synced.events, shown)
+      this.counts = counts
       this.copied = 'no'
       this.curves = await host.curves()
       this.error = ''
@@ -250,11 +251,11 @@ export class LlLearning extends LitElement {
    * saved here — values no one may have confirmed. Nothing is said for a form with none.
    */
   private renderOutside() {
-    const forms = numberedForms(this.templates)
-    return (this.counts?.forms ?? [])
+    const refs = this.counts?.formRefs ?? []
+    return (this.counts?.export.forms ?? [])
       .filter((f) => f.outside > 0)
       .map((f) => {
-        const ref = forms[f.form - 1].ref
+        const ref = refs[f.form - 1]
         return html`<p class="message outside">${strings.learningOutside(this.names.get(ref) ?? ref, f.outside, f.confirmed)}</p>`
       })
   }
@@ -264,17 +265,18 @@ export class LlLearning extends LitElement {
    * person who can see the vault anyway, and is not part of what is copied.
    */
   private renderCounts() {
-    const counts = this.counts
+    const counts = this.counts?.export
     if (!counts || counts.counts.length === 0) return nothing
     const text = JSON.stringify(counts, null, 2)
-    const forms = numberedForms(this.templates)
+    const refs = this.counts?.formRefs ?? []
     return html`<details class="counts">
       <summary>${strings.countsTitle}</summary>
       <p class="message">${strings.countsHelp}</p>
       <ul class="legend">
-        ${forms.map(
-          (t, i) => html`<li>${strings.countsForm(i + 1, this.names.get(t.ref) ?? t.ref, t.suggest.map((f) => this.fieldLabel(t.ref, f)))}</li>`,
-        )}
+        ${refs.map((ref, i) => {
+          const fields = this.templates.find((t) => t.ref === ref)?.suggest ?? []
+          return html`<li>${strings.countsForm(i + 1, this.names.get(ref) ?? ref, fields.map((f) => this.fieldLabel(ref, f)))}</li>`
+        })}
       </ul>
       <pre>${text}</pre>
       <dc-button size="sm" variant="secondary" @click=${() => void this.copy(text)}>${strings.countsCopy}</dc-button>

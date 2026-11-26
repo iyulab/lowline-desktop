@@ -17,7 +17,7 @@ import { importFields, planImport } from '../import.js'
 import { documentSnapshot, templateSnapshot, type DocumentSnapshot, type Suggestion } from '../projection.js'
 import { documentNames } from '../references.js'
 import { templateId } from '../template-revision.js'
-import { weekOf, weeklyCounts } from '../weekly-counts.js'
+import { weekOf, type WeeklyCountsReport } from '../weekly-counts.js'
 
 interface NodeProcess {
   env: Record<string, string | undefined>
@@ -161,7 +161,16 @@ describe.runIf(env.LOWLINE_REPLAY)('records played back through the app', () => 
     })
     fs.writeFileSync(`${out}/events.jsonl`, events.map((e) => JSON.stringify(e)).join('\n') + '\n')
 
-    const counts = weeklyCounts(templates, [...baseDocuments, ...documents], events, shown)
+    // Counted where the app counts them, on the sidecar's side.
+    const countsIn = `${out}/weekly-counts-in.json`
+    const countsOut = `${out}/weekly-counts-report.json`
+    fs.writeFileSync(countsIn, JSON.stringify({ snapshot: { templates, documents: [...baseDocuments, ...documents], events }, presentations: shown }))
+    execFileSync('dotnet', ['test', '--project', 'src-host/Lowline.Host.Tests', '--', '--filter-method', '*Counts_a_vault_written_to_a_file'], {
+      env: { ...env, LOWLINE_WEEKLY_COUNTS_IN: countsIn, LOWLINE_WEEKLY_COUNTS_OUT: countsOut },
+      stdio: 'inherit',
+      timeout: 10 * 60_000,
+    })
+    const counts = (JSON.parse(fs.readFileSync(countsOut, 'utf8')) as WeeklyCountsReport).export
     const text = JSON.stringify(counts, null, 2)
     fs.writeFileSync(`${out}/weekly-counts.json`, text + '\n')
 

@@ -30,6 +30,24 @@ public sealed class WeeklyCountsTests
         Assert.True(JsonNode.DeepEquals(found["expected"], counted), $"expected {found["expected"]!.ToJsonString()}\n counted {counted!.ToJsonString()}");
     }
 
+    /// <summary>
+    /// For the app's replay (<c>src/__tests__/replay.test.ts</c>): counts the vault and presentations in the file
+    /// <c>LOWLINE_WEEKLY_COUNTS_IN</c> names (<c>{ snapshot, presentations }</c>) in this computer's time, as the app's
+    /// learning screen would, and writes the report to <c>LOWLINE_WEEKLY_COUNTS_OUT</c>.
+    /// </summary>
+    [Fact]
+    public void Counts_a_vault_written_to_a_file()
+    {
+        var input = Environment.GetEnvironmentVariable("LOWLINE_WEEKLY_COUNTS_IN");
+        Assert.SkipWhen(string.IsNullOrEmpty(input), "set LOWLINE_WEEKLY_COUNTS_IN to count a vault written to a file");
+        var asked = JsonNode.Parse(File.ReadAllText(input))!;
+        var report = WeeklyCounts.Compute(
+            asked["snapshot"].Deserialize<VaultSnapshot>(JsonSerializerOptions.Web)!,
+            asked["presentations"].Deserialize<List<Presentation>>(JsonSerializerOptions.Web) ?? [],
+            TimeZoneInfo.Local);
+        File.WriteAllText(Environment.GetEnvironmentVariable("LOWLINE_WEEKLY_COUNTS_OUT")!, JsonSerializer.Serialize(report, JsonSerializerOptions.Web));
+    }
+
     [Fact]
     public void Numbers_the_forms_with_judgment_fields_in_the_order_of_their_references()
     {

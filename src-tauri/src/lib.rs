@@ -670,6 +670,17 @@ async fn host_curves(state: State<'_, HostState>) -> Result<serde_json::Value, S
     host_json(blocking(move || client.get("/curves")).await?)
 }
 
+/// The weekly counts, with this device's record of the suggestions it showed (`request` = `{ presentations }`).
+#[tauri::command]
+async fn host_weekly_counts(
+    request: serde_json::Value,
+    state: State<'_, HostState>,
+) -> Result<serde_json::Value, String> {
+    let client = state.client()?;
+    let body = request.to_string();
+    host_json(blocking(move || client.post_json("/weekly-counts", &body)).await?)
+}
+
 /// Runs a request to the sidecar off the async runtime.
 async fn blocking(
     request: impl FnOnce() -> Result<String, host::CallError> + Send + 'static,
@@ -1197,6 +1208,7 @@ pub fn run() {
             host_ingest,
             host_projection,
             host_curves,
+            host_weekly_counts,
             host_suggest,
             host_search,
             host_similar,

@@ -2,6 +2,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { AggregateAnswer, CaseHit, ColumnFilter, FieldCurve, IngestResult, ProjectionTable, Suggestion, VaultSnapshot } from './projection.js'
+import type { Presentation } from './events.js'
+import type { WeeklyCountsReport } from './weekly-counts.js'
 
 export interface VaultInfo {
   root: string
@@ -228,6 +230,8 @@ export const host = {
   /** A template's table: the rows that match every filter, all of them without. */
   projection: (template: string, filters: ColumnFilter[] = []) => invoke<ProjectionTable>('host_projection', { template, filters }),
   curves: () => invoke<FieldCurve[]>('host_curves'),
+  /** The weekly counts, counted in the sidecar, with this device's record of the suggestions it showed. */
+  weeklyCounts: (presentations: readonly Presentation[]) => invoke<WeeklyCountsReport>('host_weekly_counts', { request: { presentations } }),
   /**
    * Counts of a template's documents matching every filter, per value of the `groupBy` fields — or all as one — each
    * with up to `evidence` of its documents.

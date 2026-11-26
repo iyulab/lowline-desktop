@@ -73,6 +73,7 @@ describe('the questions the sidecar is asked', () => {
     await host.search('모니터', 'intake@2')
     await host.similar('문서/2026-10-03-모니터.md')
     await host.projection('intake@2', [{ column: '부서', op: 'contains', value: 'sales' }])
+    await host.weeklyCounts([{ at: '2026-10-03T00:00:00.000Z', template: 'intake@2', field: '담당', source: 'key', typed: 0 }])
     // The shell hands a `request` on as the body; a table's template and filters it puts in one body as they are.
     const bodies = Object.fromEntries(invoked.map(([command, args]) => [command, 'request' in args ? args.request : args]))
     await expect(JSON.stringify(bodies, null, 2) + '\n').toMatchFileSnapshot('../../src-host/Lowline.Host.Tests/ui-requests.json')
