@@ -535,6 +535,11 @@ fn io_error(e: std::io::Error) -> CommandError {
     }
 }
 
+/// The most a vault's record of shown suggestions keeps on this device. It is supporting evidence,
+/// not a source: past this size the oldest lines go (the newest half is kept), and the weekly counts
+/// say from which week the record still counts what was shown (`presentedSince`).
+const PRESENTATIONS_MAX_BYTES: u64 = 4 * 1024 * 1024;
+
 /// Appends one suggestion shown to this device's record of them for the open vault.
 #[tauri::command]
 fn record_presentation(
@@ -550,7 +555,8 @@ fn record_presentation(
     }
     let root = with_vault(&state, |v| Ok(v.root().to_path_buf()))?;
     let file = presentations_file(&app, &root).map_err(io_error)?;
-    tauri_kit_fs::append_line(&file, &presentation.to_string()).map_err(io_error)
+    tauri_kit_fs::append_line_within(&file, &presentation.to_string(), PRESENTATIONS_MAX_BYTES)
+        .map_err(io_error)
 }
 
 /// This device's record of the suggestions it has shown for the open vault; empty before the first.
