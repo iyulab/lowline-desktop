@@ -136,6 +136,18 @@ public sealed class ResponseContractTests
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", HostTests.Token);
 
+        async Task<JsonNode> WeeklyCountsOfAll()
+        {
+            var at = "2026-10-05T10:00:00.000Z";
+            var counted = new VaultSnapshot([Intake], [Document(1) with { Outside = true }],
+            [
+                Event(0, "accept") with { Similarity = 0.8, Typed = 0, DecidedTyped = 0, ShownAt = at, DecidedAt = "2026-10-05T10:00:01.000Z" },
+                Event(1, "check") with { Value = JsonSerializer.SerializeToElement("장비") },
+            ]);
+            await Post("/vault/ingest", counted);
+            return await Post("/weekly-counts", new { presentations = new[] { new { at, template = "intake@1", field = "담당", source = "key", typed = 0 } } });
+        }
+
         async Task<JsonNode> Post(string path, object body)
         {
             var response = await client.PostAsJsonAsync(path, body, JsonSerializerOptions.Web, ct);
@@ -257,6 +269,8 @@ public sealed class ResponseContractTests
                 ["localGetting"] = Words(typeof(LocalGetting)),
                 ["sourceFailure"] = Words(typeof(SourceFileFailure)),
             },
+            // Last, as it takes in a vault of its own: one week of a field with every kind of count, beside a suggestion shown.
+            ["weeklyCounts"] = await WeeklyCountsOfAll(),
         };
         var written = Zeroed(responses)!.ToJsonString(Written).ReplaceLineEndings("\n") + "\n";
 

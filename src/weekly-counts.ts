@@ -116,6 +116,15 @@ export interface WeeklyCounts {
   presentedSince?: string
 }
 
+/**
+ * What the sidecar answers for the weekly counts: the counts to hand over, and which template each form number is (the
+ * first is form 1) — shown to the person exporting, never exported.
+ */
+export interface WeeklyCountsReport {
+  formRefs: string[]
+  export: WeeklyCounts
+}
+
 const DAY = 24 * 60 * 60 * 1000
 
 /** The `byTyped` slot of a count of characters typed: 0, 1, 2, or 3 and more. */

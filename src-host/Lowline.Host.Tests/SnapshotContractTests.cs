@@ -24,19 +24,10 @@ public sealed class SnapshotContractTests
             ["label"] = "what the form shows; the table and suggestions go by the field's name",
             ["optionLabels"] = "what the form shows for an option; suggestions go by the option's value",
         },
-        [typeof(DocumentSnapshot)] = new()
-        {
-            ["outside"] = "whether the app has ever saved the document, for the person to see on the learning screen; learned from all the same",
-        },
         [typeof(SuggestionEvent)] = new()
         {
-            ["value"] = "what was saved is read from the document itself",
             ["recall"] = "which values a suggestion rested on, for the person; not learned from",
-            ["similarity"] = "kept in the event format, always empty since similar records stopped being suggested",
             ["filled"] = "the fill order, for studying the curves; not learned from",
-            ["decidedAt"] = "timing, for studying the curves; not learned from",
-            ["typed"] = "the characters typed when the suggestion was shown, for studying the curves; not learned from",
-            ["decidedTyped"] = "the characters in the field when the suggestion was taken or rejected, for studying the curves; not learned from",
         },
     };
 

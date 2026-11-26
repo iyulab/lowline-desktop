@@ -1,0 +1,3232 @@
+{
+ "timeZone": "Asia/Seoul",
+ "cases": [
+  {
+   "name": "decisions by week, form and field",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "note@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [],
+      "schema": {}
+     },
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     },
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/환자-김철수.md",
+      "id": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "비밀",
+       "담당": "장비"
+      },
+      "modified": 1790676000000
+     },
+     {
+      "path": "문서/2.md",
+      "id": "문서/2.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "다른 비밀"
+      },
+      "modified": 1790762400000
+     },
+     {
+      "path": "문서/3.md",
+      "id": "문서/3.md",
+      "template": "intake@1",
+      "values": {
+       "긴급": "예"
+      },
+      "modified": 1791885600000
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-09-29T10:00:00.000Z",
+      "doc": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.83
+     },
+     {
+      "at": "2026-09-30T10:00:00.000Z",
+      "doc": "문서/2.md",
+      "field": "담당",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.61
+     },
+     {
+      "at": "2026-10-01T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "긴급",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.66
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/없음.md",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "요청",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "0.8": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 2,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 2,
+      "presented": 0,
+      "accepted": 0,
+      "corrected": 1,
+      "rejected": 0,
+      "bySimilarity": {
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-05",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     },
+     {
+      "form": 2,
+      "confirmed": 2,
+      "outside": 0,
+      "weeks": 3,
+      "perWeek": 0.67
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "checks",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "note@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [],
+      "schema": {}
+     },
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     },
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/환자-김철수.md",
+      "id": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "비밀",
+       "담당": "장비"
+      },
+      "modified": 1790676000000
+     },
+     {
+      "path": "문서/2.md",
+      "id": "문서/2.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "다른 비밀"
+      },
+      "modified": 1790762400000
+     },
+     {
+      "path": "문서/3.md",
+      "id": "문서/3.md",
+      "template": "intake@1",
+      "values": {
+       "긴급": "예"
+      },
+      "modified": 1791885600000
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-09-29T10:00:00.000Z",
+      "doc": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.83
+     },
+     {
+      "at": "2026-09-30T10:00:00.000Z",
+      "doc": "문서/2.md",
+      "field": "담당",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.61
+     },
+     {
+      "at": "2026-10-01T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "긴급",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.66
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/없음.md",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "요청",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T11:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "check",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "check",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "probability": 0.05
+     },
+     {
+      "at": "2026-10-06T12:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "check",
+      "suggested": "장비",
+      "value": "인사",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "probability": 0.05
+     },
+     {
+      "at": "2026-10-06T12:30:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "check",
+      "suggested": "장비",
+      "value": [
+       "장비"
+      ],
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "probability": 0.05
+     },
+     {
+      "at": "2026-10-06T12:40:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "check",
+      "suggested": "장비",
+      "value": null,
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "probability": 0.05
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "0.8": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 2,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 2,
+      "presented": 0,
+      "accepted": 0,
+      "corrected": 1,
+      "rejected": 0,
+      "bySimilarity": {
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-05",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {},
+      "checked": {
+       "entered": 4,
+       "held": 2
+      }
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     },
+     {
+      "form": 2,
+      "confirmed": 2,
+      "outside": 0,
+      "weeks": 3,
+      "perWeek": 0.67
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "conflicted",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "note@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [],
+      "schema": {}
+     },
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     },
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/환자-김철수.md",
+      "id": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "비밀",
+       "담당": "장비"
+      },
+      "modified": 1790676000000
+     },
+     {
+      "path": "문서/2.md",
+      "id": "문서/2.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "다른 비밀"
+      },
+      "modified": 1790762400000
+     },
+     {
+      "path": "문서/3.md",
+      "id": "문서/3.md",
+      "template": "intake@1",
+      "values": {
+       "긴급": "예"
+      },
+      "modified": 1791885600000,
+      "conflicted": true
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-09-29T10:00:00.000Z",
+      "doc": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.83
+     },
+     {
+      "at": "2026-09-30T10:00:00.000Z",
+      "doc": "문서/2.md",
+      "field": "담당",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.61
+     },
+     {
+      "at": "2026-10-01T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "긴급",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.66
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/없음.md",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "요청",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "0.8": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 2,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 2,
+      "presented": 0,
+      "accepted": 0,
+      "corrected": 1,
+      "rejected": 0,
+      "bySimilarity": {
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-05",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     },
+     {
+      "form": 2,
+      "confirmed": 1,
+      "outside": 0,
+      "weeks": 1,
+      "perWeek": 1
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "proposed",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "note@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [],
+      "schema": {}
+     },
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     },
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/환자-김철수.md",
+      "id": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "비밀",
+       "담당": "장비"
+      },
+      "modified": 1790676000000
+     },
+     {
+      "path": "문서/2.md",
+      "id": "문서/2.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "다른 비밀"
+      },
+      "modified": 1790762400000
+     },
+     {
+      "path": "문서/3.md",
+      "id": "문서/3.md",
+      "template": "intake@1",
+      "values": {
+       "긴급": "예"
+      },
+      "modified": 1791885600000,
+      "proposed": [
+       "긴급"
+      ]
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-09-29T10:00:00.000Z",
+      "doc": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.83
+     },
+     {
+      "at": "2026-09-30T10:00:00.000Z",
+      "doc": "문서/2.md",
+      "field": "담당",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.61
+     },
+     {
+      "at": "2026-10-01T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "긴급",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.66
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/없음.md",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "요청",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "0.8": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 2,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 2,
+      "presented": 0,
+      "accepted": 0,
+      "corrected": 1,
+      "rejected": 0,
+      "bySimilarity": {
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-05",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     },
+     {
+      "form": 2,
+      "confirmed": 1,
+      "outside": 0,
+      "weeks": 1,
+      "perWeek": 1
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "partly proposed",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "note@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [],
+      "schema": {}
+     },
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     },
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/환자-김철수.md",
+      "id": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "비밀",
+       "담당": "장비"
+      },
+      "modified": 1790676000000
+     },
+     {
+      "path": "문서/2.md",
+      "id": "문서/2.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "다른 비밀"
+      },
+      "modified": 1790762400000
+     },
+     {
+      "path": "문서/3.md",
+      "id": "문서/3.md",
+      "template": "intake@1",
+      "values": {
+       "긴급": "높음"
+      },
+      "modified": 1791885600000,
+      "proposed": [
+       "담당"
+      ]
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-09-29T10:00:00.000Z",
+      "doc": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.83
+     },
+     {
+      "at": "2026-09-30T10:00:00.000Z",
+      "doc": "문서/2.md",
+      "field": "담당",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.61
+     },
+     {
+      "at": "2026-10-01T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "긴급",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.66
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/없음.md",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "요청",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "0.8": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 2,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 2,
+      "presented": 0,
+      "accepted": 0,
+      "corrected": 1,
+      "rejected": 0,
+      "bySimilarity": {
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-05",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     },
+     {
+      "form": 2,
+      "confirmed": 2,
+      "outside": 0,
+      "weeks": 3,
+      "perWeek": 0.67
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "named day",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/2025-10-06-접수.md",
+      "id": "문서/2025-10-06-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200000
+     },
+     {
+      "path": "문서/2025-10-13-접수.md",
+      "id": "문서/2025-10-13-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200001
+     },
+     {
+      "path": "문서/2025-10-20-접수.md",
+      "id": "문서/2025-10-20-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200002
+     },
+     {
+      "path": "문서/2025-10-27-접수.md",
+      "id": "문서/2025-10-27-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200003
+     },
+     {
+      "path": "문서/2025-11-03-접수.md",
+      "id": "문서/2025-11-03-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200004
+     },
+     {
+      "path": "문서/2025-11-10-접수.md",
+      "id": "문서/2025-11-10-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200005
+     },
+     {
+      "path": "문서/2025-11-17-접수.md",
+      "id": "문서/2025-11-17-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200006
+     },
+     {
+      "path": "문서/2025-11-24-접수.md",
+      "id": "문서/2025-11-24-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200007
+     },
+     {
+      "path": "문서/2025-12-01-접수.md",
+      "id": "문서/2025-12-01-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200008
+     },
+     {
+      "path": "문서/2025-12-08-접수.md",
+      "id": "문서/2025-12-08-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200009
+     },
+     {
+      "path": "문서/2025-12-15-접수.md",
+      "id": "문서/2025-12-15-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200010
+     },
+     {
+      "path": "문서/2025-12-22-접수.md",
+      "id": "문서/2025-12-22-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200011
+     },
+     {
+      "path": "문서/2025-12-29-접수.md",
+      "id": "문서/2025-12-29-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200012
+     },
+     {
+      "path": "문서/2026-01-05-접수.md",
+      "id": "문서/2026-01-05-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200013
+     },
+     {
+      "path": "문서/2026-01-12-접수.md",
+      "id": "문서/2026-01-12-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200014
+     },
+     {
+      "path": "문서/2026-01-19-접수.md",
+      "id": "문서/2026-01-19-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200015
+     },
+     {
+      "path": "문서/2026-01-26-접수.md",
+      "id": "문서/2026-01-26-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200016
+     },
+     {
+      "path": "문서/2026-02-02-접수.md",
+      "id": "문서/2026-02-02-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200017
+     },
+     {
+      "path": "문서/2026-02-09-접수.md",
+      "id": "문서/2026-02-09-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200018
+     },
+     {
+      "path": "문서/2026-02-16-접수.md",
+      "id": "문서/2026-02-16-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200019
+     },
+     {
+      "path": "문서/2026-02-23-접수.md",
+      "id": "문서/2026-02-23-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200020
+     },
+     {
+      "path": "문서/2026-03-02-접수.md",
+      "id": "문서/2026-03-02-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200021
+     },
+     {
+      "path": "문서/2026-03-09-접수.md",
+      "id": "문서/2026-03-09-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200022
+     },
+     {
+      "path": "문서/2026-03-16-접수.md",
+      "id": "문서/2026-03-16-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200023
+     },
+     {
+      "path": "문서/2026-03-23-접수.md",
+      "id": "문서/2026-03-23-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200024
+     },
+     {
+      "path": "문서/2026-03-30-접수.md",
+      "id": "문서/2026-03-30-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200025
+     },
+     {
+      "path": "문서/2026-04-06-접수.md",
+      "id": "문서/2026-04-06-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200026
+     },
+     {
+      "path": "문서/2026-04-13-접수.md",
+      "id": "문서/2026-04-13-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200027
+     },
+     {
+      "path": "문서/2026-04-20-접수.md",
+      "id": "문서/2026-04-20-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200028
+     },
+     {
+      "path": "문서/2026-04-27-접수.md",
+      "id": "문서/2026-04-27-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200029
+     },
+     {
+      "path": "문서/2026-05-04-접수.md",
+      "id": "문서/2026-05-04-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200030
+     },
+     {
+      "path": "문서/2026-05-11-접수.md",
+      "id": "문서/2026-05-11-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200031
+     },
+     {
+      "path": "문서/2026-05-18-접수.md",
+      "id": "문서/2026-05-18-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200032
+     },
+     {
+      "path": "문서/2026-05-25-접수.md",
+      "id": "문서/2026-05-25-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200033
+     },
+     {
+      "path": "문서/2026-06-01-접수.md",
+      "id": "문서/2026-06-01-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200034
+     },
+     {
+      "path": "문서/2026-06-08-접수.md",
+      "id": "문서/2026-06-08-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200035
+     },
+     {
+      "path": "문서/2026-06-15-접수.md",
+      "id": "문서/2026-06-15-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200036
+     },
+     {
+      "path": "문서/2026-06-22-접수.md",
+      "id": "문서/2026-06-22-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200037
+     },
+     {
+      "path": "문서/2026-06-29-접수.md",
+      "id": "문서/2026-06-29-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200038
+     },
+     {
+      "path": "문서/2026-07-06-접수.md",
+      "id": "문서/2026-07-06-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200039
+     },
+     {
+      "path": "문서/2026-07-13-접수.md",
+      "id": "문서/2026-07-13-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200040
+     },
+     {
+      "path": "문서/2026-07-20-접수.md",
+      "id": "문서/2026-07-20-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200041
+     },
+     {
+      "path": "문서/2026-07-27-접수.md",
+      "id": "문서/2026-07-27-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200042
+     },
+     {
+      "path": "문서/2026-08-03-접수.md",
+      "id": "문서/2026-08-03-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200043
+     },
+     {
+      "path": "문서/2026-08-10-접수.md",
+      "id": "문서/2026-08-10-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200044
+     },
+     {
+      "path": "문서/2026-08-17-접수.md",
+      "id": "문서/2026-08-17-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200045
+     },
+     {
+      "path": "문서/2026-08-24-접수.md",
+      "id": "문서/2026-08-24-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200046
+     },
+     {
+      "path": "문서/2026-08-31-접수.md",
+      "id": "문서/2026-08-31-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200047
+     },
+     {
+      "path": "문서/2026-09-07-접수.md",
+      "id": "문서/2026-09-07-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200048
+     },
+     {
+      "path": "문서/2026-09-14-접수.md",
+      "id": "문서/2026-09-14-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200049
+     },
+     {
+      "path": "문서/2026-09-21-접수.md",
+      "id": "문서/2026-09-21-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200050
+     },
+     {
+      "path": "문서/2026-09-28-접수.md",
+      "id": "문서/2026-09-28-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791187200051
+     },
+     {
+      "path": "문서/2026-10-05-접수.md",
+      "id": "문서/2026-10-05-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791194400000
+     },
+     {
+      "path": "문서/2026-10-12-접수 (1).md",
+      "id": "문서/2026-10-12-접수 (1).md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791799200000
+     },
+     {
+      "path": "문서/2026-02-30-문의.md",
+      "id": "문서/2026-02-30-문의.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1793613600000
+     },
+     {
+      "path": "2026-10-13/문의.md",
+      "id": "2026-10-13/문의.md",
+      "template": "intake@1",
+      "values": {
+       "담당": [
+        "장비"
+       ]
+      },
+      "modified": 1793700000000
+     },
+     {
+      "path": "문서/빈.md",
+      "id": "문서/빈.md",
+      "template": "intake@1",
+      "values": {
+       "담당": []
+      },
+      "modified": 1793700000000
+     },
+     {
+      "path": "문서/영.md",
+      "id": "문서/영.md",
+      "template": "intake@1",
+      "values": {
+       "담당": 0
+      }
+     }
+    ],
+    "events": []
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 57,
+      "outside": 0,
+      "weeks": 57,
+      "perWeek": 1
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "early Monday",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/2026-10-05-접수.md",
+      "id": "문서/2026-10-05-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      },
+      "modified": 1791153000000
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-10-04T22:30:00.000Z",
+      "doc": "문서/2026-10-05-접수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-10-05",
+      "form": 1,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 1,
+      "outside": 0,
+      "weeks": 1,
+      "perWeek": 1
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "outside",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/2026-10-05-접수.md",
+      "id": "문서/2026-10-05-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "총무"
+      },
+      "outside": true
+     },
+     {
+      "path": "문서/2026-10-06-접수.md",
+      "id": "문서/2026-10-06-접수.md",
+      "template": "intake@1",
+      "values": {},
+      "outside": true
+     },
+     {
+      "path": "문서/2026-10-07-접수.md",
+      "id": "문서/2026-10-07-접수.md",
+      "template": "intake@1",
+      "values": {
+       "담당": "장비"
+      }
+     }
+    ],
+    "events": []
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 2,
+      "outside": 1,
+      "weeks": 1,
+      "perWeek": 2
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "presentations",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "note@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [],
+      "schema": {}
+     },
+     {
+      "ref": "intake@1",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "담당",
+        "type": "select",
+        "label": "담당",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "긴급",
+        "type": "select",
+        "label": "긴급",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "담당",
+       "긴급"
+      ],
+      "schema": {}
+     },
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [
+     {
+      "path": "문서/환자-김철수.md",
+      "id": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "비밀",
+       "담당": "장비"
+      },
+      "modified": 1790676000000
+     },
+     {
+      "path": "문서/2.md",
+      "id": "문서/2.md",
+      "template": "intake@1",
+      "values": {
+       "요청": "다른 비밀"
+      },
+      "modified": 1790762400000
+     },
+     {
+      "path": "문서/3.md",
+      "id": "문서/3.md",
+      "template": "intake@1",
+      "values": {
+       "긴급": "예"
+      },
+      "modified": 1791885600000
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-09-29T10:00:00.000Z",
+      "doc": "문서/환자-김철수.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.83
+     },
+     {
+      "at": "2026-09-30T10:00:00.000Z",
+      "doc": "문서/2.md",
+      "field": "담당",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.61
+     },
+     {
+      "at": "2026-10-01T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "긴급",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.66
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/없음.md",
+      "field": "담당",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     },
+     {
+      "at": "2026-10-06T10:00:00.000Z",
+      "doc": "문서/3.md",
+      "template": "intake@1",
+      "field": "요청",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.9
+     }
+    ]
+   },
+   "presentations": [
+    {
+     "at": "2026-09-29T09:59:00.000Z",
+     "template": "intake@1",
+     "field": "담당",
+     "source": "memory"
+    },
+    {
+     "at": "2026-09-30T09:00:00.000Z",
+     "template": "intake@1",
+     "field": "담당",
+     "source": "memory"
+    },
+    {
+     "at": "2026-09-30T09:30:00.000Z",
+     "template": "intake@1",
+     "field": "담당",
+     "source": "memory"
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "memory"
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "intake@2",
+     "field": "담당",
+     "source": "memory"
+    },
+    {
+     "at": "not a time",
+     "template": "intake@1",
+     "field": "담당",
+     "source": "memory"
+    }
+   ],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 1,
+      "presented": 3,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "0.8": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 2,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-09-28",
+      "form": 2,
+      "field": 2,
+      "presented": 0,
+      "accepted": 0,
+      "corrected": 1,
+      "rejected": 0,
+      "bySimilarity": {
+       "0.6": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 1,
+        "accepted": 0
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-05",
+      "form": 2,
+      "field": 1,
+      "presented": 0,
+      "accepted": 1,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "byTyped": {}
+     },
+     {
+      "week": "2026-10-19",
+      "form": 1,
+      "field": 1,
+      "presented": 1,
+      "accepted": 0,
+      "corrected": 0,
+      "rejected": 0,
+      "bySimilarity": {},
+      "bySource": {},
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     },
+     {
+      "form": 2,
+      "confirmed": 2,
+      "outside": 0,
+      "weeks": 3,
+      "perWeek": 0.67
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ],
+    "presentedSince": "2026-09-28"
+   }
+  },
+  {
+   "name": "typed",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [],
+    "events": [
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 1
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 3
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 7
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 2
+     }
+    ]
+   },
+   "presentations": [
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "key",
+     "typed": 0
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "key",
+     "typed": 1
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "key",
+     "typed": 2
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "key",
+     "typed": 3
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "key",
+     "typed": 7
+    },
+    {
+     "at": "2026-10-20T09:00:00.000Z",
+     "template": "bug@2",
+     "field": "원인",
+     "source": "key"
+    }
+   ],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-10-19",
+      "form": 1,
+      "field": 1,
+      "presented": 6,
+      "accepted": 4,
+      "corrected": 1,
+      "rejected": 1,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 6,
+        "accepted": 4
+       }
+      },
+      "byTyped": {
+       "0": {
+        "presented": 1,
+        "decided": 1,
+        "accepted": 1
+       },
+       "1": {
+        "presented": 1,
+        "decided": 1,
+        "accepted": 0
+       },
+       "2": {
+        "presented": 1,
+        "decided": 1,
+        "accepted": 0
+       },
+       "3+": {
+        "presented": 2,
+        "decided": 2,
+        "accepted": 2
+       }
+      }
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ],
+    "presentedSince": "2026-10-19"
+   }
+  },
+  {
+   "name": "dwell",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [],
+    "events": [
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T09:00:00.300Z",
+      "decidedTyped": 0
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T09:00:02.500Z",
+      "decidedTyped": 2
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T09:00:40.000Z"
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T09:00:01.000Z",
+      "decidedTyped": 0
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "correct",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0,
+      "shownAt": "2026-10-20T09:00:00.000Z"
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 0,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T08:59:55.000Z",
+      "decidedTyped": 0
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 1,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T09:00:00.600Z",
+      "decidedTyped": 1
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "key",
+      "recall": "문서/비밀-경로.md",
+      "similarity": null,
+      "typed": 2,
+      "shownAt": "2026-10-20T09:00:00.000Z",
+      "decidedAt": "2026-10-20T10:00:00.000Z",
+      "decidedTyped": 5
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-10-19",
+      "form": 1,
+      "field": 1,
+      "presented": 0,
+      "accepted": 6,
+      "corrected": 1,
+      "rejected": 1,
+      "bySimilarity": {},
+      "bySource": {
+       "key": {
+        "decided": 8,
+        "accepted": 6
+       }
+      },
+      "byTyped": {
+       "0": {
+        "presented": 0,
+        "decided": 6,
+        "accepted": 4,
+        "dwell": {
+         "accepted": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1
+         ],
+         "acceptedNoTyping": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ],
+         "acceptedAfterTyping": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+         ],
+         "other": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+         ]
+        }
+       },
+       "1": {
+        "presented": 0,
+        "decided": 1,
+        "accepted": 1,
+        "dwell": {
+         "accepted": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ],
+         "acceptedNoTyping": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ],
+         "acceptedAfterTyping": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ],
+         "other": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ]
+        }
+       },
+       "2": {
+        "presented": 0,
+        "decided": 1,
+        "accepted": 1,
+        "dwell": {
+         "accepted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+         ],
+         "acceptedNoTyping": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ],
+         "acceptedAfterTyping": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+         ],
+         "other": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ]
+        }
+       }
+      }
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "name": "similarity edges",
+   "snapshot": {
+    "templates": [
+     {
+      "ref": "bug@2",
+      "fields": [
+       {
+        "name": "요청",
+        "type": "textarea",
+        "label": "요청",
+        "multiple": false,
+        "options": []
+       },
+       {
+        "name": "원인",
+        "type": "select",
+        "label": "원인",
+        "multiple": false,
+        "options": []
+       }
+      ],
+      "suggest": [
+       "원인"
+      ],
+      "schema": {}
+     }
+    ],
+    "documents": [],
+    "events": [
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 1.2
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.7
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "reject",
+      "suggested": "장비",
+      "value": null,
+      "source": "memory",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.05
+     },
+     {
+      "at": "2026-10-20T09:00:00.000Z",
+      "doc": "문서/c.md",
+      "template": "bug@2",
+      "field": "원인",
+      "kind": "accept",
+      "suggested": "장비",
+      "value": "장비",
+      "source": "",
+      "recall": "문서/비밀-경로.md",
+      "similarity": 0.3
+     }
+    ]
+   },
+   "presentations": [],
+   "expected": {
+    "format": "lowline-weekly-counts/1",
+    "counts": [
+     {
+      "week": "2026-10-19",
+      "form": 1,
+      "field": 1,
+      "presented": 0,
+      "accepted": 3,
+      "corrected": 0,
+      "rejected": 1,
+      "bySimilarity": {
+       "1.0": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.7": {
+        "decided": 1,
+        "accepted": 1
+       },
+       "0.0": {
+        "decided": 1,
+        "accepted": 0
+       },
+       "0.3": {
+        "decided": 1,
+        "accepted": 1
+       }
+      },
+      "bySource": {
+       "memory": {
+        "decided": 3,
+        "accepted": 2
+       }
+      },
+      "byTyped": {}
+     }
+    ],
+    "forms": [
+     {
+      "form": 1,
+      "confirmed": 0,
+      "outside": 0,
+      "weeks": 0,
+      "perWeek": 0
+     }
+    ],
+    "dwellEdgesSec": [
+     0.5,
+     1,
+     2,
+     4,
+     8,
+     16,
+     32
+    ]
+   }
+  }
+ ]
+}

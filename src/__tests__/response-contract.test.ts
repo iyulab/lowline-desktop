@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AggregateAnswer, Abstention, CaseHit, FieldCurve, IngestResult, ProjectionTable, Suggestion } from '../projection.js'
 import type { ChatReply, LocalModelProgress, LocalModels, ModelFailure, ModelProbeResult, SourceFileFailure, SourceFileReply } from '../vault-client.js'
+import type { WeeklyCountsReport } from '../weekly-counts.js'
 import file from './sidecar-responses.json'
 
 type Item<V> = V extends readonly (infer E)[] ? E : V
@@ -147,6 +148,37 @@ const aggregate: Shape<AggregateAnswer> = {
 }
 
 /** Each answer in the file, and the shape the UI reads it by. */
+const spans = 'required'
+const decided = { presence: 'required', inside: 'any keys' } as const
+const weeklyCounts: Shape<WeeklyCountsReport> = {
+  formRefs: 'required',
+  export: {
+    presence: 'required',
+    inside: {
+      format: 'required',
+      counts: {
+        presence: 'required',
+        inside: {
+          week: 'required',
+          form: 'required',
+          field: 'required',
+          presented: 'required',
+          accepted: 'required',
+          corrected: 'required',
+          rejected: 'required',
+          checked: { presence: 'optional', inside: { entered: 'required', held: 'required' } },
+          bySimilarity: decided,
+          bySource: decided,
+          byTyped: decided,
+        },
+      },
+      forms: { presence: 'required', inside: { form: 'required', confirmed: 'required', outside: 'required', weeks: 'required', perWeek: 'required' } },
+      dwellEdgesSec: spans,
+      presentedSince: 'optional',
+    },
+  },
+}
+
 const answers = {
   ingest,
   projection,
@@ -161,6 +193,7 @@ const answers = {
   sourceFile,
   localModels,
   localPrepare: localProgress,
+  weeklyCounts,
 }
 
 /** The words the UI branches on — every one its types allow, as the compiler holds them to. */

@@ -72,11 +72,13 @@ public sealed record TemplateSnapshot(
 /// confirmed: it stays in the table, and suggestions do not learn from it. <see cref="Id"/> is what it is
 /// known by — the id in its front matter, or its path when it has none — and what events name it by.
 /// <see cref="Proposed"/> names its fields holding a value another program wrote as a suggestion, not a person's
-/// decision: the value stays in the document, but suggestions do not learn from it.
+/// decision: the value stays in the document, but suggestions do not learn from it. <see cref="Outside"/>: the app has
+/// never saved it — its values were written by another program — counted apart in <see cref="WeeklyCounts"/>, learned from
+/// all the same.
 /// </summary>
 public sealed record DocumentSnapshot(
     string Path, string Template, IReadOnlyDictionary<string, JsonElement> Values, long? Modified = null, bool Conflicted = false,
-    string? Id = null, IReadOnlyList<string>? Proposed = null)
+    string? Id = null, IReadOnlyList<string>? Proposed = null, bool Outside = false)
 {
     /// <summary>What suggestions learned and events recorded about the document are keyed by.</summary>
     public string Identity => Id ?? Path;
@@ -88,11 +90,13 @@ public sealed record DocumentSnapshot(
 /// the held-back value as <see cref="Suggested"/>) — read from the vault's event files. <see cref="Doc"/> is the document's <see cref="DocumentSnapshot.Identity"/>, <see cref="Template"/> its
 /// template (absent in events recorded before it was written down), <see cref="Source"/> where the suggestion came
 /// from — <c>key</c> (a value settled alongside one the document has), <c>memory</c> (a similar record), <c>coarse</c> or
-/// <c>proposed</c> — as the event file records it.
+/// <c>proposed</c> — as the event file records it. <see cref="Value"/>, <see cref="Similarity"/>, <see cref="Typed"/>,
+/// <see cref="DecidedTyped"/> and <see cref="DecidedAt"/> are for <see cref="WeeklyCounts"/> alone — not learned from.
 /// </summary>
 public sealed record SuggestionEvent(
     string At, string Doc, string Field, string Kind, string Suggested, string? Template = null, string? Source = null,
-    double? Probability = null, double? Promise = null, string? ShownAt = null);
+    double? Probability = null, double? Promise = null, string? ShownAt = null, JsonElement? Value = null, double? Similarity = null,
+    double? Typed = null, double? DecidedTyped = null, string? DecidedAt = null);
 
 /// <summary>
 /// Everything the sidecar knows about a vault: what the shell read and the UI parsed — templates,
@@ -256,6 +260,8 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
     private Suggestions? _suggestions;
     private CancellationTokenSource? _selecting;
     private IReadOnlyList<FieldCurve> _curves = [];
+    /// <summary>The latest snapshot, for <see cref="WeeklyCountsAsync"/>; empty before the first.</summary>
+    private VaultSnapshot _snapshot = new([], [], []);
 
     /// <summary>The directory the caches live in.</summary>
     public string CacheDirectory { get; } = string.IsNullOrEmpty(cacheDirectory)
@@ -346,6 +352,7 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
             if (_suggestions is { } replaced) _ = ThresholdsSelected.ContinueWith(_ => replaced.Dispose(), TaskScheduler.Default);
             _suggestions = suggestions;
             _curves = curves;
+            _snapshot = vault;
             if (suggestions.NeedsSelection)
             {
                 _selecting = new CancellationTokenSource();
@@ -540,6 +547,22 @@ public sealed class VaultProjection(string? cacheDirectory = null, HostFailures?
     /// The correction curve of every judgment field — empty until a suggestion for it is decided — with how its
     /// saved documents did on replay once its threshold has been chosen, and why not until then.
     /// </summary>
+    public async Task<WeeklyCountsReport> WeeklyCountsAsync(
+        IReadOnlyList<Presentation> presentations, TimeZoneInfo zone, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        VaultSnapshot snapshot;
+        try
+        {
+            snapshot = _snapshot;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        return WeeklyCounts.Compute(snapshot, presentations, zone);
+    }
+
     public async Task<IReadOnlyList<FieldCurve>> CurvesAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);

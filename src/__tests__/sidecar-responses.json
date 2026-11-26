@@ -802,5 +802,126 @@
       "empty",
       "too-long"
     ]
+  },
+  "weeklyCounts": {
+    "formRefs": [
+      "intake@1"
+    ],
+    "export": {
+      "format": "lowline-weekly-counts/1",
+      "counts": [
+        {
+          "week": "2026-09-28",
+          "form": 0,
+          "field": 0,
+          "presented": 0,
+          "accepted": 0,
+          "corrected": 0,
+          "rejected": 0,
+          "bySimilarity": {
+            "0.8": {
+              "decided": 0,
+              "accepted": 0
+            }
+          },
+          "bySource": {
+            "key": {
+              "decided": 0,
+              "accepted": 0
+            }
+          },
+          "byTyped": {
+            "0": {
+              "presented": 0,
+              "decided": 0,
+              "accepted": 0,
+              "dwell": {
+                "accepted": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "acceptedNoTyping": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "acceptedAfterTyping": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "other": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            }
+          },
+          "checked": {
+            "entered": 0,
+            "held": 0
+          }
+        },
+        {
+          "week": "2026-10-05",
+          "form": 0,
+          "field": 0,
+          "presented": 0,
+          "accepted": 0,
+          "corrected": 0,
+          "rejected": 0,
+          "bySimilarity": {},
+          "bySource": {},
+          "byTyped": {
+            "0": {
+              "presented": 0,
+              "decided": 0,
+              "accepted": 0
+            }
+          }
+        }
+      ],
+      "forms": [
+        {
+          "form": 0,
+          "confirmed": 0,
+          "outside": 0,
+          "weeks": 0,
+          "perWeek": 0
+        }
+      ],
+      "dwellEdgesSec": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "presentedSince": "2026-10-05"
+    }
   }
 }

@@ -57,6 +57,9 @@ app.MapPost("/projection", async (ProjectionQuery query, VaultProjection vault, 
     await vault.TableAsync(query.Template, query.Filters ?? [], ct) is { } table ? Results.Ok(table) : Results.NotFound());
 
 app.MapGet("/curves", (VaultProjection vault, CancellationToken ct) => vault.CurvesAsync(ct));
+// The weekly counts, in this computer's time, with this device's record of the suggestions it showed.
+app.MapPost("/weekly-counts", (WeeklyCountsQuery query, VaultProjection vault, CancellationToken ct) =>
+    vault.WeeklyCountsAsync(query.Presentations ?? [], TimeZoneInfo.Local, ct));
 
 // Counts of a template's documents, per value of some fields, each with the documents it is made of.
 app.MapPost("/aggregate", async (AggregateQuery query, VaultProjection vault, CancellationToken ct) =>

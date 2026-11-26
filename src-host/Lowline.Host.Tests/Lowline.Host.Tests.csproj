@@ -21,6 +21,7 @@
     <!-- Written by the UI's snapshot contract test. -->
     <None Include="ui-snapshot.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="ui-requests.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="weekly-counts-cases.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/__tests__/sidecar-responses.json" Link="sidecar-responses.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
