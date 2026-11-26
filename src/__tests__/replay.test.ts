@@ -17,7 +17,7 @@ import { importFields, planImport } from '../import.js'
 import { documentSnapshot, templateSnapshot, type DocumentSnapshot, type Suggestion } from '../projection.js'
 import { documentNames } from '../references.js'
 import { templateId } from '../template-revision.js'
-import { weekOf, type WeeklyCountsReport } from '../weekly-counts.js'
+import type { WeeklyCountsReport } from '../weekly-counts.js'
 
 interface NodeProcess {
   env: Record<string, string | undefined>
@@ -33,6 +33,13 @@ interface NodeProcess {
 }
 const process = (globalThis as { process?: NodeProcess }).process
 const env = process?.env ?? {}
+
+/** The Monday of the week `ms` falls in, in this device's time, as `YYYY-MM-DD` — as the counts write a week. */
+function weekOf(ms: number): string {
+  const at = new Date(ms)
+  const monday = new Date(at.getFullYear(), at.getMonth(), at.getDate() - ((at.getDay() + 6) % 7)) // getDay: 0 = Sunday
+  return [monday.getFullYear(), String(monday.getMonth() + 1).padStart(2, '0'), String(monday.getDate()).padStart(2, '0')].join('-')
+}
 
 /** One line the sidecar's side writes: what was offered for a field, and the fields filled when it was asked. */
 interface Offered {
