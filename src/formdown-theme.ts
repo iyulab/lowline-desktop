@@ -12,6 +12,8 @@ export const formdownTheme = css`
     --formdown-text-primary: var(--dc-color-text);
     --formdown-text-secondary: var(--dc-color-text-secondary);
     --formdown-border-color: var(--dc-color-border);
+    /* A field's outline is a control's, 3:1 on the form's grounds; sections and tables keep the faint line. */
+    --formdown-input-border-color: var(--dc-color-border-control);
     --formdown-accent-color: var(--dc-color-accent);
     --formdown-error-color: var(--dc-color-danger);
     --formdown-success-color: var(--dc-color-success);

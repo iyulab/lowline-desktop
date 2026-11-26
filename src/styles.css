@@ -17,6 +17,8 @@
   --dc-color-surface: #efece5;
   --dc-color-surface-hover: #e7e3da;
   --dc-color-border: #e2ded5;
+  /* A control's outline: warm like the border, and 3:1 on every ground here (paper 3.66 · surface 3.38 · hover 3.11 · raised 3.99). */
+  --dc-color-border-control: #837f77;
   --dc-color-text: var(--ll-ink);
   --dc-color-text-secondary: #5e5c57;
   --dc-color-text-muted: #6b6964;
@@ -39,6 +41,8 @@
     --dc-color-surface: #232322;
     --dc-color-surface-hover: #2c2c2a;
     --dc-color-border: #3a3936;
+    /* 3:1 on every dark ground (paper 3.89 · surface 3.52 · hover 3.13 · raised 3.42). */
+    --dc-color-border-control: #7a776f;
     --dc-color-text: var(--ll-ink);
     --dc-color-text-secondary: #bdbab2;
     --dc-color-text-muted: #9a978f;
